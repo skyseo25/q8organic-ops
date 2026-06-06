@@ -259,6 +259,15 @@ tr:hover td{background:#fafcfb;}
 [dir="ltr"] .order-card.status-delivered{border-right:none;border-left:4px solid var(--green);}
 [dir="ltr"] .order-card.status-returned{border-right:none;border-left:4px solid var(--red);}
 
+/* ── FORCE LATIN NUMERALS ── */
+* { font-variant-numeric: normal; }
+body, .content, table, input, select, textarea, .val, td, th, span, div {
+  font-feature-settings: "tnum"; -webkit-font-feature-settings: "tnum";
+}
+/* منع الأرقام العربية */
+:lang(ar) { -webkit-locale: "en"; }
+.num { font-family: 'DM Sans', sans-serif !important; unicode-bidi: embed; direction: ltr; display: inline-block; }
+
 /* ── PRINT ── */
 @media print{#sidebar,#mob-bar,.topbar,.no-print,.overlay{display:none!important;}#main{margin:0!important;}.content{padding:8px!important;}}
 
@@ -333,6 +342,11 @@ tr:hover td{background:#fafcfb;}
       <div class="topbar-right">
         <span id="topbar-date" style="font-size:.78rem;color:var(--muted2);"></span>
         <span id="topbar-backup" style="font-size:.72rem;color:var(--muted2);display:none">💾 <span id="backup-time-lbl">—</span></span>
+        <!-- زر اللغة في التوبار -->
+        <div style="display:flex;gap:4px;background:var(--bg);border-radius:20px;padding:3px;border:1px solid var(--border)">
+          <button id="topbar-lang-ar" onclick="setLang('ar')" style="padding:4px 12px;border:none;border-radius:16px;font-family:'Cairo',sans-serif;font-size:.72rem;font-weight:700;cursor:pointer;background:var(--green);color:#fff;transition:.15s">ع</button>
+          <button id="topbar-lang-en" onclick="setLang('en')" style="padding:4px 12px;border:none;border-radius:16px;font-family:'Cairo',sans-serif;font-size:.72rem;font-weight:700;cursor:pointer;background:none;color:var(--muted);transition:.15s">EN</button>
+        </div>
         <button onclick="doLogout()" style="display:flex;align-items:center;gap:5px;padding:6px 12px;background:var(--redl);color:var(--red);border:1px solid #f5b8b4;border-radius:8px;font-family:'Cairo',sans-serif;font-size:.75rem;font-weight:700;cursor:pointer;transition:.15s;" onmouseover="this.style.background='#fcc'" onmouseout="this.style.background='var(--redl)'">
           <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
           <span id="lbl-logout">خروج</span>
@@ -492,20 +506,21 @@ tr:hover td{background:#fafcfb;}
       <div class="page" id="page-employees">
         <div class="module-header">
           <div class="dash-card-icon gold" style="width:36px;height:36px;font-size:1rem">👤</div>
-          <h2>الموظفون والمناديب</h2>
+          <h2 id="lbl-emp-title">الموظفون</h2>
         </div>
         <div class="sec-card">
           <div class="sec-header">
-            <h3>جميع الموظفين</h3>
+            <h3 id="lbl-emp-all">جميع الموظفين</h3>
             <div class="sec-header-actions">
-              <button class="btn btn-ghost btn-sm" onclick="openEmpModal('iri')">+ تمديدات</button>
-              <button class="btn btn-ghost btn-sm" onclick="openEmpModal('del')">+ مندوب</button>
-              <button class="btn btn-green btn-sm" onclick="openEmpModal('ops')">+ مستخدم نظام</button>
+              <button class="btn btn-green btn-sm" onclick="openEmpModal('ops')" id="btn-add-emp">
+                <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                <span id="lbl-add-emp">إضافة موظف</span>
+              </button>
             </div>
           </div>
           <div class="tbl-wrap">
             <table><thead><tr>
-              <th>الاسم</th><th>المعرف</th><th>الهاتف</th><th>الدور</th><th>الرمز</th><th></th>
+              <th id="th-emp-name">الاسم</th><th id="th-emp-user">المعرف</th><th id="th-emp-phone">الهاتف</th><th id="th-emp-role">الدور</th><th id="th-emp-sym">الرمز</th><th></th>
             </tr></thead>
             <tbody id="unified-emp-tbody"></tbody></table>
           </div>
@@ -736,24 +751,35 @@ tr:hover td{background:#fafcfb;}
 
 <!-- Inspection Modal -->
 <div class="overlay" id="modal-inspection">
-  <div class="modal">
-    <h3>طلب كشف جديد</h3>
+  <div class="modal" style="max-width:580px">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:8px">
+      <h3 style="margin:0" id="insp-modal-title">طلب كشف جديد</h3>
+      <div style="display:flex;align-items:center;gap:8px">
+        <label style="font-size:.78rem;font-weight:700;color:var(--muted)" id="lbl-insp-num">كشف رقم</label>
+        <input id="insp-num" type="text" style="width:100px;padding:6px 10px;border:1.5px solid var(--border);border-radius:8px;font-family:'Cairo',sans-serif;font-size:.88rem;outline:none" placeholder="#001">
+      </div>
+    </div>
     <input type="hidden" id="insp-edit-id">
+    <!-- بيانات العميل -->
     <div class="form-row">
       <div class="field-m">
-        <label>الهاتف</label>
+        <label id="lbl-insp-phone">الهاتف</label>
         <div style="position:relative">
           <input id="insp-phone" type="tel" oninput="lookupCustomerByPhoneInsp(this.value)" autocomplete="off">
           <div id="insp-phone-suggestions" style="position:absolute;top:100%;right:0;left:0;background:#fff;border:1.5px solid var(--border);border-radius:9px;box-shadow:var(--sh);z-index:700;display:none;max-height:160px;overflow-y:auto;"></div>
         </div>
       </div>
-      <div class="field-m"><label>اسم العميل</label><input id="insp-client" type="text"></div>
+      <div class="field-m"><label id="lbl-insp-client">اسم العميل</label><input id="insp-client" type="text"></div>
     </div>
     <div class="form-row">
-      <div class="field-m"><label>المنطقة</label><input id="insp-area" type="text"></div>
-      <div class="field-m"><label>التاريخ</label><input id="insp-date" type="date"></div>
+      <div class="field-m"><label id="lbl-insp-area">المنطقة</label><input id="insp-area" type="text"></div>
+      <div class="field-m"><label id="lbl-insp-block">القطعة / الشارع</label><input id="insp-block" type="text"></div>
     </div>
-    <div class="field-m"><label>نوع الكشف / Inspection Type</label>
+    <div class="field-m"><label id="lbl-insp-address">العنوان التفصيلي</label><textarea id="insp-address" rows="2"></textarea></div>
+    <div class="field-m"><label id="lbl-insp-location">📍 رابط الموقع</label><input id="insp-location" type="url" placeholder="https://maps.google.com/..."></div>
+    <div class="field-m"><label id="lbl-insp-date">التاريخ</label><input id="insp-date" type="date"></div>
+    <!-- نوع الكشف والتفاصيل -->
+    <div class="field-m"><label id="lbl-insp-type-f">نوع الكشف</label>
       <select id="insp-type">
         <option value="irrigation_ext">تمديد شبكة ري / Irrigation Extension</option>
         <option value="irrigation_mnt">صيانة ري / Irrigation Maintenance</option>
@@ -761,16 +787,21 @@ tr:hover td{background:#fafcfb;}
         <option value="warranty">كفالة / Warranty</option>
       </select>
     </div>
-    <div class="field-m"><label>وصف المشكلة / Description</label><textarea id="insp-desc" rows="3"></textarea></div>
+    <div class="field-m"><label id="lbl-insp-desc">تفاصيل المشكلة</label><textarea id="insp-desc" rows="3"></textarea></div>
     <div class="form-row">
-      <div class="field-m"><label>الموظف المكلف</label><select id="insp-emp"><option value="">—</option></select></div>
-      <div class="field-m"><label>الحالة</label>
-        <select id="insp-status"><option value="new">جديد</option><option value="scheduled">مجدول</option><option value="inspected">تم الكشف</option><option value="closed">مغلق</option></select>
+      <div class="field-m"><label id="lbl-insp-emp">الموظف المكلف</label><select id="insp-emp"><option value="">—</option></select></div>
+      <div class="field-m"><label id="lbl-insp-status-f">الحالة</label>
+        <select id="insp-status">
+          <option value="new">جديد / New</option>
+          <option value="scheduled">مجدول / Scheduled</option>
+          <option value="inspected">تم الكشف / Done</option>
+          <option value="closed">مغلق / Closed</option>
+        </select>
       </div>
     </div>
     <div class="modal-actions">
-      <button class="btn-cancel" onclick="closeModal('modal-inspection')">إلغاء</button>
-      <button class="btn-save" onclick="saveInspection()">حفظ</button>
+      <button class="btn-cancel" onclick="closeModal('modal-inspection')" id="lbl-insp-cancel">إلغاء</button>
+      <button class="btn-save" onclick="saveInspection()" id="lbl-insp-save">حفظ</button>
     </div>
   </div>
 </div>
@@ -804,24 +835,26 @@ tr:hover td{background:#fafcfb;}
     <input type="hidden" id="emp-type">
     <input type="hidden" id="emp-edit-id">
     <div class="form-row">
-      <div class="field-m"><label>الاسم / Name</label><input id="emp-name" type="text"></div>
-      <div class="field-m"><label>اسم المستخدم / Username</label><input id="emp-username" type="text"></div>
+      <div class="field-m"><label id="lbl-emp-name-f">الاسم</label><input id="emp-name" type="text"></div>
+      <div class="field-m"><label id="lbl-emp-user-f">اسم المستخدم</label><input id="emp-username" type="text" autocomplete="off"></div>
     </div>
     <div class="form-row">
-      <div class="field-m"><label>كلمة المرور / Password</label><input id="emp-pass" type="password"></div>
-      <div class="field-m"><label>الرمز / Symbol</label><input id="emp-symbol" type="text" maxlength="3" placeholder="A"></div>
+      <div class="field-m"><label id="lbl-emp-pass-f">كلمة المرور</label><input id="emp-pass" type="password" autocomplete="new-password"></div>
+      <div class="field-m"><label id="lbl-emp-phone-f">الهاتف</label><input id="emp-phone" type="tel"></div>
     </div>
-    <div class="field-m" id="emp-phone-wrap"><label>الهاتف / Phone</label><input id="emp-phone" type="tel"></div>
-    <div class="field-m" id="emp-role-wrap" style="display:none"><label>الدور / Role</label>
-      <select id="emp-role">
-        <option value="manager">مدير / Manager</option>
-        <option value="supervisor">مشرف / Supervisor</option>
-        <option value="employee">موظف / Employee</option>
-      </select>
+    <div class="form-row">
+      <div class="field-m"><label id="lbl-emp-role-f">الدور</label>
+        <select id="emp-role">
+          <option value="manager">مدير / Manager</option>
+          <option value="supervisor">مشرف / Supervisor</option>
+          <option value="employee">موظف / Employee</option>
+        </select>
+      </div>
+      <div class="field-m"><label id="lbl-emp-sym-f">الرمز</label><input id="emp-symbol" type="text" maxlength="3" placeholder="A"></div>
     </div>
     <div class="modal-actions">
-      <button class="btn-cancel" onclick="closeModal('modal-employee')">إلغاء</button>
-      <button class="btn-save" onclick="saveEmployee()">حفظ</button>
+      <button class="btn-cancel" onclick="closeModal('modal-employee')" id="lbl-emp-cancel">إلغاء</button>
+      <button class="btn-save" onclick="saveEmployee()" id="lbl-emp-save">حفظ</button>
     </div>
   </div>
 </div>
@@ -1002,6 +1035,12 @@ window.doLogin = async function(){
     }
 
     if(found){
+      // منع دخول الحسابات المعلقة
+      if(found.suspended){
+        hideLoading();
+        showErr(_lang==='ar'?'حسابك معلق مؤقتاً. تواصل مع المدير.':'Your account is temporarily suspended.');
+        return;
+      }
       _u = found; _role = found.role;
       localStorage.setItem('ops_session', JSON.stringify(found));
       if(_role === 'employee'){ setLang('en'); } else { setLang('ar'); }
@@ -1058,9 +1097,9 @@ function getNavItems(){
   }
   var all = [
     {id:'dashboard', icon:'⊞', ar:'لوحة التحكم', en:'Dashboard', roles:['manager','supervisor','employee']},
-    {id:'orders', icon:'🚚', ar:'طلبات التوصيل والكشف', en:'Delivery & Inspection Orders', roles:['manager','supervisor'], section_ar:'التوصيل', section_en:'Delivery'},
+    {id:'orders', icon:'🚚', ar:'طلبات التوصيل والكشف', en:'Delivery & Inspection', roles:['manager','supervisor'], section_ar:'التوصيل', section_en:'Delivery'},
     {id:'irrigation', icon:'🔧', ar:'الري والصيانة', en:'Irrigation & Maint.', roles:['manager','supervisor','employee'], section_ar:'الصيانة', section_en:'Maintenance'},
-    {id:'customers', icon:'👥', ar:'قاعدة العملاء', en:'Customers', roles:['manager','supervisor']},
+    {id:'customers', icon:'👥', ar:'قاعدة العملاء', en:'Customers', roles:['manager']},
     {id:'employees', icon:'👤', ar:'الموظفون', en:'Employees', roles:['manager','supervisor'], section_ar:'الإدارة', section_en:'Management'},
     {id:'reports', icon:'📊', ar:'التقارير', en:'Reports', roles:['manager','supervisor']},
     {id:'archive', icon:'📦', ar:'الأرشيف', en:'Archive', roles:['manager','supervisor']},
@@ -1172,7 +1211,9 @@ function setupListeners(){
   });
   FB.snap(FB.col(d,'ops_users'),function(sn){
     _sysUsers=sn.docs.map(function(x){return Object.assign({id:x.id},x.data());});
+    populateEmpSelects();
     if(_curPage==='settings') renderSettings();
+    if(_curPage==='employees') renderEmployees();
   });
   FB.snap(FB.q(FB.col(d,'del_reports'),FB.ord('savedAt','desc')),function(sn){
     _delReports=sn.docs.map(function(x){return Object.assign({id:x.id},x.data());});
@@ -1632,14 +1673,23 @@ window.renderInvoices = function(){
 };
 
 function populateEmpSelects(){
-  var sels = ['inv-emp','insp-emp'];
-  sels.forEach(function(sid){
-    var sel=document.getElementById(sid); if(!sel)return;
-    var cur=sel.value;
-    sel.innerHTML='<option value="">—</option>'+_iriUsers.map(function(u){
-      return '<option value="'+u.id+'" '+(u.id===cur?'selected':'')+'>'+u.name+'</option>';
+  // قائمة الموظف في الفاتورة (iri_users) — بدون تغيير
+  var invSel = document.getElementById('inv-emp');
+  if(invSel){
+    var curInv = invSel.value;
+    invSel.innerHTML='<option value="">—</option>'+_iriUsers.map(function(u){
+      return '<option value="'+u.id+'" '+(u.id===curInv?'selected':'')+'>'+u.name+'</option>';
     }).join('');
-  });
+  }
+  // قائمة الموظف المكلف في الكشف — من ops_users (غير معلقين)
+  var inspSel = document.getElementById('insp-emp');
+  if(inspSel){
+    var curInsp = inspSel.value;
+    var activeEmps = _sysUsers.filter(function(u){return !u.suspended;});
+    inspSel.innerHTML='<option value="">—</option>'+activeEmps.map(function(u){
+      return '<option value="'+u.id+'" '+(u.id===curInsp?'selected':'')+'>'+u.name+'</option>';
+    }).join('');
+  }
 }
 
 var _invItems = [];
@@ -1747,18 +1797,44 @@ window.renderInspections = function(){
 window.openInspModal = function(id){
   var ins=id?_inspections.find(function(x){return x.id===id;}):null;
   document.getElementById('insp-edit-id').value=id||'';
+  var isAr = _lang==='ar';
+  // ترجمة الحقول
+  document.getElementById('lbl-insp-num').textContent       = isAr?'كشف رقم':'Inspection #';
+  document.getElementById('lbl-insp-phone').textContent     = isAr?'الهاتف':'Phone';
+  document.getElementById('lbl-insp-client').textContent    = isAr?'اسم العميل':'Client Name';
+  document.getElementById('lbl-insp-area').textContent      = isAr?'المنطقة':'Area';
+  document.getElementById('lbl-insp-block').textContent     = isAr?'القطعة / الشارع':'Block / Street';
+  document.getElementById('lbl-insp-address').textContent   = isAr?'العنوان التفصيلي':'Address';
+  document.getElementById('lbl-insp-location').textContent  = isAr?'📍 رابط الموقع':'📍 Location Link';
+  document.getElementById('lbl-insp-date').textContent      = isAr?'التاريخ':'Date';
+  document.getElementById('lbl-insp-type-f').textContent    = isAr?'نوع الكشف':'Inspection Type';
+  document.getElementById('lbl-insp-desc').textContent      = isAr?'تفاصيل المشكلة':'Problem Details';
+  document.getElementById('lbl-insp-emp').textContent       = isAr?'الموظف المكلف':'Assigned Employee';
+  document.getElementById('lbl-insp-status-f').textContent  = isAr?'الحالة':'Status';
+  document.getElementById('lbl-insp-cancel').textContent    = isAr?'إلغاء':'Cancel';
+  document.getElementById('lbl-insp-save').textContent      = isAr?'حفظ':'Save';
+  document.getElementById('insp-modal-title').textContent   = id?(isAr?'تعديل كشف':'Edit Inspection'):(isAr?'طلب كشف جديد':'New Inspection');
+  // تحديث قائمة الموظفين
+  populateEmpSelects();
   if(ins){
-    document.getElementById('insp-client').value=ins.client||'';
-    document.getElementById('insp-phone').value=ins.phone||'';
-    document.getElementById('insp-area').value=ins.area||'';
-    document.getElementById('insp-date').value=ins.date||'';
-    document.getElementById('insp-desc').value=ins.desc||'';
-    document.getElementById('insp-status').value=ins.status||'new';
-    document.getElementById('insp-emp').value=ins.empId||'';
+    document.getElementById('insp-num').value      = ins.inspNum||'';
+    document.getElementById('insp-client').value   = ins.client||'';
+    document.getElementById('insp-phone').value    = ins.phone||'';
+    document.getElementById('insp-area').value     = ins.area||'';
+    document.getElementById('insp-block').value    = ins.block||'';
+    document.getElementById('insp-address').value  = ins.address||'';
+    document.getElementById('insp-location').value = ins.locationLink||'';
+    document.getElementById('insp-date').value     = ins.date||'';
+    document.getElementById('insp-desc').value     = ins.desc||'';
+    document.getElementById('insp-status').value   = ins.status||'new';
+    document.getElementById('insp-emp').value      = ins.empId||'';
+    document.getElementById('insp-type').value     = ins.inspType||'irrigation_ext';
   } else {
-    ['insp-client','insp-phone','insp-area','insp-desc'].forEach(function(x){document.getElementById(x).value='';});
+    ['insp-num','insp-client','insp-phone','insp-area','insp-block','insp-address','insp-location','insp-desc'].forEach(function(x){document.getElementById(x).value='';});
     document.getElementById('insp-date').value=new Date().toISOString().substring(0,10);
     document.getElementById('insp-status').value='new';
+    document.getElementById('insp-emp').value='';
+    document.getElementById('insp-type').value='irrigation_ext';
   }
   openModal('modal-inspection');
 };
@@ -1770,49 +1846,44 @@ window.saveInspection = async function(){
   if(_savingInsp)return; _savingInsp=true;
   try{
     var eid=document.getElementById('insp-edit-id').value;
-    var emp=_iriUsers.find(function(x){return x.id===document.getElementById('insp-emp').value;});
+    var empId = document.getElementById('insp-emp').value;
+    var emp = _sysUsers.find(function(x){return x.id===empId;});
     var inspType=document.getElementById('insp-type').value;
     var data={
-      client:document.getElementById('insp-client').value.trim(),
-      phone:document.getElementById('insp-phone').value.trim(),
-      area:document.getElementById('insp-area').value.trim(),
-      date:document.getElementById('insp-date').value,
-      inspType:inspType,
-      desc:document.getElementById('insp-desc').value.trim(),
-      status:document.getElementById('insp-status').value,
-      empId:document.getElementById('insp-emp').value,
-      empName:emp?emp.name:'',
+      inspNum: document.getElementById('insp-num').value.trim(),
+      client:  document.getElementById('insp-client').value.trim(),
+      phone:   document.getElementById('insp-phone').value.trim(),
+      area:    document.getElementById('insp-area').value.trim(),
+      block:   document.getElementById('insp-block').value.trim(),
+      address: document.getElementById('insp-address').value.trim(),
+      locationLink: document.getElementById('insp-location').value.trim(),
+      date:    document.getElementById('insp-date').value,
+      inspType, desc: document.getElementById('insp-desc').value.trim(),
+      status:  document.getElementById('insp-status').value,
+      empId, empName: emp?emp.name:'',
       updatedAt:window.FB.ts()
     };
-    if(!data.client){toast('أدخل اسم العميل');return;}
+    if(!data.client){toast(_lang==='ar'?'أدخل اسم العميل':'Enter client name');return;}
     if(eid){
       await window.FB.upd(window.FB.doc(window.FB.db,'iri_inspections',eid),data);
-      toast('✅ تم التعديل');
+      toast('✅ '+(_lang==='ar'?'تم التعديل':'Updated'));
     } else {
       data.createdAt=window.FB.ts();
       await window.FB.add(window.FB.col(window.FB.db,'iri_inspections'),data);
-      // إضافة تلقائية في del_orders بدون مندوب
+      // إضافة تلقائية في del_orders
       var orderData={
-        clientName:data.client,
-        phone:data.phone,
-        area:data.area,
-        address:'',
-        orderType:'inspection',
-        inspType:inspType,
+        clientName:data.client, phone:data.phone, area:data.area,
+        block:data.block, address:data.address, locationLink:data.locationLink,
+        orderType:'inspection', inspType, inspNum:data.inspNum,
         inspTypeAr:INS_TYPE_AR[inspType]||inspType,
         inspTypeEn:INS_TYPE_EN[inspType]||inspType,
-        notes:data.desc,
-        courierId:'',courierName:'',
-        paymentType:'free',
-        amount:0,
-        status:'pending',
-        createdAt:window.FB.ts(),
-        createdBy:_u.id||_u.username
+        notes:data.desc, courierId:'', courierName:'',
+        paymentType:'free', amount:0, status:'pending',
+        createdAt:window.FB.ts(), createdBy:_u.id||_u.username
       };
       await window.FB.add(window.FB.col(window.FB.db,'del_orders'),orderData);
-      // حفظ بيانات العميل تلقائياً
-      await autoSaveCustomer(data.client, data.phone, data.area, '', '');
-      toast('✅ تم إضافة طلب الكشف وأُرسل لقسم التوصيل');
+      await autoSaveCustomer(data.client,data.phone,data.area,data.block,data.address,data.locationLink);
+      toast('✅ '+(_lang==='ar'?'تم إضافة طلب الكشف وأُرسل لقسم التوصيل':'Inspection added & sent to delivery'));
     }
     closeModal('modal-inspection');
   }finally{_savingInsp=false;}
@@ -1864,83 +1935,68 @@ window.delCustomer=async function(id){if(!confirm('حذف؟'))return;await windo
 // EMPLOYEES
 // ══════════════════════════════════════════════
 window.renderEmployees=function(){
-  // Unified list: ops_users (manager/supervisor/employee) + iri_users + del_users
-  var ROLE_BADGE = {
-    manager:'<span class="tag tag-green" style="font-size:.68rem">مدير</span>',
-    supervisor:'<span class="tag tag-blue" style="font-size:.68rem">مشرف</span>',
-    employee:'<span class="tag tag-gray" style="font-size:.68rem">موظف</span>',
-    iri:'<span class="tag" style="font-size:.68rem;background:#e8f5e9;color:#1a7a40;border:1px solid #b8dfc4">🔧 تمديدات</span>',
-    del:'<span class="tag" style="font-size:.68rem;background:#fff0e8;color:#c05a10;border:1px solid #f0c8a0">🚚 مندوب</span>',
+  var ROLE_LABEL = {
+    manager:  {ar:'مدير',      en:'Manager'},
+    supervisor:{ar:'مشرف',    en:'Supervisor'},
+    employee:  {ar:'موظف',    en:'Employee'},
   };
+  var ROLE_CL = {manager:'tag-green', supervisor:'tag-blue', employee:'tag-gray'};
   var rows = '';
-  // ops_users
   _sysUsers.forEach(function(u){
-    var badge = ROLE_BADGE[u.role]||ROLE_BADGE.employee;
-    rows += '<tr>'
-      +'<td><b>'+u.name+'</b></td>'
+    var rl = ROLE_LABEL[u.role]||{ar:u.role,en:u.role};
+    var susp = u.suspended;
+    var suspBtn = (_role==='manager')
+      ? '<button class="btn-edit-sm" style="'+(susp?'background:#e8f5e9;color:#1a7a40':'background:#fff8e0;color:#b8720a')+'" onclick="toggleSuspend(\''+u.id+'\','+!!susp+')">'+(susp?(_lang==='ar'?'تفعيل':'Activate'):(_lang==='ar'?'تعليق':'Suspend'))+'</button> '
+      : '';
+    rows += '<tr style="'+(susp?'opacity:.45;':'')+'">'
+      +'<td><b>'+u.name+'</b>'+(susp?'<span style="font-size:.68rem;color:#b8720a;margin-'+((_lang==='ar')?'right':'left')+':6px">⏸ '+(_lang==='ar'?'معلق':'Suspended')+'</span>':'')+'</td>'
       +'<td><code style="background:#f0f4f2;padding:2px 6px;border-radius:4px;font-size:.78rem">'+u.username+'</code></td>'
       +'<td>'+(u.phone||'—')+'</td>'
-      +'<td>'+badge+'</td>'
-      +'<td><span class="sb-avatar" style="width:24px;height:24px;font-size:.72rem;background:var(--gm);color:var(--green);display:inline-flex">'+(u.symbol||u.name[0].toUpperCase())+'</span></td>'
+      +'<td><span class="tag '+(ROLE_CL[u.role]||'tag-gray')+'" style="font-size:.7rem">'+(_lang==='ar'?rl.ar:rl.en)+'</span></td>'
+      +'<td><span style="width:26px;height:26px;border-radius:50%;background:var(--gm);color:var(--green);display:inline-flex;align-items:center;justify-content:center;font-weight:900;font-size:.8rem">'+(u.symbol||(u.name[0]||'?').toUpperCase())+'</span></td>'
       +'<td style="white-space:nowrap">'
-        +'<button class="btn-edit-sm" onclick="openEmpModal(\'ops\',\''+u.id+'\')">'+t('edit')+'</button> '
-        +'<button class="btn-danger" onclick="delEmp(\'ops\',\''+u.id+'\')">✕</button>'
-      +'</td></tr>';
-  });
-  // iri_users
-  _iriUsers.forEach(function(u){
-    rows += '<tr>'
-      +'<td><b>'+u.name+'</b></td>'
-      +'<td><code style="background:#f0f4f2;padding:2px 6px;border-radius:4px;font-size:.78rem">'+u.username+'</code></td>'
-      +'<td>'+(u.phone||'—')+'</td>'
-      +'<td>'+ROLE_BADGE.iri+'</td>'
-      +'<td><span class="sb-avatar" style="width:24px;height:24px;font-size:.72rem;background:var(--gm);color:var(--green);display:inline-flex">'+(u.symbol||u.name[0].toUpperCase())+'</span></td>'
-      +'<td style="white-space:nowrap">'
-        +'<button class="btn-edit-sm" onclick="openEmpModal(\'iri\',\''+u.id+'\')">'+t('edit')+'</button> '
-        +'<button class="btn-danger" onclick="delEmp(\'iri\',\''+u.id+'\')">✕</button>'
-      +'</td></tr>';
-  });
-  // del_users
-  _delUsers.forEach(function(u){
-    var bal = parseFloat(u.balance||0);
-    rows += '<tr>'
-      +'<td><b>'+u.name+'</b></td>'
-      +'<td><code style="background:#f0f4f2;padding:2px 6px;border-radius:4px;font-size:.78rem">'+u.username+'</code></td>'
-      +'<td>'+(u.phone||'—')+'</td>'
-      +'<td>'
-        +ROLE_BADGE.del
-        +' <span style="font-weight:800;color:'+(bal>0?'var(--gold)':'var(--muted2)')+'">'+bal.toFixed(3)+' KD</span>'
-        +(bal>0&&_role==='manager'?' <button class="btn-danger" style="font-size:.68rem;padding:2px 8px" onclick="resetCourierBalance(\''+u.id+'\',\''+u.name+'\','+bal+')">دفع ✓</button>':'')
-      +'</td>'
-      +'<td><span class="sb-avatar" style="width:24px;height:24px;font-size:.72rem;background:#fff0e8;color:#c05a10;display:inline-flex">'+(u.symbol||u.name[0].toUpperCase())+'</span></td>'
-      +'<td style="white-space:nowrap">'
-        +'<button class="btn-edit-sm" onclick="openEmpModal(\'del\',\''+u.id+'\')">'+t('edit')+'</button> '
-        +'<button class="btn-danger" onclick="delEmp(\'del\',\''+u.id+'\')">✕</button>'
+        +'<button class="btn-edit-sm" onclick="openEmpModal(\'ops\',\''+u.id+'\')">'+(_lang==='ar'?'تعديل':'Edit')+'</button> '
+        +suspBtn
+        +(_role==='manager'?'<button class="btn-danger" onclick="delEmp(\'ops\',\''+u.id+'\')">✕</button>':'')
       +'</td></tr>';
   });
   var unified = document.getElementById('unified-emp-tbody');
-  if(unified) unified.innerHTML = rows || '<tr><td colspan="6" class="empty">لا يوجد موظفون</td></tr>';
+  if(unified) unified.innerHTML = rows || '<tr><td colspan="6" class="empty">'+(  _lang==='ar'?'لا يوجد موظفون':'No employees')+'</td></tr>';
 };
 
 window.openEmpModal=function(type,id){
-  var src = type==='iri'?_iriUsers : type==='del'?_delUsers : _sysUsers;
-  var u=id?src.find(function(x){return x.id===id;}):null;
-  document.getElementById('emp-type').value=type;
-  document.getElementById('emp-edit-id').value=id||'';
-  document.getElementById('emp-modal-title').textContent=
-    type==='iri'?'موظف الري والصيانة':type==='del'?'مندوب التوصيل':'مستخدم النظام';
-  document.getElementById('emp-phone-wrap').style.display=(type==='del'||type==='ops')?'block':'none';
-  var roleWrap=document.getElementById('emp-role-wrap');
-  if(roleWrap) roleWrap.style.display=type==='ops'?'block':'none';
-  if(u){
-    document.getElementById('emp-name').value=u.name||'';
-    document.getElementById('emp-username').value=u.username||'';
-    document.getElementById('emp-symbol').value=u.symbol||'';
-    document.getElementById('emp-phone').value=u.phone||'';
-    if(type==='ops'&&document.getElementById('emp-role')) document.getElementById('emp-role').value=u.role||'employee';
+  document.getElementById('emp-type').value = 'ops';
+  document.getElementById('emp-edit-id').value = id||'';
+  var isAr = _lang==='ar';
+  document.getElementById('emp-modal-title').textContent = id
+    ? (isAr?'تعديل موظف':'Edit Employee')
+    : (isAr?'إضافة موظف':'Add Employee');
+  document.getElementById('lbl-emp-name-f').textContent  = isAr?'الاسم':'Name';
+  document.getElementById('lbl-emp-user-f').textContent  = isAr?'اسم المستخدم':'Username';
+  document.getElementById('lbl-emp-pass-f').textContent  = isAr?'كلمة المرور':'Password';
+  document.getElementById('lbl-emp-phone-f').textContent = isAr?'الهاتف':'Phone';
+  document.getElementById('lbl-emp-role-f').textContent  = isAr?'الدور':'Role';
+  document.getElementById('lbl-emp-sym-f').textContent   = isAr?'الرمز':'Symbol';
+  document.getElementById('lbl-emp-cancel').textContent  = isAr?'إلغاء':'Cancel';
+  document.getElementById('lbl-emp-save').textContent    = isAr?'حفظ':'Save';
+  // تحديث خيارات الدور بحسب اللغة
+  var roleEl = document.getElementById('emp-role');
+  roleEl.options[0].text = isAr?'مدير':'Manager';
+  roleEl.options[1].text = isAr?'مشرف':'Supervisor';
+  roleEl.options[2].text = isAr?'موظف':'Employee';
+  if(id){
+    var u = _sysUsers.find(function(x){return x.id===id;});
+    if(u){
+      document.getElementById('emp-name').value     = u.name||'';
+      document.getElementById('emp-username').value = u.username||'';
+      document.getElementById('emp-pass').value     = '';
+      document.getElementById('emp-phone').value    = u.phone||'';
+      document.getElementById('emp-symbol').value   = u.symbol||'';
+      document.getElementById('emp-role').value     = u.role||'employee';
+    }
   } else {
-    ['emp-name','emp-username','emp-pass','emp-symbol','emp-phone'].forEach(function(x){document.getElementById(x).value='';});
-    if(type==='ops'&&document.getElementById('emp-role')) document.getElementById('emp-role').value='employee';
+    ['emp-name','emp-username','emp-pass','emp-phone','emp-symbol'].forEach(function(x){document.getElementById(x).value='';});
+    document.getElementById('emp-role').value = 'employee';
   }
   openModal('modal-employee');
 };
@@ -1949,31 +2005,48 @@ var _savingEmp=false;
 window.saveEmployee=async function(){
   if(_savingEmp)return; _savingEmp=true;
   try{
-    var type=document.getElementById('emp-type').value;
-    var eid=document.getElementById('emp-edit-id').value;
-    var col=type==='iri'?'iri_users':type==='del'?'del_users':'ops_users';
-    var data={name:document.getElementById('emp-name').value.trim(),username:document.getElementById('emp-username').value.trim(),
-      symbol:document.getElementById('emp-symbol').value.trim().toUpperCase()||'?',updatedAt:window.FB.ts()};
-    var pass=document.getElementById('emp-pass').value;
-    if(pass)data.password=pass;
-    if(type==='del'||type==='ops') data.phone=document.getElementById('emp-phone').value.trim();
-    if(type==='ops'&&document.getElementById('emp-role')) data.role=document.getElementById('emp-role').value;
-    if(!data.name){toast('أدخل الاسم');return;}
-    if(!eid&&!pass){toast('أدخل كلمة المرور');return;}
-    if(eid){await window.FB.upd(window.FB.doc(window.FB.db,col,eid),data);toast('✅ تم التعديل');}
-    else{
-      data.createdAt=window.FB.ts();
-      if(type==='del')data.balance=0;
-      await window.FB.add(window.FB.col(window.FB.db,col),data);
-      toast('✅ تمت الإضافة');
+    var eid  = document.getElementById('emp-edit-id').value;
+    var data = {
+      name:     document.getElementById('emp-name').value.trim(),
+      username: document.getElementById('emp-username').value.trim(),
+      phone:    document.getElementById('emp-phone').value.trim(),
+      role:     document.getElementById('emp-role').value,
+      symbol:   (document.getElementById('emp-symbol').value.trim().toUpperCase()||'?'),
+      updatedAt:window.FB.ts()
+    };
+    var pass = document.getElementById('emp-pass').value;
+    if(pass) data.password = pass;
+    if(!data.name){toast(_lang==='ar'?'أدخل الاسم':'Enter name');return;}
+    if(!eid&&!pass){toast(_lang==='ar'?'أدخل كلمة المرور':'Enter password');return;}
+    if(eid){
+      await window.FB.upd(window.FB.doc(window.FB.db,'ops_users',eid),data);
+      toast('✅ '+(_lang==='ar'?'تم التعديل':'Updated'));
+    } else {
+      data.createdAt = window.FB.ts();
+      await window.FB.add(window.FB.col(window.FB.db,'ops_users'),data);
+      toast('✅ '+(_lang==='ar'?'تمت الإضافة':'Added'));
     }
     closeModal('modal-employee');
   }finally{_savingEmp=false;}
 };
+
 window.delEmp=async function(type,id){
-  if(!confirm('حذف؟'))return;
+  if(!confirm(_lang==='ar'?'حذف؟':'Delete?'))return;
   var col=type==='iri'?'iri_users':type==='del'?'del_users':'ops_users';
-  await window.FB.del(window.FB.doc(window.FB.db,col,id));toast('تم');
+  await window.FB.del(window.FB.doc(window.FB.db,col,id));
+  toast(_lang==='ar'?'تم الحذف':'Deleted');
+};
+
+window.toggleSuspend=async function(id, currentlySuspended){
+  var newVal = !currentlySuspended;
+  var u = _sysUsers.find(function(x){return x.id===id;});
+  var name = u?u.name:id;
+  try{
+    await window.FB.upd(window.FB.doc(window.FB.db,'ops_users',id),{suspended:newVal,updatedAt:window.FB.ts()});
+    toast(newVal
+      ? '⏸ '+(_lang==='ar'?'تم تعليق حساب ':'Suspended: ')+name
+      : '✅ '+(_lang==='ar'?'تم تفعيل حساب ':'Activated: ')+name);
+  }catch(e){toast('خطأ: '+e.message);}
 };
 
 window.resetCourierBalance=async function(id,name,bal){
@@ -2423,8 +2496,14 @@ window.saveSysSettings=async function(){
 // ══════════════════════════════════════════════
 window.setLang=function(lang){
   _lang=lang;
+  // sidebar buttons
   document.getElementById('lang-ar').classList.toggle('active',lang==='ar');
   document.getElementById('lang-en').classList.toggle('active',lang==='en');
+  // topbar buttons
+  var tAr = document.getElementById('topbar-lang-ar');
+  var tEn = document.getElementById('topbar-lang-en');
+  if(tAr){ tAr.style.background = lang==='ar'?'var(--green)':'none'; tAr.style.color = lang==='ar'?'#fff':'var(--muted)'; }
+  if(tEn){ tEn.style.background = lang==='en'?'var(--green)':'none'; tEn.style.color = lang==='en'?'#fff':'var(--muted)'; }
   document.documentElement.setAttribute('lang',lang);
   document.documentElement.setAttribute('dir',lang==='ar'?'rtl':'ltr');
   var lbl=document.getElementById('lbl-logout');
