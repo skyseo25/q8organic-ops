@@ -1245,17 +1245,21 @@ window.renderCourierView = function(){
   var myId = _u.id || _u.username;
   var myOrders = _orders.filter(function(o){ return o.courierId === myId; });
 
+  // اقرأ الرصيد المحفوظ في del_users
+  var myCourierData = _delUsers.find(function(u){ return u.id===myId; });
+  var savedBalance = myCourierData ? parseFloat(myCourierData.balance||0) : 0;
+
   // --- Stats ---
   var active = myOrders.filter(function(o){ return o.status!=='delivered'&&o.status!=='returned'; }).length;
   var delivered = myOrders.filter(function(o){ return o.status==='delivered'&&o.orderType!=='inspection'; }).length;
-  var bonus = calcBonus(myOrders);
+
   var h = document.getElementById('courier-header-wrap');
   if(h) h.innerHTML = '<div class="courier-header">'
     +'<div class="courier-header-info">'
     +'<h2>👋 '+(typeof _lang!=='undefined'&&_lang==='ar'?'أهلاً ':'Hello ')+(_u.name||_u.username)+'</h2>'
-    +'<p>'+(new Date().toLocaleDateString('ar-KW',{weekday:'long',year:'numeric',month:'long',day:'numeric'}))+'</p>'
+    +'<p>'+(new Date().toLocaleDateString(_lang==='ar'?'ar-KW':'en-GB',{weekday:'long',year:'numeric',month:'long',day:'numeric'}))+'</p>'
     +'</div>'
-    +'<div class="courier-bonus-box"><div class="bon-val">'+bonus.toFixed(3)+'</div><div class="bon-lbl">KD مكافأة</div></div>'
+    +'<div class="courier-bonus-box"><div class="bon-val">'+savedBalance.toFixed(3)+'</div><div class="bon-lbl">KD مكافأة</div></div>'
     +'</div>';
 
   var s = document.getElementById('courier-stats-wrap');
@@ -1365,8 +1369,40 @@ window.setCourierFilter = function(f){
 
 window.updateOrderStatus = async function(id, status){
   try{
+    var order = _orders.find(function(o){ return o.id===id; });
+    if(!order){ toast('طلب غير موجود'); return; }
+
+    var prevStatus = order.status;
     await window.FB.upd(window.FB.doc(window.FB.db,'del_orders',id),{status:status,updatedAt:window.FB.ts()});
-    toast(status==='delivered'?'✅ تم التسليم':status==='returned'?'↩️ مرتجع':'✅ تم التحديث');
+
+    // احتساب المكافأة عند التسليم فقط (مو كشف، مو مرتجع)
+    if(status==='delivered' && prevStatus!=='delivered' && order.orderType!=='inspection' && order.courierId){
+      var dt = order.createdAt&&order.createdAt.toDate ? order.createdAt.toDate() : new Date();
+      var bonusAmt = dt.getDay()===5 ? 0.5 : 0.25; // الجمعة 0.5، باقي الأيام 0.25
+      // أضف المكافأة لرصيد المندوب في del_users
+      var courier = _delUsers.find(function(u){ return u.id===order.courierId; });
+      if(courier){
+        var newBal = parseFloat(courier.balance||0) + bonusAmt;
+        await window.FB.upd(window.FB.doc(window.FB.db,'del_users',order.courierId),{balance:newBal,updatedAt:window.FB.ts()});
+        toast('✅ تم التسليم · مكافأة +'+bonusAmt.toFixed(3)+' KD');
+      } else {
+        toast('✅ تم التسليم');
+      }
+    }
+    // إذا كان delivered قبل وتم تغييره (تراجع) - اطرح المكافأة
+    else if(prevStatus==='delivered' && status!=='delivered' && order.orderType!=='inspection' && order.courierId){
+      var dtR = order.createdAt&&order.createdAt.toDate ? order.createdAt.toDate() : new Date();
+      var bonusR = dtR.getDay()===5 ? 0.5 : 0.25;
+      var courierR = _delUsers.find(function(u){ return u.id===order.courierId; });
+      if(courierR){
+        var newBalR = Math.max(0, parseFloat(courierR.balance||0) - bonusR);
+        await window.FB.upd(window.FB.doc(window.FB.db,'del_users',order.courierId),{balance:newBalR,updatedAt:window.FB.ts()});
+      }
+      toast(status==='returned'?'↩️ مرتجع':'✅ تم التحديث');
+    }
+    else {
+      toast(status==='returned'?'↩️ مرتجع':'✅ تم التحديث');
+    }
   }catch(e){ toast('خطأ: '+e.message); }
 };
 var _irrTab = 'ext';
@@ -1676,11 +1712,16 @@ window.renderEmployees=function(){
   });
   // del_users
   _delUsers.forEach(function(u){
+    var bal = parseFloat(u.balance||0);
     rows += '<tr>'
       +'<td><b>'+u.name+'</b></td>'
       +'<td><code style="background:#f0f4f2;padding:2px 6px;border-radius:4px;font-size:.78rem">'+u.username+'</code></td>'
       +'<td>'+(u.phone||'—')+'</td>'
-      +'<td>'+ROLE_BADGE.del+' <small style="color:var(--muted2)">'+(u.balance||0).toFixed(3)+' KD</small></td>'
+      +'<td>'
+        +ROLE_BADGE.del
+        +' <span style="font-weight:800;color:'+(bal>0?'var(--gold)':'var(--muted2)')+'">'+bal.toFixed(3)+' KD</span>'
+        +(bal>0&&_role==='manager'?' <button class="btn-danger" style="font-size:.68rem;padding:2px 8px" onclick="resetCourierBalance(\''+u.id+'\',\''+u.name+'\','+bal+')">دفع ✓</button>':'')
+      +'</td>'
       +'<td><span class="sb-avatar" style="width:24px;height:24px;font-size:.72rem;background:#fff0e8;color:#c05a10;display:inline-flex">'+(u.symbol||u.name[0].toUpperCase())+'</span></td>'
       +'<td style="white-space:nowrap">'
         +'<button class="btn-edit-sm" onclick="openEmpModal(\'del\',\''+u.id+'\')">'+t('edit')+'</button> '
@@ -1743,6 +1784,14 @@ window.delEmp=async function(type,id){
   if(!confirm('حذف؟'))return;
   var col=type==='iri'?'iri_users':type==='del'?'del_users':'ops_users';
   await window.FB.del(window.FB.doc(window.FB.db,col,id));toast('تم');
+};
+
+window.resetCourierBalance=async function(id,name,bal){
+  if(!confirm('تأكيد دفع مكافأة '+name+' بقيمة '+parseFloat(bal).toFixed(3)+' KD وتصفير رصيده؟'))return;
+  try{
+    await window.FB.upd(window.FB.doc(window.FB.db,'del_users',id),{balance:0,lastPaid:parseFloat(bal),lastPaidAt:window.FB.ts(),updatedAt:window.FB.ts()});
+    toast('✅ تم دفع '+parseFloat(bal).toFixed(3)+' KD وتصفير رصيد '+name);
+  }catch(e){ toast('خطأ: '+e.message); }
 };
 
 // ══════════════════════════════════════════════
