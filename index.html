@@ -852,6 +852,9 @@ function showErr(msg){ var e=document.getElementById('login-err'); e.textContent
 function startApp(){
   document.getElementById('login-screen').classList.remove('show');
   document.getElementById('app').classList.add('show');
+  // تأكد من الاتجاه الصحيح
+  document.documentElement.setAttribute('lang', _lang);
+  document.documentElement.setAttribute('dir', _lang==='ar'?'rtl':'ltr');
   updateUI();
   setupListeners();
   showPage('dashboard');
@@ -928,7 +931,9 @@ window.showPage = function(page){
   // Page title
   var items = getNavItems();
   var found = items.find(function(x){ return x.id===page; });
-  document.getElementById('page-title').textContent = found ? (_lang==='ar'?found.ar:found.en) : page;
+  var titles = {dashboard:'لوحة التحكم',orders:'طلبات التوصيل والكشف',irrigation:'الري والصيانة',customers:'العملاء',employees:'الموظفون',reports:'التقارير',archive:'الأرشيف',settings:'الإعدادات'};
+  var titlesEn = {dashboard:'Dashboard',orders:'Delivery & Inspection',irrigation:'Irrigation & Maint.',customers:'Customers',employees:'Employees',reports:'Reports',archive:'Archive',settings:'Settings'};
+  document.getElementById('page-title').textContent = found ? (_lang==='ar'?found.ar:found.en) : (_lang==='ar'?(titles[page]||page):(titlesEn[page]||page));
   // Render
   if(page==='dashboard') renderDashboard();
   if(page==='orders') renderOrders();
