@@ -447,24 +447,20 @@ tr:hover td{background:#fafcfb;}
           <div class="dash-card-icon gold" style="width:36px;height:36px;font-size:1rem">👤</div>
           <h2>الموظفون والمناديب</h2>
         </div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;flex-wrap:wrap;">
-          <!-- Irrigation Employees -->
-          <div class="sec-card">
-            <div class="sec-header">
-              <h3>موظفو الري والصيانة</h3>
-              <button class="btn btn-green btn-sm" onclick="openEmpModal('iri')">+ إضافة</button>
+        <div class="sec-card">
+          <div class="sec-header">
+            <h3>جميع الموظفين</h3>
+            <div class="sec-header-actions">
+              <button class="btn btn-ghost btn-sm" onclick="openEmpModal('iri')">+ تمديدات</button>
+              <button class="btn btn-ghost btn-sm" onclick="openEmpModal('del')">+ مندوب</button>
+              <button class="btn btn-green btn-sm" onclick="openEmpModal('ops')">+ مستخدم نظام</button>
             </div>
-            <div class="tbl-wrap"><table><thead><tr><th>الاسم</th><th>المعرف</th><th>الرمز</th><th></th></tr></thead>
-            <tbody id="iri-users-tbody"></tbody></table></div>
           </div>
-          <!-- Delivery Couriers -->
-          <div class="sec-card">
-            <div class="sec-header">
-              <h3>مناديب التوصيل</h3>
-              <button class="btn btn-green btn-sm" onclick="openEmpModal('del')">+ إضافة</button>
-            </div>
-            <div class="tbl-wrap"><table><thead><tr><th>الاسم</th><th>الهاتف</th><th>الرصيد</th><th></th></tr></thead>
-            <tbody id="del-users-tbody"></tbody></table></div>
+          <div class="tbl-wrap">
+            <table><thead><tr>
+              <th>الاسم</th><th>المعرف</th><th>الهاتف</th><th>الدور</th><th>الرمز</th><th></th>
+            </tr></thead>
+            <tbody id="unified-emp-tbody"></tbody></table>
           </div>
         </div>
       </div>
@@ -711,6 +707,13 @@ tr:hover td{background:#fafcfb;}
       <div class="field-m"><label>الرمز / Symbol</label><input id="emp-symbol" type="text" maxlength="3" placeholder="A"></div>
     </div>
     <div class="field-m" id="emp-phone-wrap"><label>الهاتف / Phone</label><input id="emp-phone" type="tel"></div>
+    <div class="field-m" id="emp-role-wrap" style="display:none"><label>الدور / Role</label>
+      <select id="emp-role">
+        <option value="manager">مدير / Manager</option>
+        <option value="supervisor">مشرف / Supervisor</option>
+        <option value="employee">موظف / Employee</option>
+      </select>
+    </div>
     <div class="modal-actions">
       <button class="btn-cancel" onclick="closeModal('modal-employee')">إلغاء</button>
       <button class="btn-save" onclick="saveEmployee()">حفظ</button>
@@ -834,26 +837,46 @@ window.doLogin = async function(){
   if(!user||!pass){ showErr('يرجى تعبئة جميع الحقول / Please fill all fields'); return; }
   showLoading('جاري التحقق... / Verifying...');
   try {
-    var snap = await window.FB.gets(window.FB.col(window.FB.db,'ops_users'));
     var found = null;
+
+    // 1) Search ops_users (managers/supervisors/employees)
+    var snap = await window.FB.gets(window.FB.col(window.FB.db,'ops_users'));
     snap.forEach(function(d){
       var ud = d.data();
       if(ud.username === user && ud.password === pass) found = Object.assign({id:d.id},ud);
     });
+
+    // 2) Search del_users (couriers) — role = 'employee'
     if(!found){
-      // Check default admin
-      if(user==='admin'&&pass==='admin123'){
-        found = {id:'default',name:'Admin',username:'admin',role:'manager',symbol:'A'};
-        // Create default admin
-        try{ await window.FB.add(window.FB.col(window.FB.db,'ops_users'),
-          {name:'Admin',username:'admin',password:'admin123',role:'manager',symbol:'A',createdAt:window.FB.ts()});
-        }catch(e){}
-      }
+      var snap2 = await window.FB.gets(window.FB.col(window.FB.db,'del_users'));
+      snap2.forEach(function(d){
+        var ud = d.data();
+        if(ud.username === user && ud.password === pass)
+          found = Object.assign({id:d.id},ud,{role:'employee',_source:'del'});
+      });
     }
+
+    // 3) Search iri_users (irrigation staff) — role = 'employee'
+    if(!found){
+      var snap3 = await window.FB.gets(window.FB.col(window.FB.db,'iri_users'));
+      snap3.forEach(function(d){
+        var ud = d.data();
+        if(ud.username === user && ud.password === pass)
+          found = Object.assign({id:d.id},ud,{role:'employee',_source:'iri'});
+      });
+    }
+
+    // 4) Default admin fallback
+    if(!found && user==='admin' && pass==='admin123'){
+      found = {id:'default',name:'Admin',username:'admin',role:'manager',symbol:'A'};
+      try{ await window.FB.add(window.FB.col(window.FB.db,'ops_users'),
+        {name:'Admin',username:'admin',password:'admin123',role:'manager',symbol:'A',createdAt:window.FB.ts()});
+      }catch(e){}
+    }
+
     if(found){
       _u = found; _role = found.role;
       localStorage.setItem('ops_session', JSON.stringify(found));
-      // Set lang based on role
       if(_role === 'employee'){ setLang('en'); } else { setLang('ar'); }
       hideLoading();
       startApp();
@@ -1419,27 +1442,79 @@ window.delCustomer=async function(id){if(!confirm('حذف؟'))return;await windo
 // EMPLOYEES
 // ══════════════════════════════════════════════
 window.renderEmployees=function(){
-  document.getElementById('iri-users-tbody').innerHTML=_iriUsers.map(function(u){
-    return '<tr><td><b>'+u.name+'</b></td><td><code style="background:#f0f4f2;padding:2px 6px;border-radius:4px;font-size:.78rem">'+u.username+'</code></td>'
-      +'<td><span class="sb-avatar" style="width:26px;height:26px;font-size:.75rem;background:var(--gm);color:var(--green);display:inline-flex">'+u.symbol+'</span></td>'
-      +'<td>'+(_role==='manager'?'<button class="btn-danger" onclick="delEmp(\'iri\',\''+u.id+'\')">✕</button>':'')+'</td></tr>';
-  }).join('')||'<tr><td colspan="4" class="empty">—</td></tr>';
-  document.getElementById('del-users-tbody').innerHTML=_delUsers.map(function(u){
-    return '<tr><td><b>'+u.name+'</b></td><td>'+(u.phone||'—')+'</td>'
-      +'<td><span style="font-family:monospace;font-size:.85rem">'+(u.balance||0).toFixed(3)+' KD</span></td>'
-      +'<td>'+(_role==='manager'?'<button class="btn-danger" onclick="delEmp(\'del\',\''+u.id+'\')">✕</button>':'')+'</td></tr>';
-  }).join('')||'<tr><td colspan="4" class="empty">—</td></tr>';
+  // Unified list: ops_users (manager/supervisor/employee) + iri_users + del_users
+  var ROLE_BADGE = {
+    manager:'<span class="tag tag-green" style="font-size:.68rem">مدير</span>',
+    supervisor:'<span class="tag tag-blue" style="font-size:.68rem">مشرف</span>',
+    employee:'<span class="tag tag-gray" style="font-size:.68rem">موظف</span>',
+    iri:'<span class="tag" style="font-size:.68rem;background:#e8f5e9;color:#1a7a40;border:1px solid #b8dfc4">🔧 تمديدات</span>',
+    del:'<span class="tag" style="font-size:.68rem;background:#fff0e8;color:#c05a10;border:1px solid #f0c8a0">🚚 مندوب</span>',
+  };
+  var rows = '';
+  // ops_users
+  _sysUsers.forEach(function(u){
+    var badge = ROLE_BADGE[u.role]||ROLE_BADGE.employee;
+    rows += '<tr>'
+      +'<td><b>'+u.name+'</b></td>'
+      +'<td><code style="background:#f0f4f2;padding:2px 6px;border-radius:4px;font-size:.78rem">'+u.username+'</code></td>'
+      +'<td>'+(u.phone||'—')+'</td>'
+      +'<td>'+badge+'</td>'
+      +'<td><span class="sb-avatar" style="width:24px;height:24px;font-size:.72rem;background:var(--gm);color:var(--green);display:inline-flex">'+(u.symbol||u.name[0].toUpperCase())+'</span></td>'
+      +'<td style="white-space:nowrap">'
+        +'<button class="btn-edit-sm" onclick="openEmpModal(\'ops\',\''+u.id+'\')">'+t('edit')+'</button> '
+        +'<button class="btn-danger" onclick="delEmp(\'ops\',\''+u.id+'\')">✕</button>'
+      +'</td></tr>';
+  });
+  // iri_users
+  _iriUsers.forEach(function(u){
+    rows += '<tr>'
+      +'<td><b>'+u.name+'</b></td>'
+      +'<td><code style="background:#f0f4f2;padding:2px 6px;border-radius:4px;font-size:.78rem">'+u.username+'</code></td>'
+      +'<td>'+(u.phone||'—')+'</td>'
+      +'<td>'+ROLE_BADGE.iri+'</td>'
+      +'<td><span class="sb-avatar" style="width:24px;height:24px;font-size:.72rem;background:var(--gm);color:var(--green);display:inline-flex">'+(u.symbol||u.name[0].toUpperCase())+'</span></td>'
+      +'<td style="white-space:nowrap">'
+        +'<button class="btn-edit-sm" onclick="openEmpModal(\'iri\',\''+u.id+'\')">'+t('edit')+'</button> '
+        +'<button class="btn-danger" onclick="delEmp(\'iri\',\''+u.id+'\')">✕</button>'
+      +'</td></tr>';
+  });
+  // del_users
+  _delUsers.forEach(function(u){
+    rows += '<tr>'
+      +'<td><b>'+u.name+'</b></td>'
+      +'<td><code style="background:#f0f4f2;padding:2px 6px;border-radius:4px;font-size:.78rem">'+u.username+'</code></td>'
+      +'<td>'+(u.phone||'—')+'</td>'
+      +'<td>'+ROLE_BADGE.del+' <small style="color:var(--muted2)">'+(u.balance||0).toFixed(3)+' KD</small></td>'
+      +'<td><span class="sb-avatar" style="width:24px;height:24px;font-size:.72rem;background:#fff0e8;color:#c05a10;display:inline-flex">'+(u.symbol||u.name[0].toUpperCase())+'</span></td>'
+      +'<td style="white-space:nowrap">'
+        +'<button class="btn-edit-sm" onclick="openEmpModal(\'del\',\''+u.id+'\')">'+t('edit')+'</button> '
+        +'<button class="btn-danger" onclick="delEmp(\'del\',\''+u.id+'\')">✕</button>'
+      +'</td></tr>';
+  });
+  var unified = document.getElementById('unified-emp-tbody');
+  if(unified) unified.innerHTML = rows || '<tr><td colspan="6" class="empty">لا يوجد موظفون</td></tr>';
 };
 
 window.openEmpModal=function(type,id){
-  var u=id?(type==='iri'?_iriUsers:_delUsers).find(function(x){return x.id===id;}):null;
+  var src = type==='iri'?_iriUsers : type==='del'?_delUsers : _sysUsers;
+  var u=id?src.find(function(x){return x.id===id;}):null;
   document.getElementById('emp-type').value=type;
   document.getElementById('emp-edit-id').value=id||'';
-  document.getElementById('emp-modal-title').textContent=type==='iri'?'موظف الري والصيانة':'مندوب التوصيل';
-  document.getElementById('emp-phone-wrap').style.display=type==='del'?'block':'none';
-  if(u){document.getElementById('emp-name').value=u.name||'';document.getElementById('emp-username').value=u.username||'';
-    document.getElementById('emp-symbol').value=u.symbol||'';document.getElementById('emp-phone').value=u.phone||'';}
-  else{['emp-name','emp-username','emp-pass','emp-symbol','emp-phone'].forEach(function(x){document.getElementById(x).value='';});}
+  document.getElementById('emp-modal-title').textContent=
+    type==='iri'?'موظف الري والصيانة':type==='del'?'مندوب التوصيل':'مستخدم النظام';
+  document.getElementById('emp-phone-wrap').style.display=(type==='del'||type==='ops')?'block':'none';
+  var roleWrap=document.getElementById('emp-role-wrap');
+  if(roleWrap) roleWrap.style.display=type==='ops'?'block':'none';
+  if(u){
+    document.getElementById('emp-name').value=u.name||'';
+    document.getElementById('emp-username').value=u.username||'';
+    document.getElementById('emp-symbol').value=u.symbol||'';
+    document.getElementById('emp-phone').value=u.phone||'';
+    if(type==='ops'&&document.getElementById('emp-role')) document.getElementById('emp-role').value=u.role||'employee';
+  } else {
+    ['emp-name','emp-username','emp-pass','emp-symbol','emp-phone'].forEach(function(x){document.getElementById(x).value='';});
+    if(type==='ops'&&document.getElementById('emp-role')) document.getElementById('emp-role').value='employee';
+  }
   openModal('modal-employee');
 };
 
@@ -1449,19 +1524,30 @@ window.saveEmployee=async function(){
   try{
     var type=document.getElementById('emp-type').value;
     var eid=document.getElementById('emp-edit-id').value;
-    var col=type==='iri'?'iri_users':'del_users';
+    var col=type==='iri'?'iri_users':type==='del'?'del_users':'ops_users';
     var data={name:document.getElementById('emp-name').value.trim(),username:document.getElementById('emp-username').value.trim(),
-      symbol:document.getElementById('emp-symbol').value.trim().toUpperCase(),updatedAt:window.FB.ts()};
+      symbol:document.getElementById('emp-symbol').value.trim().toUpperCase()||'?',updatedAt:window.FB.ts()};
     var pass=document.getElementById('emp-pass').value;
     if(pass)data.password=pass;
-    if(type==='del')data.phone=document.getElementById('emp-phone').value.trim();
+    if(type==='del'||type==='ops') data.phone=document.getElementById('emp-phone').value.trim();
+    if(type==='ops'&&document.getElementById('emp-role')) data.role=document.getElementById('emp-role').value;
     if(!data.name){toast('أدخل الاسم');return;}
-    if(eid){await window.FB.upd(window.FB.doc(window.FB.db,col,eid),data);toast('✅');}
-    else{data.createdAt=window.FB.ts();if(type==='del')data.balance=0;await window.FB.add(window.FB.col(window.FB.db,col),data);toast('✅ تمت الإضافة');}
+    if(!eid&&!pass){toast('أدخل كلمة المرور');return;}
+    if(eid){await window.FB.upd(window.FB.doc(window.FB.db,col,eid),data);toast('✅ تم التعديل');}
+    else{
+      data.createdAt=window.FB.ts();
+      if(type==='del')data.balance=0;
+      await window.FB.add(window.FB.col(window.FB.db,col),data);
+      toast('✅ تمت الإضافة');
+    }
     closeModal('modal-employee');
   }finally{_savingEmp=false;}
 };
-window.delEmp=async function(type,id){if(!confirm('حذف؟'))return;await window.FB.del(window.FB.doc(window.FB.db,type==='iri'?'iri_users':'del_users',id));toast('تم');};
+window.delEmp=async function(type,id){
+  if(!confirm('حذف؟'))return;
+  var col=type==='iri'?'iri_users':type==='del'?'del_users':'ops_users';
+  await window.FB.del(window.FB.doc(window.FB.db,col,id));toast('تم');
+};
 
 // ══════════════════════════════════════════════
 // REPORTS
