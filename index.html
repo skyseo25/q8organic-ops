@@ -582,6 +582,7 @@ tr:hover td{background:#fafcfb;}
       <div class="field-m"><label>القطعة/الشارع / Block-Street</label><input id="ord-block" type="text"></div>
     </div>
     <div class="field-m"><label>العنوان التفصيلي / Address</label><textarea id="ord-address" rows="2"></textarea></div>
+    <div class="field-m"><label>📍 رابط الموقع / Location Link</label><input id="ord-location" type="url" placeholder="https://maps.google.com/..."></div>
     <div class="form-row">
       <div class="field-m"><label>المبلغ / Amount (KD)</label><input id="ord-amount" type="number" step="0.001" min="0"></div>
       <div class="field-m"><label>الدفع / Payment</label>
@@ -1074,7 +1075,10 @@ window.renderOrders = function(){
     var courier = o.courierId
       ? '<b>'+(o.courierName||'—')+'</b>'
       : '<span style="color:var(--muted2);font-size:.75rem">'+(_lang==='ar'?'لم يُحدد':'Not assigned')+'</span>';
-    return '<tr><td>'+(i+1)+'</td>'      +'<td><b>'+(o.clientName||'—')+'</b><br><small style="color:var(--muted2)">'+(o.phone||'')+'</small></td>'      +'<td>'+(o.area||'—')+'</td>'      +'<td>'+typeTag+'</td>'      +'<td>'+courier+'</td>'      +'<td><span class="status '+s.cl+'">'+(_lang==='ar'?s.ar:s.en)+'</span></td>'      +'<td><button class="btn-edit-sm" onclick="openOrderModal(\''+o.id+'\')">'+t('edit')+'</button> '      +(_role==='manager'?'<button class="btn-danger" onclick="delOrder(\''+o.id+'\')">✕</button>':'')+'</td></tr>';
+    var locBtn = o.locationLink
+      ? '<a href="'+o.locationLink+'" target="_blank" style="display:inline-flex;align-items:center;gap:3px;background:#e8f5e9;color:#1a7a40;border:1px solid #b8dfc4;border-radius:6px;padding:2px 8px;font-size:.72rem;font-weight:700;text-decoration:none;margin-top:3px">📍 '+ (_lang==='ar'?'الموقع':'Map') +'</a>'
+      : '';
+    return '<tr><td>'+(i+1)+'</td>'      +'<td><b>'+(o.clientName||'—')+'</b><br><small style="color:var(--muted2)">'+(o.phone||'')+'</small></td>'      +'<td>'+(o.area||'—')+'<br>'+(o.block?'<small style="color:var(--muted2)">'+o.block+'</small>':'')+(locBtn?'<br>'+locBtn:'')+'</td>'      +'<td>'+typeTag+'</td>'      +'<td>'+courier+'</td>'      +'<td><span class="status '+s.cl+'">'+(_lang==='ar'?s.ar:s.en)+'</span></td>'      +'<td><button class="btn-edit-sm" onclick="openOrderModal(\''+o.id+'\')">'+t('edit')+'</button> '      +(_role==='manager'?'<button class="btn-danger" onclick="delOrder(\''+o.id+'\')">✕</button>':'')+'</td></tr>';
   }).join('') || '<tr><td colspan="7" class="empty">'+ (_lang==='ar'?'لا توجد طلبات':'No orders') +'</td></tr>';
 };
 
@@ -1100,9 +1104,10 @@ window.openOrderModal = function(id){
       document.getElementById('ord-payment').value=o.paymentType||'cash';
       document.getElementById('ord-courier').value=o.courierId||'';
       document.getElementById('ord-notes').value=o.notes||'';
+      document.getElementById('ord-location').value=o.locationLink||'';
     }
   } else {
-    ['ord-client','ord-phone','ord-area','ord-block','ord-address','ord-amount','ord-notes'].forEach(function(x){document.getElementById(x).value='';});
+    ['ord-client','ord-phone','ord-area','ord-block','ord-address','ord-amount','ord-notes','ord-location'].forEach(function(x){document.getElementById(x).value='';});;
     document.getElementById('ord-payment').value='cash';
     document.getElementById('ord-courier').value='';
   }
@@ -1126,6 +1131,7 @@ window.saveOrder = async function(){
       paymentType:document.getElementById('ord-payment').value,
       courierId:cid, courierName:courier?courier.name:'',
       notes:document.getElementById('ord-notes').value.trim(),
+      locationLink:document.getElementById('ord-location').value.trim(),
       updatedAt:window.FB.ts()
     };
     if(!data.clientName){toast(_lang==='ar'?'أدخل اسم العميل':'Enter client name');return;}
