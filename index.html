@@ -435,7 +435,7 @@ body, .content, table, input, select, textarea, .val, td, th, span, div {
               </button>
             </div>
             <div class="tbl-wrap"><table><thead><tr>
-              <th>التاريخ</th><th>العميل</th><th>الوصف</th><th>المبلغ</th><th>الحالة</th><th></th>
+              <th id="th-inv-date1">التاريخ</th><th id="th-inv-client1">العميل</th><th id="th-inv-desc1">الوصف</th><th id="th-inv-amount1">المبلغ</th><th id="th-inv-status1">الحالة</th><th></th>
             </tr></thead><tbody id="ext-tbody"></tbody></table></div>
           </div>
         </div>
@@ -449,7 +449,7 @@ body, .content, table, input, select, textarea, .val, td, th, span, div {
               </button>
             </div>
             <div class="tbl-wrap"><table><thead><tr>
-              <th>التاريخ</th><th>العميل</th><th>الوصف</th><th>المبلغ</th><th>الحالة</th><th></th>
+              <th id="th-inv-date2">التاريخ</th><th id="th-inv-client2">العميل</th><th id="th-inv-desc2">الوصف</th><th id="th-inv-amount2">المبلغ</th><th id="th-inv-status2">الحالة</th><th></th>
             </tr></thead><tbody id="mnt-tbody"></tbody></table></div>
           </div>
         </div>
@@ -463,7 +463,7 @@ body, .content, table, input, select, textarea, .val, td, th, span, div {
               </button>
             </div>
             <div class="tbl-wrap"><table><thead><tr>
-              <th>التاريخ</th><th>العميل</th><th>الهاتف</th><th>المنطقة</th><th>الحالة</th><th>الموظف</th><th></th>
+              <th id="th-insp-date">التاريخ</th><th id="th-insp-client">العميل</th><th id="th-insp-phone">الهاتف</th><th id="th-insp-area">المنطقة</th><th id="th-insp-status">الحالة</th><th id="th-insp-emp">الموظف</th><th></th>
             </tr></thead><tbody id="insp-tbody"></tbody></table></div>
           </div>
         </div>
@@ -473,7 +473,7 @@ body, .content, table, input, select, textarea, .val, td, th, span, div {
               <input class="filter-input" id="inv-search" oninput="renderInvoices()" placeholder="بحث..." style="width:180px;">
             </div>
             <div class="tbl-wrap"><table><thead><tr>
-              <th>التاريخ</th><th>العميل</th><th>النوع</th><th>المبلغ</th><th>الحالة</th><th></th>
+              <th id="th-inv-date3">التاريخ</th><th id="th-inv-client3">العميل</th><th id="th-inv-type3">النوع</th><th id="th-inv-amount3">المبلغ</th><th id="th-inv-status3">الحالة</th><th></th>
             </tr></thead><tbody id="saved-tbody"></tbody></table></div>
           </div>
         </div>
@@ -584,7 +584,7 @@ body, .content, table, input, select, textarea, .val, td, th, span, div {
             <input class="filter-input" id="arch-search" oninput="renderArchive()" placeholder="بحث..." style="width:180px;">
           </div>
           <div class="tbl-wrap"><table><thead><tr>
-            <th>التاريخ</th><th>العميل</th><th>المنطقة</th><th>المندوب</th><th>الحالة</th>
+            <th id="th-arch-date">التاريخ</th><th id="th-arch-client">العميل</th><th id="th-arch-area">المنطقة</th><th id="th-arch-courier">المندوب</th><th id="th-arch-status">الحالة</th>
           </tr></thead><tbody id="archive-tbody"></tbody></table></div>
         </div>
       </div>
@@ -1378,7 +1378,7 @@ window.renderOrders = function(){
     }
     return '<tr><td>'+(i+1)+'</td>'
       +'<td><b>'+(o.clientName||'—')+'</b><br><small style="color:var(--muted2)">'+(o.phone||'')+'</small>'+(o.orderNum?'<br><span style="background:#e8f0ff;color:#1a4a8a;padding:1px 6px;border-radius:4px;font-size:.68rem;font-weight:800">📦 '+o.orderNum+'</span>':'')+'</td>'
-      +'<td>'+(o.area||'—')+'<br>'+(o.block?'<small style="color:var(--muted2)">'+o.block+'</small>':'')+(locBtn?'<br>'+locBtn:'')+'</td>'
+      +'<td>'+(_lang==='en'?translateArea(o.area||''):o.area||'—')+'<br>'+(o.block?'<small style="color:var(--muted2)">'+o.block+'</small>':'')+(locBtn?'<br>'+locBtn:'')+'</td>'
       +'<td>'+typeTag+'</td>'
       +'<td>'+courier+'</td>'
       +'<td><span class="status '+s.cl+'">'+(_lang==='ar'?s.ar:s.en)+'</span></td>'
@@ -1731,7 +1731,7 @@ window.showIrrTab = function(tab){
 window.renderInvoices = function(){
   var type = _irrTab==='ext'?'ext':_irrTab==='mnt'?'mnt':null;
   var search = (document.getElementById('inv-search')||{}).value||'';
-  var ST={draft:{cl:'st-pending',ar:'مسودة',en:'Draft'},sent:{cl:'st-done',ar:'مرسلة',en:'Sent'},paid:{cl:'st-active',ar:'مدفوعة',en:'Paid'}};
+  var ST={draft:{cl:'st-pending',ar:'مسودة',en:'Draft'},sent:{cl:'st-done',ar:'مرسلة',en:'Sent'},paid:{cl:'st-active',ar:'مدفوعة',en:'Paid'}};  // status labels already bilingual
   ['ext','mnt','saved'].forEach(function(tab){
     var tbody = document.getElementById(tab+'-tbody');
     if(!tbody)return;
@@ -1745,7 +1745,7 @@ window.renderInvoices = function(){
       var dt = inv.createdAt&&inv.createdAt.toDate?inv.createdAt.toDate().toLocaleDateString(_lang==='ar'?'ar-KW':'en-GB'):'—';
       var s=ST[inv.status]||{cl:'st-gray',ar:inv.status,en:inv.status};
       return '<tr><td>'+dt+'</td><td>'+( inv.client||'—')+'</td>'
-        +(tab==='saved'?'<td><span class="tag '+(inv.type==='ext'?'tag-green':'tag-blue')+'">'+(inv.type==='ext'?'تمديد':'صيانة')+'</span></td>':'<td>'+(inv.desc||'—').substring(0,30)+'</td>')
+        +(tab==='saved'?'<td><span class="tag '+(inv.type==='ext'?'tag-green':'tag-blue')+'">'+(inv.type==='ext'?(_lang==='ar'?'تمديد':'Extension'):(_lang==='ar'?'صيانة':'Maintenance'))+'</span></td>':'<td>'+(inv.desc||'—').substring(0,30)+'</td>')
         +'<td><b>'+(inv.total||0).toFixed(3)+' د.ك</b></td>'
         +'<td><span class="status '+s.cl+'">'+(_lang==='ar'?s.ar:s.en)+'</span></td>'
         +'<td><button class="btn-edit-sm" onclick="openInvModal(null,\''+inv.id+'\')">'+t('edit')+'</button> '
@@ -1869,7 +1869,7 @@ window.renderInspections = function(){
     var dt=ins.createdAt&&ins.createdAt.toDate?ins.createdAt.toDate().toLocaleDateString(_lang==='ar'?'ar-KW':'en-GB'):'—';
     var s=ST[ins.status]||{cl:'st-gray',ar:ins.status,en:ins.status};
     return '<tr><td>'+dt+'</td><td>'+( ins.client||'—')+'</td><td>'+( ins.phone||'—')+'</td>'
-      +'<td>'+(ins.area||'—')+'</td><td><span class="status '+s.cl+'">'+(_lang==='ar'?s.ar:s.en)+'</span></td>'
+      +'<td>'+(_lang==='en'?translateArea(ins.area||''):ins.area||'—')+'</td><td><span class="status '+s.cl+'">'+(_lang==='ar'?s.ar:s.en)+'</span></td>'
       +'<td>'+(ins.empName||'—')+'</td>'
       +'<td><button class="btn-edit-sm" onclick="openInspModal(\''+ins.id+'\')">'+t('edit')+'</button> '
       +(_role==='manager'?'<button class="btn-danger" onclick="delInsp(\''+ins.id+'\')">✕</button>':'')+'</td></tr>';
@@ -2638,6 +2638,24 @@ function applyStaticLang(lang){
     'th-rpt-knet':    '💳 Knet'
   };
   Object.keys(rptHdrs).forEach(function(id){ var el=document.getElementById(id); if(el) el.textContent=rptHdrs[id]; });
+  // irrigation/inspection/archive table headers
+  var tblHdrs = {
+    'th-inv-date1': isAr?'التاريخ':'Date', 'th-inv-client1': isAr?'العميل':'Client',
+    'th-inv-desc1':  isAr?'الوصف':'Description', 'th-inv-amount1': isAr?'المبلغ':'Amount', 'th-inv-status1': isAr?'الحالة':'Status',
+    'th-inv-date2': isAr?'التاريخ':'Date', 'th-inv-client2': isAr?'العميل':'Client',
+    'th-inv-desc2':  isAr?'الوصف':'Description', 'th-inv-amount2': isAr?'المبلغ':'Amount', 'th-inv-status2': isAr?'الحالة':'Status',
+    'th-inv-date3': isAr?'التاريخ':'Date', 'th-inv-client3': isAr?'العميل':'Client',
+    'th-inv-type3':  isAr?'النوع':'Type',    'th-inv-amount3': isAr?'المبلغ':'Amount', 'th-inv-status3': isAr?'الحالة':'Status',
+    'th-insp-date':  isAr?'التاريخ':'Date',  'th-insp-client': isAr?'العميل':'Client',
+    'th-insp-phone': isAr?'الهاتف':'Phone',  'th-insp-area':   isAr?'المنطقة':'Area',
+    'th-insp-status':isAr?'الحالة':'Status', 'th-insp-emp':    isAr?'الموظف':'Employee',
+    'th-arch-date':  isAr?'التاريخ':'Date',  'th-arch-client': isAr?'العميل':'Client',
+    'th-arch-area':  isAr?'المنطقة':'Area',  'th-arch-courier':isAr?'المندوب':'Courier',
+    'th-arch-status':isAr?'الحالة':'Status',
+    'th-date':  isAr?'التاريخ':'Date', 'th-type': isAr?'النوع':'Type',
+    'th-desc':  isAr?'الوصف':'Description', 'th-status': isAr?'الحالة':'Status',
+  };
+  Object.keys(tblHdrs).forEach(function(id){ var el=document.getElementById(id); if(el) el.textContent=tblHdrs[id]; });
   updateBackupTime();
 }
 
