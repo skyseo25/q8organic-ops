@@ -225,6 +225,40 @@ tr:hover td{background:#fafcfb;}
 }
 @media(min-width:769px){#mob-bar{display:none!important;}#mob-menu-btn{display:none!important;}#mob-drawer{display:none!important;}#mob-drawer-overlay{display:none!important;}#sidebar{display:flex!important;}}
 
+/* ── COURIER VIEW ── */
+.courier-header{background:linear-gradient(135deg,var(--green) 0%,var(--green2) 100%);border-radius:var(--radius);padding:20px 22px;color:#fff;margin-bottom:18px;display:flex;align-items:center;justify-content:space-between;gap:12px;}
+.courier-header-info h2{font-size:1.1rem;font-weight:900;margin-bottom:2px;}
+.courier-header-info p{font-size:.78rem;opacity:.8;}
+.courier-bonus-box{background:rgba(255,255,255,.15);border-radius:12px;padding:10px 16px;text-align:center;min-width:90px;}
+.courier-bonus-box .bon-val{font-size:1.4rem;font-weight:900;}
+.courier-bonus-box .bon-lbl{font-size:.68rem;opacity:.8;}
+.courier-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:18px;}
+.cour-stat{background:var(--white);border-radius:12px;padding:14px 12px;text-align:center;border:1px solid var(--border);box-shadow:var(--sh);}
+.cour-stat .sv{font-size:1.4rem;font-weight:900;color:var(--text);}
+.cour-stat .sl{font-size:.68rem;color:var(--muted);margin-top:2px;}
+.order-card{background:var(--white);border-radius:14px;border:1px solid var(--border);box-shadow:var(--sh);margin-bottom:12px;overflow:hidden;transition:.2s;}
+.order-card-head{padding:14px 16px;display:flex;align-items:flex-start;justify-content:space-between;gap:10px;}
+.order-card-num{font-size:.72rem;font-weight:700;color:var(--muted2);margin-bottom:3px;}
+.order-card-name{font-size:1rem;font-weight:900;color:var(--text);}
+.order-card-phone{font-size:.82rem;color:var(--muted);margin-top:2px;}
+.order-card-body{padding:0 16px 14px;display:flex;flex-direction:column;gap:6px;}
+.order-card-row{display:flex;align-items:center;gap:8px;font-size:.82rem;color:var(--muted);}
+.order-card-row b{color:var(--text);}
+.order-card-foot{padding:12px 16px;border-top:1px solid var(--border);background:#fafcfb;display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;}
+.st-btn{padding:7px 12px;border:none;border-radius:8px;font-family:'Cairo',sans-serif;font-size:.75rem;font-weight:700;cursor:pointer;transition:.15s;}
+.st-btn-received{background:#e8f5e9;color:#1a7a40;border:1.5px solid #b8dfc4;}.st-btn-received:hover{background:#b8dfc4;}
+.st-btn-delivering{background:#e8f0ff;color:#1a4a8a;border:1.5px solid #c8d8f8;}.st-btn-delivering:hover{background:#c8d8f8;}
+.st-btn-delivered{background:#1a7a40;color:#fff;}.st-btn-delivered:hover{background:#0d5c30;}
+.st-btn-noreply{background:#fff5e0;color:#b8720a;border:1.5px solid #f0d080;}.st-btn-noreply:hover{background:#f0d080;}
+.st-btn-returned{background:#fdecea;color:#c0392b;border:1.5px solid #f5b8b4;}.st-btn-returned:hover{background:#f5b8b4;}
+.order-card.status-delivered{border-right:4px solid var(--green);}
+.order-card.status-returned{border-right:4px solid var(--red);}
+.order-card.status-delivering{border-right:4px solid var(--blue);}
+.order-card.status-pending,.order-card.status-received{border-right:4px solid var(--gold);}
+.order-amount-badge{background:var(--goldl);color:var(--gold);padding:4px 10px;border-radius:20px;font-size:.78rem;font-weight:800;}
+[dir="ltr"] .order-card.status-delivered{border-right:none;border-left:4px solid var(--green);}
+[dir="ltr"] .order-card.status-returned{border-right:none;border-left:4px solid var(--red);}
+
 /* ── PRINT ── */
 @media print{#sidebar,#mob-bar,.topbar,.no-print,.overlay{display:none!important;}#main{margin:0!important;}.content{padding:8px!important;}}
 
@@ -349,6 +383,14 @@ tr:hover td{background:#fafcfb;}
             </tr></thead><tbody id="orders-tbody"></tbody></table>
           </div>
         </div>
+      </div>
+
+      <!-- COURIER VIEW PAGE -->
+      <div class="page" id="page-courier">
+        <div id="courier-header-wrap"></div>
+        <div class="courier-stats" id="courier-stats-wrap"></div>
+        <div id="courier-filter-wrap" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;"></div>
+        <div id="courier-orders-wrap"></div>
       </div>
 
       <!-- IRRIGATION / MAINTENANCE -->
@@ -898,13 +940,16 @@ function showErr(msg){ var e=document.getElementById('login-err'); e.textContent
 function startApp(){
   document.getElementById('login-screen').classList.remove('show');
   document.getElementById('app').classList.add('show');
-  // تأكد من الاتجاه الصحيح
   document.documentElement.setAttribute('lang', _lang);
   document.documentElement.setAttribute('dir', _lang==='ar'?'rtl':'ltr');
   updateUI();
   setupListeners();
-  showPage('dashboard');
-  // Date in topbar
+  // المندوب (_source=del) يذهب لصفحته الخاصة
+  if(_u._source === 'del'){
+    showPage('courier');
+  } else {
+    showPage('dashboard');
+  }
   document.getElementById('topbar-date').textContent = new Date().toLocaleDateString(_lang==='ar'?'ar-KW':'en-GB',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
 }
 
@@ -920,9 +965,15 @@ function updateUI(){
 // SIDEBAR
 // ══════════════════════════════════════════════
 function getNavItems(){
+  // المندوب (del) له قائمة خاصة
+  if(_u && _u._source === 'del'){
+    return [
+      {id:'courier', icon:'🚚', ar:'طلباتي', en:'My Orders', roles:['employee']},
+    ];
+  }
   var all = [
     {id:'dashboard', icon:'⊞', ar:'لوحة التحكم', en:'Dashboard', roles:['manager','supervisor','employee']},
-    {id:'orders', icon:'🚚', ar:'طلبات التوصيل والكشف', en:'Delivery & Inspection Orders', roles:['manager','supervisor','employee'], section_ar:'التوصيل', section_en:'Delivery'},
+    {id:'orders', icon:'🚚', ar:'طلبات التوصيل والكشف', en:'Delivery & Inspection Orders', roles:['manager','supervisor'], section_ar:'التوصيل', section_en:'Delivery'},
     {id:'irrigation', icon:'🔧', ar:'الري والصيانة', en:'Irrigation & Maint.', roles:['manager','supervisor','employee'], section_ar:'الصيانة', section_en:'Maintenance'},
     {id:'customers', icon:'👥', ar:'قاعدة العملاء', en:'Customers', roles:['manager','supervisor']},
     {id:'employees', icon:'👤', ar:'الموظفون', en:'Employees', roles:['manager','supervisor'], section_ar:'الإدارة', section_en:'Management'},
@@ -977,12 +1028,13 @@ window.showPage = function(page){
   // Page title
   var items = getNavItems();
   var found = items.find(function(x){ return x.id===page; });
-  var titles = {dashboard:'لوحة التحكم',orders:'طلبات التوصيل والكشف',irrigation:'الري والصيانة',customers:'العملاء',employees:'الموظفون',reports:'التقارير',archive:'الأرشيف',settings:'الإعدادات'};
-  var titlesEn = {dashboard:'Dashboard',orders:'Delivery & Inspection',irrigation:'Irrigation & Maint.',customers:'Customers',employees:'Employees',reports:'Reports',archive:'Archive',settings:'Settings'};
+  var titles = {dashboard:'لوحة التحكم',orders:'طلبات التوصيل والكشف',courier:'طلباتي',irrigation:'الري والصيانة',customers:'العملاء',employees:'الموظفون',reports:'التقارير',archive:'الأرشيف',settings:'الإعدادات'};
+  var titlesEn = {dashboard:'Dashboard',orders:'Delivery & Inspection',courier:'My Orders',irrigation:'Irrigation & Maint.',customers:'Customers',employees:'Employees',reports:'Reports',archive:'Archive',settings:'Settings'};
   document.getElementById('page-title').textContent = found ? (_lang==='ar'?found.ar:found.en) : (_lang==='ar'?(titles[page]||page):(titlesEn[page]||page));
   // Render
   if(page==='dashboard') renderDashboard();
   if(page==='orders') renderOrders();
+  if(page==='courier') renderCourierView();
   if(page==='irrigation') renderInvoices();
   if(page==='customers') renderCustomers();
   if(page==='employees') renderEmployees();
@@ -999,6 +1051,7 @@ function setupListeners(){
     _orders=sn.docs.map(function(x){return Object.assign({id:x.id},x.data());});
     if(_curPage==='dashboard') renderDashboard();
     if(_curPage==='orders') renderOrders();
+    if(_curPage==='courier') renderCourierView();
   });
   FB.snap(FB.q(FB.col(d,'del_archived'),FB.ord('createdAt','desc')),function(sn){
     _archived=sn.docs.map(function(x){return Object.assign({id:x.id},x.data());});
@@ -1171,8 +1224,151 @@ window.delOrder = async function(id){
 };
 
 // ══════════════════════════════════════════════
-// IRRIGATION / INVOICES
+// COURIER VIEW
 // ══════════════════════════════════════════════
+var _courierFilter = 'active'; // active | all | delivered | returned
+
+function calcBonus(orders){
+  // فقط طلبات التوصيل (مو كشف) المُسلَّمة
+  var total = 0;
+  orders.forEach(function(o){
+    if(o.status !== 'delivered') return;
+    if(o.orderType === 'inspection') return;
+    var dt = o.createdAt && o.createdAt.toDate ? o.createdAt.toDate() : new Date();
+    var day = dt.getDay(); // 5 = Friday
+    total += (day === 5) ? 0.5 : 0.25;
+  });
+  return total;
+}
+
+window.renderCourierView = function(){
+  var myId = _u.id || _u.username;
+  var myOrders = _orders.filter(function(o){ return o.courierId === myId; });
+
+  // --- Stats ---
+  var active = myOrders.filter(function(o){ return o.status!=='delivered'&&o.status!=='returned'; }).length;
+  var delivered = myOrders.filter(function(o){ return o.status==='delivered'&&o.orderType!=='inspection'; }).length;
+  var bonus = calcBonus(myOrders);
+  var h = document.getElementById('courier-header-wrap');
+  if(h) h.innerHTML = '<div class="courier-header">'
+    +'<div class="courier-header-info">'
+    +'<h2>👋 '+(typeof _lang!=='undefined'&&_lang==='ar'?'أهلاً ':'Hello ')+(_u.name||_u.username)+'</h2>'
+    +'<p>'+(new Date().toLocaleDateString('ar-KW',{weekday:'long',year:'numeric',month:'long',day:'numeric'}))+'</p>'
+    +'</div>'
+    +'<div class="courier-bonus-box"><div class="bon-val">'+bonus.toFixed(3)+'</div><div class="bon-lbl">KD مكافأة</div></div>'
+    +'</div>';
+
+  var s = document.getElementById('courier-stats-wrap');
+  if(s) s.innerHTML =
+    '<div class="cour-stat"><div class="sv">'+myOrders.length+'</div><div class="sl">إجمالي الطلبات</div></div>'
+    +'<div class="cour-stat" style="border-color:var(--gold)"><div class="sv" style="color:var(--gold)">'+active+'</div><div class="sl">نشط</div></div>'
+    +'<div class="cour-stat" style="border-color:var(--green)"><div class="sv" style="color:var(--green)">'+delivered+'</div><div class="sl">مُسلَّم</div></div>';
+
+  // --- Filter tabs ---
+  var f = document.getElementById('courier-filter-wrap');
+  var filters = [
+    {k:'active',ar:'النشطة',en:'Active',count:active},
+    {k:'all',ar:'الكل',en:'All',count:myOrders.length},
+    {k:'delivered',ar:'مُسلَّم',en:'Delivered',count:delivered},
+    {k:'returned',ar:'مرتجع',en:'Returned',count:myOrders.filter(function(o){return o.status==='returned';}).length},
+  ];
+  if(f) f.innerHTML = filters.map(function(fi){
+    var active_cls = _courierFilter===fi.k?'btn btn-green btn-sm':'btn btn-ghost btn-sm';
+    return '<button class="'+active_cls+'" onclick="setCourierFilter(\''+fi.k+'\')">'
+      +fi.ar+' <span style="background:rgba(255,255,255,.3);padding:1px 6px;border-radius:10px;font-size:.68rem">'+fi.count+'</span></button>';
+  }).join('');
+
+  // --- Filter list ---
+  var list;
+  if(_courierFilter==='active') list=myOrders.filter(function(o){return o.status!=='delivered'&&o.status!=='returned';});
+  else if(_courierFilter==='delivered') list=myOrders.filter(function(o){return o.status==='delivered';});
+  else if(_courierFilter==='returned') list=myOrders.filter(function(o){return o.status==='returned';});
+  else list=myOrders;
+
+  // Status labels
+  var ST_AR = {pending:'قيد الانتظار',assigned:'قيد الانتظار',received:'استلمت الطلب',delivering:'جاري التوصيل',delivered:'تم التسليم',noreply:'لا يوجد رد',returned:'مرتجع'};
+  var ST_EN = {pending:'Pending',assigned:'Pending',received:'Received',delivering:'Delivering',delivered:'Delivered',noreply:'No Reply',returned:'Returned'};
+  var ST_CL = {pending:'st-pending',assigned:'st-pending',received:'st-done',delivering:'st-active',delivered:'st-active',noreply:'st-pending',returned:'st-cancelled'};
+  var PAY_AR = {cash:'💵 كاش',knet:'💳 كي-نت',paid:'✅ مدفوع',free:'—'};
+
+  var wrap = document.getElementById('courier-orders-wrap');
+  if(!wrap) return;
+  if(!list.length){
+    wrap.innerHTML='<div style="text-align:center;padding:40px;color:var(--muted2)">لا توجد طلبات</div>';
+    return;
+  }
+
+  wrap.innerHTML = list.map(function(o, i){
+    var statusClass = 'status-'+(o.status==='assigned'||o.status==='pending'?'pending':o.status);
+    var isInspection = o.orderType==='inspection';
+    var bonPerOrder = (!isInspection&&o.status==='delivered') ? ((function(){
+      var dt=o.createdAt&&o.createdAt.toDate?o.createdAt.toDate():new Date();
+      return dt.getDay()===5?0.5:0.25;
+    })()) : 0;
+
+    var statusLabel = ST_AR[o.status]||o.status;
+    var statusCl = ST_CL[o.status]||'st-gray';
+
+    // Buttons — show only relevant next steps
+    var btns = '';
+    if(o.status==='pending'||o.status==='assigned'){
+      btns += '<button class="st-btn st-btn-received" onclick="updateOrderStatus(\''+o.id+'\',\'received\')">📦 استلمت الطلب</button>';
+    }
+    if(o.status==='received'){
+      btns += '<button class="st-btn st-btn-delivering" onclick="updateOrderStatus(\''+o.id+'\',\'delivering\')">🚗 جاري التوصيل</button>';
+    }
+    if(o.status==='delivering'||o.status==='received'){
+      btns += '<button class="st-btn st-btn-delivered" onclick="updateOrderStatus(\''+o.id+'\',\'delivered\')">✅ تم التسليم</button>';
+      btns += '<button class="st-btn st-btn-noreply" onclick="updateOrderStatus(\''+o.id+'\',\'noreply\')">📵 لا يوجد رد</button>';
+      btns += '<button class="st-btn st-btn-returned" onclick="updateOrderStatus(\''+o.id+'\',\'returned\')">↩️ مرتجع</button>';
+    }
+    if(o.status==='noreply'){
+      btns += '<button class="st-btn st-btn-delivering" onclick="updateOrderStatus(\''+o.id+'\',\'delivering\')">🔄 استئناف</button>';
+      btns += '<button class="st-btn st-btn-delivered" onclick="updateOrderStatus(\''+o.id+'\',\'delivered\')">✅ تم التسليم</button>';
+      btns += '<button class="st-btn st-btn-returned" onclick="updateOrderStatus(\''+o.id+'\',\'returned\')">↩️ مرتجع</button>';
+    }
+
+    var locBtn = o.locationLink
+      ? '<a href="'+o.locationLink+'" target="_blank" style="display:inline-flex;align-items:center;gap:4px;background:#e8f5e9;color:#1a7a40;border:1px solid #b8dfc4;border-radius:7px;padding:5px 10px;font-size:.78rem;font-weight:700;text-decoration:none">📍 Map</a>'
+      : '';
+
+    return '<div class="order-card '+statusClass+'">'
+      +'<div class="order-card-head">'
+        +'<div>'
+          +'<div class="order-card-num">#'+(i+1)+(isInspection?' · 🔍 Inspection':'')+' · '+(o.createdAt&&o.createdAt.toDate?o.createdAt.toDate().toLocaleDateString('en-GB'):'—')+'</div>'
+          +'<div class="order-card-name">'+(o.clientName||'—')+'</div>'
+          +'<div class="order-card-phone">📞 '+(o.phone||'—')+'</div>'
+        +'</div>'
+        +'<div style="text-align:left">'
+          +'<span class="status '+statusCl+'">'+statusLabel+'</span>'
+          +(bonPerOrder>0?'<div style="margin-top:6px;font-size:.72rem;font-weight:800;color:var(--gold)">+'+bonPerOrder.toFixed(3)+' KD</div>':'')
+        +'</div>'
+      +'</div>'
+      +'<div class="order-card-body">'
+        +(o.area?'<div class="order-card-row">📍 <b>'+(o.area+(o.block?' · '+o.block:''))+'</b></div>':'')
+        +(o.address?'<div class="order-card-row" style="font-size:.78rem;color:var(--muted)">'+o.address+'</div>':'')
+        +(o.notes?'<div class="order-card-row">📝 <span>'+o.notes+'</span></div>':'')
+        +'<div class="order-card-row">'
+          +(o.amount?'<span class="order-amount-badge">'+parseFloat(o.amount||0).toFixed(3)+' KD</span>':'')+' '
+          +(o.paymentType?'<span style="font-size:.78rem;color:var(--muted)">'+(PAY_AR[o.paymentType]||o.paymentType)+'</span>':'')
+        +'</div>'
+      +'</div>'
+      +(btns||locBtn ? '<div class="order-card-foot"><div style="display:flex;gap:6px;flex-wrap:wrap">'+btns+'</div>'+locBtn+'</div>' : '')
+      +'</div>';
+  }).join('');
+};
+
+window.setCourierFilter = function(f){
+  _courierFilter = f;
+  renderCourierView();
+};
+
+window.updateOrderStatus = async function(id, status){
+  try{
+    await window.FB.upd(window.FB.doc(window.FB.db,'del_orders',id),{status:status,updatedAt:window.FB.ts()});
+    toast(status==='delivered'?'✅ تم التسليم':status==='returned'?'↩️ مرتجع':'✅ تم التحديث');
+  }catch(e){ toast('خطأ: '+e.message); }
+};
 var _irrTab = 'ext';
 window.showIrrTab = function(tab){
   _irrTab = tab;
