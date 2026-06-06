@@ -560,7 +560,7 @@ body, .content, table, input, select, textarea, .val, td, th, span, div {
           </div>
           <div class="tbl-wrap">
             <table id="rpt-main-table"><thead><tr>
-              <th>#</th><th>المندوب</th><th>عدد الطلبات</th><th>تم تسليم</th><th>مجموع المكافآت</th><th>مجموع الكاش</th><th style="color:var(--blue)">💳 Knet</th><th id="rpt-th-actions"></th>
+              <th>#</th><th id="th-rpt-courier">المندوب</th><th id="th-rpt-total">عدد الطلبات</th><th id="th-rpt-del">تم تسليم</th><th id="th-rpt-bonus">مجموع المكافآت</th><th id="th-rpt-cash">مجموع الكاش</th><th id="th-rpt-knet" style="color:var(--blue)">💳 Knet</th><th id="rpt-th-actions"></th>
             </tr></thead>
             <tbody id="del-reports-tbody"></tbody></table>
           </div>
@@ -938,6 +938,56 @@ var _invoices = [], _inspections = [], _customers = [], _sysUsers = [];
 var _delReports = [], _iriItems = [];
 var _loginRole = 'manager';
 
+
+// ══════════════════════════════════════════════
+// KUWAIT AREAS DICTIONARY (AR → EN)
+// ══════════════════════════════════════════════
+var KUWAIT_AREAS = {
+  // Kuwait City
+  'الكويت':'Kuwait City','مدينة الكويت':'Kuwait City','القبلة':'Qibla','شرق':'Sharq','المرقاب':'Mirqab',
+  'المنصورية':'Mansouriya','الروضة':'Rawda','الخالدية':'Khalidiya','الصليبيخات':'Sulaibikhaat',
+  'كيفان':'Kaifan','الشامية':'Shamiya','الدعية':'Daiya','النزهة':'Nuzha','القادسية':'Qadisiya',
+  'غرناطة':'Granada','الفيحاء':'Faiha','السرة':'Surra','الرابية':'Rabia','العديلية':'Adailiya',
+  'اليرموك':'Yarmouk','الفروانية':'Farwaniya','عبدالله المبارك':'Abdullah Al-Mubarak',
+  'الرقعي':'Ruqai','أبو فطيرة':'Abu Ftaira','العارضية':'Ardiya','صباح الأحمد السكنية':'Sabah Al-Ahmad Residential',
+  // Hawalli
+  'حولي':'Hawalli','السالمية':'Salmiya','الرميثية':'Rumaithiya','البدع':'Bidaa','الجابرية':'Jabriya',
+  'الشعب':'Shaab','المصلى':'Musalla','سلوى':'Salwa','بيان':'Bayan','مشرف':'Mishref',
+  'الفنطاس':'Fintaas','أبو حليفة':'Abu Halifa','صبحان':'Subhan','المنقف':'Mangaf',
+  'فهد الأحمد':'Fahad Al-Ahmad','الظهر':'Dhahr','السلام':'Salam',
+  // Salmiya area
+  'بلوك ١٢':'Block 12','بلوك 12':'Block 12',
+  // Ahmadi
+  'الأحمدي':'Ahmadi','الفحيحيل':'Fahaheel','الزور':'Zour','المهبولة':'Mahboula',
+  'أبو الحصانية':'Abu Al-Hasaniya','بنيدر':'Bnaid Al-Gar','الصباحية':'Sabahiya',
+  'هدية':'Hadiya','العقيلة':'Uqaila','ميناء عبدالله':'Mina Abdullah',
+  // Jahra
+  'الجهراء':'Jahra','تيماء':'Taima','القيروان':'Qairawan','النسيم':'Naseem',
+  'العيون':'Uyoun','الواحة':'Al-Waha','الصليبية':'Sulaibiya','الأمغرة':'Amghara',
+  // Mubarak Al-Kabeer
+  'صباح السالم':'Sabah Al-Salem','القرين':'Qurain','مبارك الكبير':'Mubarak Al-Kabeer',
+  'أبو الحصانية':'Abu Al-Hasaniya','القصور':'Qusoor','وهران':'Waha','الفنيطيس':'Funaitees',
+  // Farwaniya  
+  'العارضية':'Ardiya','الري':'Rai','خيطان':'Khaitan','أشبيلية':'Ishbiliya',
+  'الفردوس':'Ferdous','الوطية':'Watiya','الرجاء':'Raja','الضجيج':'Dajeej',
+  'الصواغ':'Sawagh',
+  // Common short names
+  'الواحه':'Al-Waha','السلميه':'Salmiya','الجابريه':'Jabriya','الفروانيه':'Farwaniya',
+  'حوالي':'Hawalli','الاحمدي':'Ahmadi','الجهره':'Jahra',
+};
+
+function translateArea(arText){
+  if(!arText) return arText;
+  // Direct match
+  if(KUWAIT_AREAS[arText.trim()]) return KUWAIT_AREAS[arText.trim()];
+  // Partial match - check if any key is contained in the text
+  var keys = Object.keys(KUWAIT_AREAS);
+  for(var i=0;i<keys.length;i++){
+    if(arText.includes(keys[i])) return arText.replace(keys[i], KUWAIT_AREAS[keys[i]]);
+  }
+  return arText; // return as-is if no translation found
+}
+
 var ROLES_AR = {manager:'مدير', supervisor:'مشرف', employee:'موظف'};
 var ROLES_EN = {manager:'Manager', supervisor:'Supervisor', employee:'Employee'};
 
@@ -965,9 +1015,9 @@ var T = {
     manager_r:'مدير', supervisor_r:'مشرف', employee_r:'موظف',
     exec:'تنفيذ', today:'اليوم', yesterday:'أمس', custom_date:'تاريخ محدد',
     print_all:'طباعة الكل', settle:'إنهاء الحساب', print:'طباعة',
-    received_btn:'📦 استلمت الطلب', delivering_btn:'🚗 جاري التوصيل',
-    delivered_btn:'✅ تم التسليم', noreply_btn:'📵 لا يوجد رد', returned_btn:'↩️ مرتجع',
-    resume_btn:'🔄 استئناف', delivery_time:'تم التسليم:',
+    received_btn:(_lang==='ar'?'📦 استلمت الطلب':'📦 Received'), delivering_btn:(_lang==='ar'?'🚗 جاري التوصيل':'🚗 Delivering'),
+    delivered_btn:'✅ تم التسليم', noreply_btn:(_lang==='ar'?'📵 لا يوجد رد':'📵 No Reply'), returned_btn:(_lang==='ar'?'↩️ مرتجع':'↩️ Return'),
+    resume_btn:(_lang==='ar'?'🔄 استئناف':'🔄 Resume'), delivery_time:'تم التسليم:',
     backup_btn:'تحميل نسخة احتياطية', last_backup:'آخر نسخة:',
     not_assigned:'لم يُحدد',
   },
@@ -1447,14 +1497,14 @@ window.renderCourierView = function(){
     +'<h2>👋 '+(typeof _lang!=='undefined'&&_lang==='ar'?'أهلاً ':'Hello ')+(_u.name||_u.username)+'</h2>'
     +'<p>'+(new Date().toLocaleDateString(_lang==='ar'?'ar-KW':'en-GB',{weekday:'long',year:'numeric',month:'long',day:'numeric'}))+'</p>'
     +'</div>'
-    +'<div class="courier-bonus-box"><div class="bon-val">'+savedBalance.toFixed(3)+'</div><div class="bon-lbl">KD مكافأة</div></div>'
+    +'<div class="courier-bonus-box"><div class="bon-val">'+savedBalance.toFixed(3)+'</div><div class="bon-lbl">'+(_lang==='ar'?'KD مكافأة':'Bonus KD')+'</div></div>'
     +'</div>';
 
   var s = document.getElementById('courier-stats-wrap');
   if(s) s.innerHTML =
-    '<div class="cour-stat"><div class="sv">'+myOrders.length+'</div><div class="sl">إجمالي الطلبات</div></div>'
-    +'<div class="cour-stat" style="border-color:var(--gold)"><div class="sv" style="color:var(--gold)">'+active+'</div><div class="sl">نشط</div></div>'
-    +'<div class="cour-stat" style="border-color:var(--green)"><div class="sv" style="color:var(--green)">'+delivered+'</div><div class="sl">مُسلَّم</div></div>';
+    '<div class="cour-stat"><div class="sv">'+myOrders.length+'</div><div class="sl">'+(_lang==='ar'?'إجمالي الطلبات':'Total')+'</div></div>'
+    +'<div class="cour-stat" style="border-color:var(--gold)"><div class="sv" style="color:var(--gold)">'+active+'</div><div class="sl">'+(_lang==='ar'?'نشط':'Active')+'</div></div>'
+    +'<div class="cour-stat" style="border-color:var(--green)"><div class="sv" style="color:var(--green)">'+delivered+'</div><div class="sl">'+(_lang==='ar'?'مُسلَّم':'Delivered')+'</div></div>';
 
   // --- Filter tabs ---
   var f = document.getElementById('courier-filter-wrap');
@@ -1467,7 +1517,7 @@ window.renderCourierView = function(){
   if(f) f.innerHTML = filters.map(function(fi){
     var active_cls = _courierFilter===fi.k?'btn btn-green btn-sm':'btn btn-ghost btn-sm';
     return '<button class="'+active_cls+'" onclick="setCourierFilter(\''+fi.k+'\')">'
-      +fi.ar+' <span style="background:rgba(255,255,255,.3);padding:1px 6px;border-radius:10px;font-size:.68rem">'+fi.count+'</span></button>';
+      +(_lang==='ar'?fi.ar:fi.en)+' <span style="background:rgba(255,255,255,.3);padding:1px 6px;border-radius:10px;font-size:.68rem">'+fi.count+'</span></button>';
   }).join('');
 
   // --- Filter list ---
@@ -1481,12 +1531,12 @@ window.renderCourierView = function(){
   var ST_AR = {pending:'قيد الانتظار',assigned:'قيد الانتظار',received:'استلمت الطلب',delivering:'جاري التوصيل',delivered:'تم التسليم',noreply:'لا يوجد رد',returned:'مرتجع'};
   var ST_EN = {pending:'Pending',assigned:'Pending',received:'Received',delivering:'Delivering',delivered:'Delivered',noreply:'No Reply',returned:'Returned'};
   var ST_CL = {pending:'st-pending',assigned:'st-pending',received:'st-done',delivering:'st-active',delivered:'st-active',noreply:'st-pending',returned:'st-cancelled'};
-  var PAY_AR = {cash:'💵 كاش',knet:'💳 كي-نت',paid:'✅ مدفوع',free:'—'};
+  var PAY_AR = _lang==='ar'?{cash:'💵 كاش',knet:'💳 Knet',paid:'✅ مدفوع',free:'—'}:{cash:'💵 Cash',knet:'💳 Knet',paid:'✅ Paid',free:'—'};
 
   var wrap = document.getElementById('courier-orders-wrap');
   if(!wrap) return;
   if(!list.length){
-    wrap.innerHTML='<div style="text-align:center;padding:40px;color:var(--muted2)">لا توجد طلبات</div>';
+    wrap.innerHTML='<div style="text-align:center;padding:40px;color:var(--muted2)">'+(_lang==='ar'?'لا توجد طلبات':'No orders')+'</div>';
     return;
   }
 
@@ -1498,7 +1548,7 @@ window.renderCourierView = function(){
       return dt.getDay()===5?0.5:0.25;
     })()) : 0;
 
-    var statusLabel = ST_AR[o.status]||o.status;
+    var statusLabel = (_lang==='ar'?(ST_AR[o.status]||o.status):(ST_EN[o.status]||o.status));
     var statusCl = ST_CL[o.status]||'st-gray';
 
     // Buttons — show only relevant next steps
@@ -1531,8 +1581,8 @@ window.renderCourierView = function(){
     var deliveredTimeStr = '';
     if(o.status==='delivered' && o.deliveredAt && o.deliveredAt.toDate){
       var dTime = o.deliveredAt.toDate();
-      deliveredTimeStr = '<div style="font-size:.72rem;color:var(--green);font-weight:700;margin-top:4px">✅ تم التسليم: '
-        +dTime.toLocaleTimeString('ar-KW',{hour:'2-digit',minute:'2-digit'})+' — '+dTime.toLocaleDateString('ar-KW')+'</div>';
+      deliveredTimeStr = '<div style="font-size:.72rem;color:var(--green);font-weight:700;margin-top:4px">✅ '+(_lang==='ar'?'تم التسليم:':'Delivered at:')+' '
+        +dTime.toLocaleTimeString(_lang==='ar'?'ar-KW':'en-GB',{hour:'2-digit',minute:'2-digit'})+' — '+dTime.toLocaleDateString(_lang==='ar'?'ar-KW':'en-GB')+'</div>';
     }
 
     var locBtn = o.locationLink
@@ -1552,7 +1602,7 @@ window.renderCourierView = function(){
         +'</div>'
       +'</div>'
       +'<div class="order-card-body">'
-        +(o.area?'<div class="order-card-row">📍 <b>'+(o.area+(o.block?' · '+o.block:''))+'</b></div>':'')
+        +(o.area?'<div class="order-card-row">📍 <b>'+(_lang==='en'?translateArea(o.area):o.area)+(o.block?' · '+o.block:'')+'</b></div>':'')
         +(o.address?'<div class="order-card-row" style="font-size:.78rem;color:var(--muted)">'+o.address+'</div>':'')
         +(o.notes?'<div class="order-card-row">📝 <span>'+o.notes+'</span></div>':'')
         +'<div class="order-card-row">'
@@ -2211,9 +2261,10 @@ window.renderReports = function(){
 
   // تحديث عنوان التقرير بالتاريخ
   var titleEl = document.getElementById('rpt-table-title');
+  var isArRpt = _lang==='ar';
   var dateLabel = range.from === range.to
-    ? ('📦 تقرير يوم ' + range.from)
-    : ('📦 تقرير الفترة: ' + range.from + ' — ' + range.to);
+    ? (isArRpt?'📦 تقرير يوم ':'📦 Report: ') + range.from
+    : (isArRpt?'📦 تقرير الفترة: ':'📦 Period: ') + range.from + ' — ' + range.to;
   if(titleEl) titleEl.textContent = dateLabel;
 
   // رأس الجدول حسب الصلاحية
@@ -2271,9 +2322,9 @@ window.renderReports = function(){
     allReportData.push({id:u.id, name:u.name, totalOrds, delivered, bonus, cash, knet, knetCount});
 
     var actBtns = canEdit
-      ? '<button class="btn-edit-sm" onclick="openRptEdit(\''+u.id+'\',\''+u.name+'\','+totalOrds+','+delivered+','+bonus.toFixed(3)+','+cash.toFixed(3)+')">تعديل</button> '
-        + '<button class="btn btn-green btn-sm" onclick="settleReport(\''+u.id+'\',\''+u.name+'\',\''+range.from+'\',\''+range.to+'\')">✅ إنهاء الحساب</button>'
-      : '<button class="btn btn-ghost btn-sm" onclick="printSingleReport(\''+u.name+'\',\''+range.from+'\',\''+range.to+'\','+totalOrds+','+delivered+','+bonus.toFixed(3)+','+cash.toFixed(3)+','+knet.toFixed(3)+',\'\')">🖨 طباعة</button>';
+      ? '<button class="btn-edit-sm" onclick="openRptEdit(\''+u.id+'\',\''+u.name+'\','+totalOrds+','+delivered+','+bonus.toFixed(3)+','+cash.toFixed(3)+')">'+(_lang==='ar'?'تعديل':'Edit')+'</button> '
+        + '<button class="btn btn-green btn-sm" onclick="settleReport(\''+u.id+'\',\''+u.name+'\',\''+range.from+'\',\''+range.to+'\')">✅ '+(_lang==='ar'?'إنهاء الحساب':'Settle')+'</button>'
+      : '<button class="btn btn-ghost btn-sm" onclick="printSingleReport(\''+u.name+'\',\''+range.from+'\',\''+range.to+'\','+totalOrds+','+delivered+','+bonus.toFixed(3)+','+cash.toFixed(3)+','+knet.toFixed(3)+',\'\')">🖨 '+(_lang==='ar'?'طباعة':'Print')+'</button>';
 
     rows += '<tr>'
       +'<td style="color:var(--muted2);font-size:.78rem">'+seq+'</td>'
@@ -2577,6 +2628,16 @@ function applyStaticLang(lang){
   s('th-emp-name',t('name'));s('th-emp-user',t('username'));
   s('th-emp-phone',t('phone'));s('th-emp-role',t('role'));s('th-emp-sym',t('symbol'));
   var dg=document.getElementById('dash-sub');if(dg)dg.textContent=t('welcome');
+  // report table headers
+  var rptHdrs = {
+    'th-rpt-courier': isAr?'المندوب':'Courier',
+    'th-rpt-total':   isAr?'عدد الطلبات':'Orders',
+    'th-rpt-del':     isAr?'تم تسليم':'Delivered',
+    'th-rpt-bonus':   isAr?'مجموع المكافآت':'Bonus',
+    'th-rpt-cash':    isAr?'مجموع الكاش':'Cash',
+    'th-rpt-knet':    '💳 Knet'
+  };
+  Object.keys(rptHdrs).forEach(function(id){ var el=document.getElementById(id); if(el) el.textContent=rptHdrs[id]; });
   updateBackupTime();
 }
 
