@@ -332,6 +332,7 @@ tr:hover td{background:#fafcfb;}
       </div>
       <div class="topbar-right">
         <span id="topbar-date" style="font-size:.78rem;color:var(--muted2);"></span>
+        <span id="topbar-backup" style="font-size:.72rem;color:var(--muted2);display:none">💾 <span id="backup-time-lbl">—</span></span>
         <button onclick="doLogout()" style="display:flex;align-items:center;gap:5px;padding:6px 12px;background:var(--redl);color:var(--red);border:1px solid #f5b8b4;border-radius:8px;font-family:'Cairo',sans-serif;font-size:.75rem;font-weight:700;cursor:pointer;transition:.15s;" onmouseover="this.style.background='#fcc'" onmouseout="this.style.background='var(--redl)'">
           <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
           <span id="lbl-logout">خروج</span>
@@ -517,13 +518,33 @@ tr:hover td{background:#fafcfb;}
           <div class="dash-card-icon blue" style="width:36px;height:36px;font-size:1rem">📊</div>
           <h2>التقارير</h2>
         </div>
-        <div class="sec-card" style="margin-bottom:20px">
-          <div class="sec-header"><h3>📦 تقرير مناديب التوصيل</h3></div>
-          <div class="tbl-wrap"><table><thead><tr>
-            <th>المندوب</th><th>مُسلَّم</th><th>مرتجع</th><th>إجمالي</th><th>مكافأة محتسبة</th><th>رصيد حالي</th>
-          </tr></thead>
-          <tbody id="del-reports-tbody"></tbody></table></div>
+        <!-- فلتر التقارير -->
+        <div class="sec-card" style="margin-bottom:16px" id="reports-filter-card">
+          <div style="padding:14px 20px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+            <div style="display:flex;gap:6px;">
+              <button class="btn btn-green btn-sm" id="rpt-f-today" onclick="setRptFilter('today')">اليوم</button>
+              <button class="btn btn-ghost btn-sm" id="rpt-f-yesterday" onclick="setRptFilter('yesterday')">أمس</button>
+              <button class="btn btn-ghost btn-sm" id="rpt-f-custom" onclick="setRptFilter('custom')">تاريخ محدد</button>
+            </div>
+            <input type="date" id="rpt-date-from" class="filter-input" style="display:none" oninput="renderReports()">
+            <input type="date" id="rpt-date-to" class="filter-input" style="display:none;width:120px" oninput="renderReports()">
+            <select id="rpt-courier-filter" class="filter-input" onchange="renderReports()" style="min-width:140px"></select>
+          </div>
         </div>
+        <!-- جدول التقارير المفصّل -->
+        <div class="sec-card" style="margin-bottom:20px">
+          <div class="sec-header">
+            <h3>📦 تقارير مناديب التوصيل</h3>
+            <div class="sec-header-actions" id="rpt-actions-wrap"></div>
+          </div>
+          <div class="tbl-wrap">
+            <table id="rpt-main-table"><thead><tr>
+              <th>#</th><th>المندوب</th><th>عدد الطلبات</th><th>تم تسليم</th><th>مجموع المكافآت</th><th>مجموع الكاش</th><th id="rpt-th-actions"></th>
+            </tr></thead>
+            <tbody id="del-reports-tbody"></tbody></table>
+          </div>
+        </div>
+        <!-- ملخص الري -->
         <div class="sec-card">
           <div class="sec-header"><h3>🔧 ملخص الصيانة والري</h3></div>
           <div class="tbl-wrap"><table><thead><tr><th>الشهر</th><th>الفواتير</th><th>الإجمالي</th></tr></thead>
@@ -562,11 +583,30 @@ tr:hover td{background:#fafcfb;}
             <tbody id="users-tbody"></tbody></table></div>
           </div>
           <div class="sec-card">
-            <div class="sec-header"><h3>إعدادات النظام</h3></div>
+            <div class="sec-header"><h3>⚙️ إعدادات النظام</h3></div>
             <div style="padding:16px;">
               <div class="field-m"><label>PIN الدخول (للمشرفين)</label><input type="password" id="sys-pin" placeholder="****" maxlength="6"></div>
               <button class="btn btn-green" onclick="saveSysSettings()">حفظ الإعدادات</button>
             </div>
+          </div>
+        </div>
+        <!-- النسخ الاحتياطي -->
+        <div class="sec-card" style="margin-top:20px">
+          <div class="sec-header"><h3>💾 النسخ الاحتياطي</h3></div>
+          <div style="padding:16px;">
+            <p style="font-size:.83rem;color:var(--muted);margin-bottom:14px">نسخ احتياطي شامل لجميع البيانات: العملاء، التقارير، الفواتير، طلبات الكشف، الأصناف والمنتجات.</p>
+            <div style="display:flex;gap:10px;flex-wrap:wrap;">
+              <button class="btn btn-green" onclick="doBackup()">
+                <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                تحميل نسخة احتياطية
+              </button>
+              <label class="btn btn-ghost" style="cursor:pointer;margin:0">
+                <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                استعادة من نسخة احتياطية
+                <input type="file" accept=".json" onchange="doRestore(event)" style="display:none">
+              </label>
+            </div>
+            <div id="backup-status" style="margin-top:12px;font-size:.8rem;color:var(--muted2)"></div>
           </div>
         </div>
       </div>
@@ -617,8 +657,14 @@ tr:hover td{background:#fafcfb;}
     <input type="hidden" id="order-edit-id">
     <div class="field-m"><label>📦 رقم الطلب / Order #</label><input id="ord-ordernum" type="text" placeholder="مثال: #1234 أو كرتون A"></div>
     <div class="form-row">
+      <div class="field-m">
+        <label>الهاتف / Phone</label>
+        <div style="position:relative">
+          <input id="ord-phone" type="tel" oninput="lookupCustomerByPhone(this.value)" autocomplete="off" placeholder="أدخل رقم الهاتف...">
+          <div id="phone-suggestions" style="position:absolute;top:100%;right:0;left:0;background:#fff;border:1.5px solid var(--border);border-radius:9px;box-shadow:var(--sh);z-index:700;display:none;max-height:160px;overflow-y:auto;"></div>
+        </div>
+      </div>
       <div class="field-m"><label>اسم العميل / Client Name</label><input id="ord-client" type="text"></div>
-      <div class="field-m"><label>الهاتف / Phone</label><input id="ord-phone" type="tel"></div>
     </div>
     <div class="form-row">
       <div class="field-m"><label>المنطقة / Area</label><input id="ord-area" type="text"></div>
@@ -688,8 +734,14 @@ tr:hover td{background:#fafcfb;}
     <h3>طلب كشف جديد</h3>
     <input type="hidden" id="insp-edit-id">
     <div class="form-row">
+      <div class="field-m">
+        <label>الهاتف</label>
+        <div style="position:relative">
+          <input id="insp-phone" type="tel" oninput="lookupCustomerByPhoneInsp(this.value)" autocomplete="off">
+          <div id="insp-phone-suggestions" style="position:absolute;top:100%;right:0;left:0;background:#fff;border:1.5px solid var(--border);border-radius:9px;box-shadow:var(--sh);z-index:700;display:none;max-height:160px;overflow-y:auto;"></div>
+        </div>
+      </div>
       <div class="field-m"><label>اسم العميل</label><input id="insp-client" type="text"></div>
-      <div class="field-m"><label>الهاتف</label><input id="insp-phone" type="tel"></div>
     </div>
     <div class="form-row">
       <div class="field-m"><label>المنطقة</label><input id="insp-area" type="text"></div>
@@ -796,7 +848,7 @@ tr:hover td{background:#fafcfb;}
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import { getFirestore, collection, doc, addDoc, updateDoc, deleteDoc, onSnapshot, query, orderBy, serverTimestamp, getDocs, getDoc, setDoc, where } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import { getFirestore, collection, doc, addDoc, updateDoc, deleteDoc, onSnapshot, query, orderBy, serverTimestamp, getDocs, getDoc, setDoc, where, Timestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
 // ══ FIREBASE CONFIG — استبدل بـ Firebase الجديد ══
 const app = initializeApp({
@@ -810,10 +862,32 @@ const app = initializeApp({
 const db = getFirestore(app);
 window.FB = {db, col:collection, doc, add:addDoc, upd:updateDoc, del:deleteDoc,
   snap:onSnapshot, q:query, ord:orderBy, ts:serverTimestamp,
-  gets:getDocs, get:getDoc, set:setDoc, where};
+  gets:getDocs, get:getDoc, set:setDoc, where,
+  tsFromDate: function(d){ try{ return Timestamp.fromDate(d); }catch(e){ return serverTimestamp(); } }};
 window.FB_READY = true;
 if(window.FB_CB) window.FB_CB();
 </script>
+
+<!-- Report Edit Modal -->
+<div class="overlay" id="modal-report-edit">
+  <div class="modal" style="max-width:560px">
+    <h3>تعديل تقرير المندوب</h3>
+    <input type="hidden" id="rpt-edit-courier-id">
+    <div class="form-row">
+      <div class="field-m"><label>عدد الطلبات الكلي</label><input id="rpt-edit-total" type="number" min="0"></div>
+      <div class="field-m"><label>عدد المُسلَّم</label><input id="rpt-edit-delivered" type="number" min="0"></div>
+    </div>
+    <div class="form-row">
+      <div class="field-m"><label>مجموع المكافآت (KD)</label><input id="rpt-edit-bonus" type="number" step="0.001" min="0"></div>
+      <div class="field-m"><label>مجموع الكاش (KD)</label><input id="rpt-edit-cash" type="number" step="0.001" min="0"></div>
+    </div>
+    <div class="field-m"><label>ملاحظات</label><textarea id="rpt-edit-notes" rows="2"></textarea></div>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeModal('modal-report-edit')">إلغاء</button>
+      <button class="btn-save" onclick="saveReportEdit()">حفظ التعديل</button>
+    </div>
+  </div>
+</div>
 
 <script>
 // ══════════════════════════════════════════════
@@ -1223,6 +1297,8 @@ window.saveOrder = async function(){
     if(eid){ await window.FB.upd(window.FB.doc(window.FB.db,'del_orders',eid),data); toast('✅'); }
     else { data.status='pending'; data.createdAt=window.FB.ts(); data.createdBy=_u.id||_u.username;
       await window.FB.add(window.FB.col(window.FB.db,'del_orders'),data); toast(_lang==='ar'?'✅ تم إضافة الطلب':'✅ Order added'); }
+    // حفظ بيانات العميل تلقائياً
+    await autoSaveCustomer(data.clientName, data.phone, data.area, data.block, data.address, data.locationLink);
     closeModal('modal-order');
   }finally{_savingOrder=false;}
 };
@@ -1336,13 +1412,28 @@ window.renderCourierView = function(){
     }
     if(o.status==='delivering'||o.status==='received'){
       btns += '<button class="st-btn st-btn-delivered" onclick="updateOrderStatus(\''+o.id+'\',\'delivered\')">✅ تم التسليم</button>';
+      // زر Knet يظهر فقط للطلبات الكاش
+      if(o.paymentType==='cash'){
+        btns += '<button class="st-btn" style="background:#e8f0ff;color:#1a4a8a;border:1.5px solid #c8d8f8" onclick="updateOrderStatus(\''+o.id+'\',\'delivered\',true)">💳 Knet</button>';
+      }
       btns += '<button class="st-btn st-btn-noreply" onclick="updateOrderStatus(\''+o.id+'\',\'noreply\')">📵 لا يوجد رد</button>';
       btns += '<button class="st-btn st-btn-returned" onclick="updateOrderStatus(\''+o.id+'\',\'returned\')">↩️ مرتجع</button>';
     }
     if(o.status==='noreply'){
       btns += '<button class="st-btn st-btn-delivering" onclick="updateOrderStatus(\''+o.id+'\',\'delivering\')">🔄 استئناف</button>';
       btns += '<button class="st-btn st-btn-delivered" onclick="updateOrderStatus(\''+o.id+'\',\'delivered\')">✅ تم التسليم</button>';
+      if(o.paymentType==='cash'){
+        btns += '<button class="st-btn" style="background:#e8f0ff;color:#1a4a8a;border:1.5px solid #c8d8f8" onclick="updateOrderStatus(\''+o.id+'\',\'delivered\',true)">💳 Knet</button>';
+      }
       btns += '<button class="st-btn st-btn-returned" onclick="updateOrderStatus(\''+o.id+'\',\'returned\')">↩️ مرتجع</button>';
+    }
+
+    // وقت التسليم
+    var deliveredTimeStr = '';
+    if(o.status==='delivered' && o.deliveredAt && o.deliveredAt.toDate){
+      var dTime = o.deliveredAt.toDate();
+      deliveredTimeStr = '<div style="font-size:.72rem;color:var(--green);font-weight:700;margin-top:4px">✅ تم التسليم: '
+        +dTime.toLocaleTimeString('ar-KW',{hour:'2-digit',minute:'2-digit'})+' — '+dTime.toLocaleDateString('ar-KW')+'</div>';
     }
 
     var locBtn = o.locationLink
@@ -1366,9 +1457,10 @@ window.renderCourierView = function(){
         +(o.address?'<div class="order-card-row" style="font-size:.78rem;color:var(--muted)">'+o.address+'</div>':'')
         +(o.notes?'<div class="order-card-row">📝 <span>'+o.notes+'</span></div>':'')
         +'<div class="order-card-row">'
-          +(o.amount?'<span class="order-amount-badge">'+parseFloat(o.amount||0).toFixed(3)+' KD</span>':'')+' '
+          +(o.amount&&o.paymentType!=='knet'?'<span class="order-amount-badge">'+parseFloat(o.amount||0).toFixed(3)+' KD</span>':'')+' '
           +(o.paymentType?'<span style="font-size:.78rem;color:var(--muted)">'+(PAY_AR[o.paymentType]||o.paymentType)+'</span>':'')
         +'</div>'
+        +deliveredTimeStr
       +'</div>'
       +(btns||locBtn ? '<div class="order-card-foot"><div style="display:flex;gap:6px;flex-wrap:wrap">'+btns+'</div>'+locBtn+'</div>' : '')
       +'</div>';
@@ -1380,19 +1472,30 @@ window.setCourierFilter = function(f){
   renderCourierView();
 };
 
-window.updateOrderStatus = async function(id, status){
+window.updateOrderStatus = async function(id, status, forceKnet){
   try{
     var order = _orders.find(function(o){ return o.id===id; });
     if(!order){ toast('طلب غير موجود'); return; }
 
     var prevStatus = order.status;
-    await window.FB.upd(window.FB.doc(window.FB.db,'del_orders',id),{status:status,updatedAt:window.FB.ts()});
+    var updateData = {status:status, updatedAt:window.FB.ts()};
+
+    // تسجيل وقت التسليم الفعلي
+    if(status==='delivered'){
+      updateData.deliveredAt = window.FB.ts();
+    }
+
+    // إذا اختار المندوب Knet
+    if(forceKnet){
+      updateData.paymentType = 'knet';
+    }
+
+    await window.FB.upd(window.FB.doc(window.FB.db,'del_orders',id), updateData);
 
     // احتساب المكافأة عند التسليم فقط (مو كشف، مو مرتجع)
     if(status==='delivered' && prevStatus!=='delivered' && order.orderType!=='inspection' && order.courierId){
       var dt = order.createdAt&&order.createdAt.toDate ? order.createdAt.toDate() : new Date();
       var bonusAmt = dt.getDay()===5 ? 0.5 : 0.25;
-      // ابحث بالـ id أو username
       var courier = _delUsers.find(function(u){ return u.id===order.courierId || u.username===order.courierId; });
       if(courier){
         var newBal = parseFloat(courier.balance||0) + bonusAmt;
@@ -1401,8 +1504,18 @@ window.updateOrderStatus = async function(id, status){
       } else {
         toast('✅ تم التسليم');
       }
+      // تحقق إذا هذا آخر طلب نشط للمندوب → حفظ تلقائي للتقرير
+      setTimeout(function(){
+        var myId = order.courierId;
+        var remaining = _orders.filter(function(o){
+          return (o.courierId===myId) && o.status!=='delivered' && o.status!=='returned' && o.orderType!=='inspection';
+        });
+        if(remaining.length === 0){
+          autoSaveDailyReport(myId);
+        }
+      }, 2000);
     }
-    // إذا كان delivered قبل وتم تغييره (تراجع) - اطرح المكافأة
+    // إذا كان delivered قبل وتم تغييره (تراجع)
     else if(prevStatus==='delivered' && status!=='delivered' && order.orderType!=='inspection' && order.courierId){
       var dtR = order.createdAt&&order.createdAt.toDate ? order.createdAt.toDate() : new Date();
       var bonusR = dtR.getDay()===5 ? 0.5 : 0.25;
@@ -1418,6 +1531,42 @@ window.updateOrderStatus = async function(id, status){
     }
   }catch(e){ toast('خطأ: '+e.message); }
 };
+
+async function autoSaveDailyReport(courierId){
+  var u = _delUsers.find(function(x){return x.id===courierId||x.username===courierId;});
+  if(!u) return;
+  var today = new Date().toISOString().substring(0,10);
+  var fromD = new Date(today+'T00:00:00');
+  var toD   = new Date(today+'T23:59:59');
+  var myOrds = _orders.filter(function(o){
+    if(o.courierId!==courierId&&o.courierId!==u.username) return false;
+    if(o.orderType==='inspection') return false;
+    var dt = o.deliveredAt&&o.deliveredAt.toDate?o.deliveredAt.toDate()
+            :o.updatedAt&&o.updatedAt.toDate?o.updatedAt.toDate()
+            :o.createdAt&&o.createdAt.toDate?o.createdAt.toDate():null;
+    return dt && dt>=fromD && dt<=toD;
+  });
+  if(!myOrds.length) return;
+  var delivered = myOrds.filter(function(o){return o.status==='delivered';}).length;
+  var bonus = myOrds.reduce(function(s,o){
+    if(o.status!=='delivered') return s;
+    var dt=o.deliveredAt&&o.deliveredAt.toDate?o.deliveredAt.toDate():o.createdAt&&o.createdAt.toDate?o.createdAt.toDate():new Date();
+    return s+(dt.getDay()===5?0.5:0.25);
+  },0);
+  var cash = myOrds.reduce(function(s,o){
+    if(o.status!=='delivered'||o.paymentType==='knet') return s;
+    return s+parseFloat(o.amount||0);
+  },0);
+  try{
+    await window.FB.add(window.FB.col(window.FB.db,'del_reports'),{
+      courierId: u.id, courierName:u.name,
+      dateFrom:today, dateTo:today,
+      totalOrders:myOrds.length, delivered, bonus, cash,
+      savedAt:window.FB.ts(),
+      type:'auto'
+    });
+  }catch(e){ console.warn('autoSaveDailyReport:', e); }
+}
 var _irrTab = 'ext';
 window.showIrrTab = function(tab){
   _irrTab = tab;
@@ -1635,6 +1784,8 @@ window.saveInspection = async function(){
         createdBy:_u.id||_u.username
       };
       await window.FB.add(window.FB.col(window.FB.db,'del_orders'),orderData);
+      // حفظ بيانات العميل تلقائياً
+      await autoSaveCustomer(data.client, data.phone, data.area, '', '');
       toast('✅ تم إضافة طلب الكشف وأُرسل لقسم التوصيل');
     }
     closeModal('modal-inspection');
@@ -1808,48 +1959,205 @@ window.resetCourierBalance=async function(id,name,bal){
 };
 
 // ══════════════════════════════════════════════
-// REPORTS
+// CUSTOMER PHONE LOOKUP
 // ══════════════════════════════════════════════
-window.renderReports=function(){
-  // ── تقرير المناديب: من _orders + _delUsers ──
-  var courierMap = {};
-  // ابن map لكل مندوب
-  _delUsers.forEach(function(u){
-    courierMap[u.id] = courierMap[u.username] = {
-      id:u.id, name:u.name, username:u.username,
-      balance:parseFloat(u.balance||0),
-      delivered:0, returned:0, total:0, bonus:0
-    };
-  });
-  // احسب من الطلبات
-  _orders.forEach(function(o){
-    var c = courierMap[o.courierId];
-    if(!c) return;
-    c.total++;
-    if(o.status==='delivered'&&o.orderType!=='inspection'){
-      c.delivered++;
-      var dt=o.createdAt&&o.createdAt.toDate?o.createdAt.toDate():new Date();
-      c.bonus += dt.getDay()===5?0.5:0.25;
-    }
-    if(o.status==='returned') c.returned++;
-  });
-  // اجمع بدون تكرار (id و username يشيران لنفس المندوب)
-  var seen = {};
-  var courierRows = _delUsers.map(function(u){
-    if(seen[u.id]) return '';
-    seen[u.id]=1;
-    var c = courierMap[u.id]||{delivered:0,returned:0,total:0,bonus:0,balance:0};
-    return '<tr>'
-      +'<td><b>'+u.name+'</b></td>'
-      +'<td style="color:var(--green);font-weight:700">'+c.delivered+'</td>'
-      +'<td style="color:var(--red)">'+c.returned+'</td>'
-      +'<td>'+c.total+'</td>'
-      +'<td style="color:var(--gold);font-weight:800">'+c.bonus.toFixed(3)+' KD</td>'
-      +'<td style="font-weight:800;color:'+(parseFloat(u.balance||0)>0?'var(--gold)':'var(--muted2)')+'">'+parseFloat(u.balance||0).toFixed(3)+' KD</td>'
-      +'</tr>';
-  }).join('')||'<tr><td colspan="6" class="empty">لا يوجد مناديب</td></tr>';
+window.lookupCustomerByPhone = function(val){
+  var sug = document.getElementById('phone-suggestions');
+  if(!val || val.length < 3){ sug.style.display='none'; return; }
+  var matches = _customers.filter(function(c){
+    return (c.phone||'').includes(val) || (c.name||'').includes(val);
+  }).slice(0,5);
+  if(!matches.length){ sug.style.display='none'; return; }
+  sug.innerHTML = matches.map(function(c){
+    return '<div style="padding:9px 14px;cursor:pointer;border-bottom:1px solid #edf4f0;font-size:.83rem" '
+      +'onmousedown="fillOrderFromCustomer(\''+c.id+'\')">'
+      +'<b>'+c.name+'</b> <span style="color:var(--muted2)">'+c.phone+'</span>'
+      +(c.area?' · <span style="color:var(--muted)">'+c.area+'</span>':'')+'</div>';
+  }).join('');
+  sug.style.display='block';
+};
 
-  document.getElementById('del-reports-tbody').innerHTML = courierRows;
+window.fillOrderFromCustomer = function(id){
+  var c = _customers.find(function(x){return x.id===id;});
+  if(!c) return;
+  document.getElementById('ord-client').value = c.name||'';
+  document.getElementById('ord-phone').value = c.phone||'';
+  document.getElementById('ord-area').value = c.area||'';
+  document.getElementById('ord-block').value = c.block||'';
+  document.getElementById('ord-address').value = c.address||'';
+  document.getElementById('phone-suggestions').style.display='none';
+};
+
+window.lookupCustomerByPhoneInsp = function(val){
+  var sug = document.getElementById('insp-phone-suggestions');
+  if(!val || val.length < 3){ sug.style.display='none'; return; }
+  var matches = _customers.filter(function(c){
+    return (c.phone||'').includes(val) || (c.name||'').includes(val);
+  }).slice(0,5);
+  if(!matches.length){ sug.style.display='none'; return; }
+  sug.innerHTML = matches.map(function(c){
+    return '<div style="padding:9px 14px;cursor:pointer;border-bottom:1px solid #edf4f0;font-size:.83rem" '
+      +'onmousedown="fillInspFromCustomer(\''+c.id+'\')">'
+      +'<b>'+c.name+'</b> <span style="color:var(--muted2)">'+c.phone+'</span>'
+      +(c.area?' · <span style="color:var(--muted)">'+c.area+'</span>':'')+'</div>';
+  }).join('');
+  sug.style.display='block';
+};
+
+window.fillInspFromCustomer = function(id){
+  var c = _customers.find(function(x){return x.id===id;});
+  if(!c) return;
+  document.getElementById('insp-client').value = c.name||'';
+  document.getElementById('insp-phone').value = c.phone||'';
+  document.getElementById('insp-area').value = c.area||'';
+  document.getElementById('insp-phone-suggestions').style.display='none';
+};
+
+// إغلاق الاقتراحات عند الضغط خارجها
+document.addEventListener('click', function(e){
+  ['phone-suggestions','insp-phone-suggestions'].forEach(function(id){
+    var el = document.getElementById(id);
+    if(el && !el.contains(e.target)) el.style.display='none';
+  });
+});
+
+// حفظ / تحديث بيانات العميل تلقائياً عند إضافة طلب
+async function autoSaveCustomer(name, phone, area, block, address, locationLink){
+  if(!name || !phone) return;
+  // ابحث بالهاتف
+  var existing = _customers.find(function(c){ return c.phone === phone; });
+  var custData = { name:name, phone:phone, area:area||'', block:block||'', address:address||'',
+    locationLink:locationLink||'', updatedAt:window.FB.ts() };
+  try{
+    if(existing){
+      await window.FB.upd(window.FB.doc(window.FB.db,'ops_customers',existing.id), custData);
+    } else {
+      custData.createdAt = window.FB.ts();
+      custData.serviceCount = 1;
+      await window.FB.add(window.FB.col(window.FB.db,'ops_customers'), custData);
+    }
+  }catch(e){ console.warn('autoSaveCustomer:', e); }
+}
+
+// ══════════════════════════════════════════════
+// REPORTS — NEW FULL VERSION
+// ══════════════════════════════════════════════
+var _rptFilter = 'today';
+
+window.setRptFilter = function(f){
+  _rptFilter = f;
+  ['today','yesterday','custom'].forEach(function(x){
+    var btn = document.getElementById('rpt-f-'+x);
+    if(btn) btn.className = x===f ? 'btn btn-green btn-sm' : 'btn btn-ghost btn-sm';
+  });
+  var fromEl = document.getElementById('rpt-date-from');
+  var toEl   = document.getElementById('rpt-date-to');
+  if(fromEl) fromEl.style.display = f==='custom'?'':'none';
+  if(toEl)   toEl.style.display   = f==='custom'?'':'none';
+  renderReports();
+};
+
+function getRptDateRange(){
+  var now = new Date();
+  var todayStr = now.toISOString().substring(0,10);
+  if(_rptFilter==='today'){
+    return {from: todayStr, to: todayStr};
+  } else if(_rptFilter==='yesterday'){
+    var y = new Date(now); y.setDate(y.getDate()-1);
+    var yStr = y.toISOString().substring(0,10);
+    return {from: yStr, to: yStr};
+  } else {
+    var f = (document.getElementById('rpt-date-from')||{}).value || todayStr;
+    var t = (document.getElementById('rpt-date-to')||{}).value || todayStr;
+    return {from: f, to: t};
+  }
+}
+
+window.renderReports = function(){
+  var range = getRptDateRange();
+  var fromD = new Date(range.from + 'T00:00:00');
+  var toD   = new Date(range.to   + 'T23:59:59');
+  var courierFilterId = (document.getElementById('rpt-courier-filter')||{}).value || '';
+
+  // فلتر select المناديب (مدير/مشرف فقط)
+  var csel = document.getElementById('rpt-courier-filter');
+  if(csel){
+    if(_role==='manager'||_role==='supervisor'){
+      if(csel.options.length <= 1){
+        csel.innerHTML = '<option value="">كل المناديب</option>'
+          + _delUsers.map(function(u){ return '<option value="'+u.id+'">'+u.name+'</option>'; }).join('');
+      }
+      csel.style.display = '';
+    } else {
+      csel.style.display = 'none';
+    }
+  }
+
+  // رأس الجدول حسب الصلاحية
+  var thAct = document.getElementById('rpt-th-actions');
+  if(thAct) thAct.textContent = (_role==='manager'||_role==='supervisor') ? 'إجراءات' : '';
+
+  // احسب بيانات المناديب في النطاق المحدد
+  var usersToShow = (_role==='manager'||_role==='supervisor')
+    ? (courierFilterId ? _delUsers.filter(function(u){return u.id===courierFilterId;}) : _delUsers)
+    : _delUsers.filter(function(u){ return u.id===(_u.id||_u.username)||u.username===(_u.username||''); });
+
+  var seen = {};
+  var rows = '';
+  var seq = 1;
+
+  usersToShow.forEach(function(u){
+    if(seen[u.id]) return;
+    seen[u.id] = 1;
+
+    // الطلبات في النطاق لهذا المندوب
+    var myOrds = _orders.filter(function(o){
+      if(o.orderType==='inspection') return false;
+      if(o.courierId !== u.id && o.courierId !== u.username) return false;
+      var dt = o.deliveredAt && o.deliveredAt.toDate ? o.deliveredAt.toDate()
+             : o.updatedAt && o.updatedAt.toDate ? o.updatedAt.toDate()
+             : o.createdAt && o.createdAt.toDate ? o.createdAt.toDate() : null;
+      if(!dt) return false;
+      return dt >= fromD && dt <= toD;
+    });
+
+    var delivered = myOrds.filter(function(o){return o.status==='delivered';}).length;
+    var totalOrds = myOrds.length;
+    // حساب المكافآت فقط للمسلَّم
+    var bonus = myOrds.reduce(function(s,o){
+      if(o.status!=='delivered') return s;
+      var dt = o.deliveredAt&&o.deliveredAt.toDate?o.deliveredAt.toDate()
+              :o.createdAt&&o.createdAt.toDate?o.createdAt.toDate():new Date();
+      return s + (dt.getDay()===5?0.5:0.25);
+    }, 0);
+    // الكاش فقط — لا تحسب knet
+    var cash = myOrds.reduce(function(s,o){
+      if(o.status!=='delivered') return s;
+      if(o.paymentType==='knet') return s; // knet = تم الدفع أون لاين
+      return s + parseFloat(o.amount||0);
+    }, 0);
+
+    var canEdit = (_role==='manager'||_role==='supervisor');
+    var actBtns = canEdit
+      ? '<button class="btn-edit-sm" onclick="openRptEdit(\''+u.id+'\',\''+u.name+'\','+totalOrds+','+delivered+','+bonus.toFixed(3)+','+cash.toFixed(3)+')">تعديل</button> '
+        + '<button class="btn btn-green btn-sm" onclick="settleReport(\''+u.id+'\',\''+u.name+'\')">✅ إنهاء الحساب</button> '
+        + '<button class="btn btn-ghost btn-sm" onclick="printCourierReport(\''+u.id+'\',\''+u.name+'\',\''+range.from+'\',\''+range.to+'\','+totalOrds+','+delivered+','+bonus.toFixed(3)+','+cash.toFixed(3)+')">🖨 طباعة</button>'
+      : '<button class="btn btn-ghost btn-sm" onclick="printCourierReport(\''+u.id+'\',\''+u.name+'\',\''+range.from+'\',\''+range.to+'\','+totalOrds+','+delivered+','+bonus.toFixed(3)+','+cash.toFixed(3)+')">🖨 طباعة</button>';
+
+    rows += '<tr>'
+      +'<td style="color:var(--muted2);font-size:.78rem">'+seq+'</td>'
+      +'<td><b>'+u.name+'</b></td>'
+      +'<td style="text-align:center">'+totalOrds+'</td>'
+      +'<td style="color:var(--green);font-weight:700;text-align:center">'+delivered+'</td>'
+      +'<td style="color:var(--gold);font-weight:800">'+bonus.toFixed(3)+' KD</td>'
+      +'<td style="font-weight:800">'+cash.toFixed(3)+' KD</td>'
+      +(canEdit||_role==='employee'?'<td style="white-space:nowrap">'+actBtns+'</td>':'<td></td>')
+      +'</tr>';
+    seq++;
+  });
+
+  var tbody = document.getElementById('del-reports-tbody');
+  if(tbody) tbody.innerHTML = rows || '<tr><td colspan="7" class="empty">لا توجد بيانات في هذا النطاق</td></tr>';
 
   // ── ملخص الري والصيانة بالشهر ──
   var months={};
@@ -1860,10 +2168,112 @@ window.renderReports=function(){
     months[key].count++;months[key].total+=(inv.total||0);
   });
   var keys=Object.keys(months).sort().reverse().slice(0,6);
-  document.getElementById('iri-summary-tbody').innerHTML=keys.map(function(k){
+  var iriTbody = document.getElementById('iri-summary-tbody');
+  if(iriTbody) iriTbody.innerHTML=keys.map(function(k){
     return '<tr><td>'+k+'</td><td>'+months[k].count+'</td><td>'+months[k].total.toFixed(3)+' د.ك</td></tr>';
   }).join('')||'<tr><td colspan="3" class="empty">—</td></tr>';
 };
+
+window.openRptEdit = function(courierId, name, total, delivered, bonus, cash){
+  document.getElementById('rpt-edit-courier-id').value = courierId;
+  document.getElementById('rpt-edit-total').value = total;
+  document.getElementById('rpt-edit-delivered').value = delivered;
+  document.getElementById('rpt-edit-bonus').value = bonus;
+  document.getElementById('rpt-edit-cash').value = cash;
+  document.getElementById('rpt-edit-notes').value = '';
+  document.querySelector('#modal-report-edit h3').textContent = 'تعديل تقرير: '+name;
+  openModal('modal-report-edit');
+};
+
+window.saveReportEdit = async function(){
+  var courierId = document.getElementById('rpt-edit-courier-id').value;
+  var u = _delUsers.find(function(x){return x.id===courierId;});
+  if(!u){toast('مندوب غير موجود');return;}
+  var range = getRptDateRange();
+  try{
+    var data = {
+      courierId: courierId,
+      courierName: u.name,
+      dateFrom: range.from,
+      dateTo: range.to,
+      totalOrders: parseInt(document.getElementById('rpt-edit-total').value)||0,
+      delivered: parseInt(document.getElementById('rpt-edit-delivered').value)||0,
+      bonus: parseFloat(document.getElementById('rpt-edit-bonus').value)||0,
+      cash: parseFloat(document.getElementById('rpt-edit-cash').value)||0,
+      notes: document.getElementById('rpt-edit-notes').value,
+      editedBy: _u.name||_u.username,
+      editedAt: window.FB.ts(),
+      savedAt: window.FB.ts()
+    };
+    await window.FB.add(window.FB.col(window.FB.db,'del_reports'), data);
+    toast('✅ تم حفظ التعديل');
+    closeModal('modal-report-edit');
+  }catch(e){toast('خطأ: '+e.message);}
+};
+
+window.settleReport = async function(courierId, name){
+  if(!confirm('تأكيد إنهاء حساب '+name+'؟ سيتم تصفير رصيده وحفظ التقرير.'))return;
+  var u = _delUsers.find(function(x){return x.id===courierId;});
+  if(!u)return;
+  var range = getRptDateRange();
+  var fromD = new Date(range.from + 'T00:00:00');
+  var toD   = new Date(range.to   + 'T23:59:59');
+  var myOrds = _orders.filter(function(o){
+    if(o.courierId!==courierId&&o.courierId!==u.username) return false;
+    if(o.orderType==='inspection') return false;
+    var dt = o.deliveredAt&&o.deliveredAt.toDate?o.deliveredAt.toDate()
+            :o.updatedAt&&o.updatedAt.toDate?o.updatedAt.toDate()
+            :o.createdAt&&o.createdAt.toDate?o.createdAt.toDate():null;
+    return dt && dt>=fromD && dt<=toD;
+  });
+  var delivered = myOrds.filter(function(o){return o.status==='delivered';}).length;
+  var bonus = myOrds.reduce(function(s,o){
+    if(o.status!=='delivered') return s;
+    var dt=o.deliveredAt&&o.deliveredAt.toDate?o.deliveredAt.toDate():o.createdAt&&o.createdAt.toDate?o.createdAt.toDate():new Date();
+    return s+(dt.getDay()===5?0.5:0.25);
+  },0);
+  var cash = myOrds.reduce(function(s,o){
+    if(o.status!=='delivered'||o.paymentType==='knet') return s;
+    return s+parseFloat(o.amount||0);
+  },0);
+  try{
+    await window.FB.add(window.FB.col(window.FB.db,'del_reports'),{
+      courierId, courierName:u.name,
+      dateFrom:range.from, dateTo:range.to,
+      totalOrders:myOrds.length, delivered, bonus, cash,
+      settledBy:_u.name||_u.username,
+      settledAt:window.FB.ts(),
+      savedAt:window.FB.ts(),
+      type:'settlement'
+    });
+    // تصفير الرصيد
+    await window.FB.upd(window.FB.doc(window.FB.db,'del_users',courierId),{balance:0,lastPaid:bonus,lastPaidAt:window.FB.ts(),updatedAt:window.FB.ts()});
+    toast('✅ تم إنهاء حساب '+name+' بواسطة '+(_u.name||_u.username));
+  }catch(e){toast('خطأ: '+e.message);}
+};
+
+window.printCourierReport = function(courierId, name, from, to, total, delivered, bonus, cash){
+  var win = window.open('','_blank','width=700,height=500');
+  win.document.write('<html dir="rtl"><head><meta charset="UTF-8">'
+    +'<style>body{font-family:Arial,sans-serif;padding:30px;direction:rtl}h2{color:#1a7a40}table{width:100%;border-collapse:collapse;margin-top:16px}th,td{border:1px solid #ccc;padding:8px 12px;text-align:right}th{background:#f0f9f4}@media print{button{display:none}}</style>'
+    +'</head><body>'
+    +'<h2>🌿 Kuwait Organic — تقرير توصيل</h2>'
+    +'<p><b>المندوب:</b> '+name+' &nbsp;|&nbsp; <b>الفترة:</b> '+from+' — '+to+'</p>'
+    +'<table><tr><th>عدد الطلبات</th><th>تم تسليم</th><th>مجموع المكافآت</th><th>مجموع الكاش</th></tr>'
+    +'<tr><td>'+total+'</td><td>'+delivered+'</td><td>'+parseFloat(bonus).toFixed(3)+' KD</td><td>'+parseFloat(cash).toFixed(3)+' KD</td></tr></table>'
+    +'<br><p style="color:#888;font-size:.8rem">طُبع بتاريخ: '+new Date().toLocaleString('ar-KW')+'</p>'
+    +'<button onclick="window.print()" style="margin-top:10px;padding:8px 20px;background:#1a7a40;color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:1rem">🖨 طباعة</button>'
+    +'</body></html>');
+  win.document.close();
+};
+
+// ══════════════════════════════════════════════
+// KNET OPTION FOR COURIER + DELIVERY TIME
+// ══════════════════════════════════════════════
+// زر تحويل الكاش إلى Knet يظهر في واجهة المندوب
+// وعند التسليم يُسجَّل وقت التسليم
+
+
 
 // ══════════════════════════════════════════════
 // ARCHIVE
@@ -1964,8 +2374,95 @@ window.toggleDrawer=function(){
 };
 
 // ══════════════════════════════════════════════
+// BACKUP & RESTORE
+// ══════════════════════════════════════════════
+window.doBackup = async function(){
+  if(_role!=='manager'&&_role!=='supervisor'){toast('صلاحية غير كافية');return;}
+  showLoading('جاري تجهيز النسخة الاحتياطية...');
+  try{
+    var FB = window.FB, d = FB.db;
+    var cols = ['ops_customers','del_orders','del_users','del_reports','del_archived',
+                'iri_invoices','iri_inspections','iri_users','iri_items','ops_users','ops_settings'];
+    var backup = {version:2, exportedAt: new Date().toISOString(), exportedBy: _u.name||_u.username, data:{}};
+    for(var i=0;i<cols.length;i++){
+      var sn = await FB.gets(FB.col(d, cols[i]));
+      backup.data[cols[i]] = sn.docs.map(function(doc){
+        var obj = doc.data();
+        // تحويل Timestamp لـ ISO string
+        Object.keys(obj).forEach(function(k){
+          if(obj[k]&&obj[k].toDate) obj[k] = {__ts: obj[k].toDate().toISOString()};
+        });
+        return Object.assign({__id: doc.id}, obj);
+      });
+    }
+    var json = JSON.stringify(backup, null, 2);
+    var blob = new Blob([json], {type:'application/json'});
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url;
+    a.download = 'q8organic-backup-'+new Date().toISOString().substring(0,10)+'.json';
+    a.click();
+    URL.revokeObjectURL(url);
+    // حفظ وقت آخر نسخة
+    var nowStr = new Date().toLocaleString('ar-KW');
+    localStorage.setItem('lastBackupTime', nowStr);
+    updateBackupTime();
+    var st = document.getElementById('backup-status');
+    if(st) st.textContent = '✅ تم التحميل — '+nowStr;
+    toast('✅ تم تحميل النسخة الاحتياطية');
+  }catch(e){ toast('خطأ: '+e.message); }
+  finally{ hideLoading(); }
+};
+
+window.doRestore = async function(event){
+  if(_role!=='manager'&&_role!=='supervisor'){toast('صلاحية غير كافية');return;}
+  var file = event.target.files[0];
+  if(!file) return;
+  if(!confirm('⚠️ تحذير: سيتم استعادة البيانات وقد يُؤثر على البيانات الموجودة. هل تريد المتابعة؟'))return;
+  showLoading('جاري الاستعادة...');
+  try{
+    var text = await file.text();
+    var backup = JSON.parse(text);
+    if(!backup.data){ toast('ملف غير صالح'); return; }
+    var FB = window.FB, d = FB.db;
+    var cols = Object.keys(backup.data);
+    var count = 0;
+    for(var i=0;i<cols.length;i++){
+      var col = cols[i];
+      var docs = backup.data[col]||[];
+      for(var j=0;j<docs.length;j++){
+        var doc = Object.assign({}, docs[j]);
+        var docId = doc.__id; delete doc.__id;
+        // إعادة تحويل __ts لـ Firestore Timestamp
+        Object.keys(doc).forEach(function(k){
+          if(doc[k]&&doc[k].__ts){
+            try{ doc[k] = window.FB.tsFromDate(new Date(doc[k].__ts)); }catch(e){}
+          }
+        });
+        try{
+          await FB.set(FB.doc(d, col, docId), doc);
+          count++;
+        }catch(e){ console.warn('restore doc error:', col, docId, e); }
+      }
+    }
+    toast('✅ تمت الاستعادة — '+count+' سجل');
+    var st = document.getElementById('backup-status');
+    if(st) st.textContent = '✅ تمت الاستعادة بتاريخ '+new Date().toLocaleString('ar-KW');
+  }catch(e){ toast('خطأ في الاستعادة: '+e.message); }
+  finally{ hideLoading(); event.target.value=''; }
+};
+
+function updateBackupTime(){
+  var t = localStorage.getItem('lastBackupTime');
+  var el = document.getElementById('backup-time-lbl');
+  var wrap = document.getElementById('topbar-backup');
+  if(t && el){ el.textContent = 'آخر نسخة: '+t; if(wrap) wrap.style.display=''; }
+}
+
+// ══════════════════════════════════════════════
 // START
 // ══════════════════════════════════════════════
+updateBackupTime();
 init();
 </script>
 </body>
