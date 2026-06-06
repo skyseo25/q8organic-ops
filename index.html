@@ -2,7 +2,7 @@
 <html lang="ar" dir="rtl">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Kuwait Organic — خدمات</title>
 <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;900&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
@@ -51,7 +51,7 @@ body{font-family:'Cairo',sans-serif;background:var(--bg);color:var(--text);min-h
 
 /* ── APP SHELL ── */
 #app{display:none;}
-#app.show{display:flex;min-height:100vh;}
+#app.show{display:flex;min-height:100vh;width:100%;}
 
 /* ── SIDEBAR ── */
 #sidebar{width:240px;background:linear-gradient(180deg,#0d3d20 0%,#1a7a40 100%);position:fixed;top:0;right:0;bottom:0;display:flex;flex-direction:column;z-index:100;overflow-y:auto;}
@@ -180,9 +180,10 @@ tr:hover td{background:#fafcfb;}
 .st-returned{background:var(--redl);color:var(--red);}
 
 /* ── MOBILE ── */
-#mob-bar{display:none;position:fixed;bottom:0;left:0;right:0;background:var(--white);border-top:1px solid var(--border);z-index:200;height:60px;}
-.mob-item{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;cursor:pointer;color:var(--muted2);font-size:.62rem;font-weight:700;border:none;background:none;font-family:'Cairo',sans-serif;padding:4px 2px;}
+#mob-bar{display:none;position:fixed;bottom:0;left:0;right:0;background:var(--white);border-top:1px solid var(--border);z-index:200;height:62px;padding-bottom:env(safe-area-inset-bottom);}
+.mob-item{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;cursor:pointer;color:var(--muted2);font-size:.6rem;font-weight:700;border:none;background:none;font-family:'Cairo',sans-serif;padding:6px 2px;transition:.15s;}
 .mob-item.active{color:var(--green);}
+.mob-item svg{flex-shrink:0;}
 #mob-menu-btn{display:none;}
 #mob-drawer-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:300;}
 #mob-drawer-overlay.open{display:block;}
@@ -192,16 +193,34 @@ tr:hover td{background:#fafcfb;}
 #mob-drawer.open{right:0;}
 
 @media(max-width:768px){
-  #sidebar{display:none;}
+  #sidebar{display:none!important;}
   #main{margin-right:0!important;margin-left:0!important;}
-  #mob-bar{display:flex;}
-  #mob-menu-btn{display:flex;align-items:center;justify-content:center;width:36px;height:36px;background:var(--gl);border:none;border-radius:8px;cursor:pointer;flex-shrink:0;}
-  .content{padding:16px 14px 76px!important;}
-  .topbar{padding:10px 14px;}
-  .dash-grid{grid-template-columns:1fr 1fr;}
+  #mob-bar{display:flex!important;}
+  #mob-menu-btn{display:flex!important;align-items:center;justify-content:center;width:36px;height:36px;background:var(--gl);border:none;border-radius:8px;cursor:pointer;flex-shrink:0;}
+  .content{padding:12px 12px 80px!important;}
+  .topbar{padding:10px 14px;gap:8px;}
+  .topbar h1{font-size:1rem!important;}
+  .dash-welcome{padding:18px 16px;border-radius:12px;}
+  .dash-welcome h2{font-size:1.1rem;}
+  .dash-grid{grid-template-columns:1fr 1fr!important;gap:10px;}
+  .dash-card{padding:14px 12px;}
+  .dash-card .val{font-size:1.3rem;}
+  .dash-card-icon{width:36px;height:36px;font-size:1.1rem;margin-bottom:10px;}
   .form-row{grid-template-columns:1fr!important;}
+  .sec-header{flex-wrap:wrap;gap:8px;}
+  .module-header h2{font-size:.95rem;}
+  table{font-size:.78rem;}
+  th,td{padding:8px 10px!important;}
+  .modal{border-radius:16px 16px 0 0;max-height:88vh;}
+  .sec-card{margin-bottom:12px;}
+  .filters{padding:10px 14px;}
 }
-@media(min-width:769px){#mob-bar{display:none!important;}#mob-menu-btn{display:none!important;}}
+@media(max-width:390px){
+  .dash-grid{grid-template-columns:1fr 1fr!important;gap:8px;}
+  .dash-card{padding:12px 10px;}
+  .dash-card .val{font-size:1.2rem;}
+}
+@media(min-width:769px){#mob-bar{display:none!important;}#mob-menu-btn{display:none!important;}#mob-drawer{display:none!important;}#mob-drawer-overlay{display:none!important;}#sidebar{display:flex!important;}}
 
 /* ── PRINT ── */
 @media print{#sidebar,#mob-bar,.topbar,.no-print,.overlay{display:none!important;}#main{margin:0!important;}.content{padding:8px!important;}}
