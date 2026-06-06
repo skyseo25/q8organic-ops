@@ -539,7 +539,7 @@ tr:hover td{background:#fafcfb;}
           </div>
           <div class="tbl-wrap">
             <table id="rpt-main-table"><thead><tr>
-              <th>#</th><th>المندوب</th><th>عدد الطلبات</th><th>تم تسليم</th><th>مجموع المكافآت</th><th>مجموع الكاش</th><th id="rpt-th-actions"></th>
+              <th>#</th><th>المندوب</th><th>عدد الطلبات</th><th>تم تسليم</th><th>مجموع المكافآت</th><th>مجموع الكاش</th><th style="color:var(--blue)">💳 Knet</th><th id="rpt-th-actions"></th>
             </tr></thead>
             <tbody id="del-reports-tbody"></tbody></table>
           </div>
@@ -1235,8 +1235,30 @@ window.renderOrders = function(){
     var locBtn = o.locationLink
       ? '<a href="'+o.locationLink+'" target="_blank" style="display:inline-flex;align-items:center;gap:3px;background:#e8f5e9;color:#1a7a40;border:1px solid #b8dfc4;border-radius:6px;padding:2px 8px;font-size:.72rem;font-weight:700;text-decoration:none;margin-top:3px">📍 '+ (_lang==='ar'?'الموقع':'Map') +'</a>'
       : '';
-    return '<tr><td>'+(i+1)+'</td>'      +'<td><b>'+(o.clientName||'—')+'</b><br><small style="color:var(--muted2)">'+(o.phone||'')+'</small>'+(o.orderNum?'<br><span style="background:#e8f0ff;color:#1a4a8a;padding:1px 6px;border-radius:4px;font-size:.68rem;font-weight:800">📦 '+o.orderNum+'</span>':'')+'</td>'      +'<td>'+(o.area||'—')+'<br>'+(o.block?'<small style="color:var(--muted2)">'+o.block+'</small>':'')+(locBtn?'<br>'+locBtn:'')+'</td>'      +'<td>'+typeTag+'</td>'      +'<td>'+courier+'</td>'      +'<td><span class="status '+s.cl+'">'+(_lang==='ar'?s.ar:s.en)+'</span></td>'      +'<td><button class="btn-edit-sm" onclick="openOrderModal(\''+o.id+'\')">'+t('edit')+'</button> '      +(_role==='manager'?'<button class="btn-danger" onclick="delOrder(\''+o.id+'\')">✕</button>':'')+'</td></tr>';
-  }).join('') || '<tr><td colspan="7" class="empty">'+ (_lang==='ar'?'لا توجد طلبات':'No orders') +'</td></tr>';
+    // عمود الدفع — Knet تظهر بشكل مميز مع زر إرسال رابط
+    var payCol;
+    if(o.paymentType==='knet'){
+      payCol = '<div style="display:flex;flex-direction:column;gap:4px">'
+        +'<span style="background:#e8f0ff;color:#1a4a8a;border:1.5px solid #c8d8f8;border-radius:20px;padding:3px 10px;font-size:.72rem;font-weight:800">💳 Knet</span>'
+        +(o.amount&&o.amount>0?'<button class="btn-edit-sm" style="font-size:.7rem;background:#fff8e0;color:#b8720a;border-color:#f0d080" onclick="sendKnetLink(\''+o.id+'\',\''+( o.clientName||'').replace(/'/g,'')+'\',' +parseFloat(o.amount||0).toFixed(3)+')">📤 إرسال رابط الدفع</button>':'')
+        +'</div>';
+    } else if(o.paymentType==='cash'){
+      payCol = '<span style="background:#fff0e0;color:#b8720a;border-radius:20px;padding:3px 10px;font-size:.72rem;font-weight:700;border:1px solid #f0d090">💵 '+(o.amount?parseFloat(o.amount).toFixed(3)+' KD':'كاش')+'</span>';
+    } else if(o.paymentType==='paid'){
+      payCol = '<span style="background:var(--gl);color:var(--green);border-radius:20px;padding:3px 10px;font-size:.72rem;font-weight:700">✅ مدفوع</span>';
+    } else {
+      payCol = '<span style="color:var(--muted2);font-size:.75rem">—</span>';
+    }
+    return '<tr><td>'+(i+1)+'</td>'
+      +'<td><b>'+(o.clientName||'—')+'</b><br><small style="color:var(--muted2)">'+(o.phone||'')+'</small>'+(o.orderNum?'<br><span style="background:#e8f0ff;color:#1a4a8a;padding:1px 6px;border-radius:4px;font-size:.68rem;font-weight:800">📦 '+o.orderNum+'</span>':'')+'</td>'
+      +'<td>'+(o.area||'—')+'<br>'+(o.block?'<small style="color:var(--muted2)">'+o.block+'</small>':'')+(locBtn?'<br>'+locBtn:'')+'</td>'
+      +'<td>'+typeTag+'</td>'
+      +'<td>'+courier+'</td>'
+      +'<td><span class="status '+s.cl+'">'+(_lang==='ar'?s.ar:s.en)+'</span></td>'
+      +'<td>'+payCol+'</td>'
+      +'<td><button class="btn-edit-sm" onclick="openOrderModal(\''+o.id+'\')">'+t('edit')+'</button> '
+      +(_role==='manager'?'<button class="btn-danger" onclick="delOrder(\''+o.id+'\')">✕</button>':'')+'</td></tr>';
+  }).join('') || '<tr><td colspan="8" class="empty">'+ (_lang==='ar'?'لا توجد طلبات':'No orders') +'</td></tr>';
 };
 
 function populateCourierSelect(){
@@ -2133,16 +2155,23 @@ window.renderReports = function(){
     // الكاش فقط — لا تحسب knet
     var cash = myOrds.reduce(function(s,o){
       if(o.status!=='delivered') return s;
-      if(o.paymentType==='knet') return s; // knet = تم الدفع أون لاين
+      if(o.paymentType==='knet') return s;
       return s + parseFloat(o.amount||0);
     }, 0);
+    // مجموع Knet
+    var knet = myOrds.reduce(function(s,o){
+      if(o.status!=='delivered') return s;
+      if(o.paymentType!=='knet') return s;
+      return s + parseFloat(o.amount||0);
+    }, 0);
+    var knetCount = myOrds.filter(function(o){return o.status==='delivered'&&o.paymentType==='knet';}).length;
 
     var canEdit = (_role==='manager'||_role==='supervisor');
     var actBtns = canEdit
       ? '<button class="btn-edit-sm" onclick="openRptEdit(\''+u.id+'\',\''+u.name+'\','+totalOrds+','+delivered+','+bonus.toFixed(3)+','+cash.toFixed(3)+')">تعديل</button> '
         + '<button class="btn btn-green btn-sm" onclick="settleReport(\''+u.id+'\',\''+u.name+'\')">✅ إنهاء الحساب</button> '
-        + '<button class="btn btn-ghost btn-sm" onclick="printCourierReport(\''+u.id+'\',\''+u.name+'\',\''+range.from+'\',\''+range.to+'\','+totalOrds+','+delivered+','+bonus.toFixed(3)+','+cash.toFixed(3)+')">🖨 طباعة</button>'
-      : '<button class="btn btn-ghost btn-sm" onclick="printCourierReport(\''+u.id+'\',\''+u.name+'\',\''+range.from+'\',\''+range.to+'\','+totalOrds+','+delivered+','+bonus.toFixed(3)+','+cash.toFixed(3)+')">🖨 طباعة</button>';
+        + '<button class="btn btn-ghost btn-sm" onclick="printCourierReport(\''+u.id+'\',\''+u.name+'\',\''+range.from+'\',\''+range.to+'\','+totalOrds+','+delivered+','+bonus.toFixed(3)+','+cash.toFixed(3)+','+knet.toFixed(3)+')">🖨 طباعة</button>'
+      : '<button class="btn btn-ghost btn-sm" onclick="printCourierReport(\''+u.id+'\',\''+u.name+'\',\''+range.from+'\',\''+range.to+'\','+totalOrds+','+delivered+','+bonus.toFixed(3)+','+cash.toFixed(3)+','+knet.toFixed(3)+')">🖨 طباعة</button>';
 
     rows += '<tr>'
       +'<td style="color:var(--muted2);font-size:.78rem">'+seq+'</td>'
@@ -2151,6 +2180,7 @@ window.renderReports = function(){
       +'<td style="color:var(--green);font-weight:700;text-align:center">'+delivered+'</td>'
       +'<td style="color:var(--gold);font-weight:800">'+bonus.toFixed(3)+' KD</td>'
       +'<td style="font-weight:800">'+cash.toFixed(3)+' KD</td>'
+      +'<td style="color:var(--blue);font-weight:700">'+(knetCount>0?'<span style="background:#e8f0ff;color:#1a4a8a;border-radius:20px;padding:2px 10px;font-size:.75rem">💳 '+knetCount+' · '+knet.toFixed(3)+' KD</span>':'<span style="color:var(--muted2)">—</span>')+'</td>'
       +(canEdit||_role==='employee'?'<td style="white-space:nowrap">'+actBtns+'</td>':'<td></td>')
       +'</tr>';
     seq++;
@@ -2252,15 +2282,21 @@ window.settleReport = async function(courierId, name){
   }catch(e){toast('خطأ: '+e.message);}
 };
 
-window.printCourierReport = function(courierId, name, from, to, total, delivered, bonus, cash){
+window.printCourierReport = function(courierId, name, from, to, total, delivered, bonus, cash, knet){
   var win = window.open('','_blank','width=700,height=500');
   win.document.write('<html dir="rtl"><head><meta charset="UTF-8">'
-    +'<style>body{font-family:Arial,sans-serif;padding:30px;direction:rtl}h2{color:#1a7a40}table{width:100%;border-collapse:collapse;margin-top:16px}th,td{border:1px solid #ccc;padding:8px 12px;text-align:right}th{background:#f0f9f4}@media print{button{display:none}}</style>'
+    +'<style>body{font-family:Arial,sans-serif;padding:30px;direction:rtl}h2{color:#1a7a40}table{width:100%;border-collapse:collapse;margin-top:16px}th,td{border:1px solid #ccc;padding:8px 12px;text-align:right}th{background:#f0f9f4}.knet{background:#e8f0ff;color:#1a4a8a;font-weight:800}@media print{button{display:none}}</style>'
     +'</head><body>'
     +'<h2>🌿 Kuwait Organic — تقرير توصيل</h2>'
     +'<p><b>المندوب:</b> '+name+' &nbsp;|&nbsp; <b>الفترة:</b> '+from+' — '+to+'</p>'
-    +'<table><tr><th>عدد الطلبات</th><th>تم تسليم</th><th>مجموع المكافآت</th><th>مجموع الكاش</th></tr>'
-    +'<tr><td>'+total+'</td><td>'+delivered+'</td><td>'+parseFloat(bonus).toFixed(3)+' KD</td><td>'+parseFloat(cash).toFixed(3)+' KD</td></tr></table>'
+    +'<table><tr><th>عدد الطلبات</th><th>تم تسليم</th><th>مجموع المكافآت</th><th>مجموع الكاش 💵</th><th class="knet">💳 Knet</th></tr>'
+    +'<tr>'
+    +'<td>'+total+'</td>'
+    +'<td>'+delivered+'</td>'
+    +'<td>'+parseFloat(bonus).toFixed(3)+' KD</td>'
+    +'<td>'+parseFloat(cash).toFixed(3)+' KD</td>'
+    +'<td class="knet">'+parseFloat(knet||0).toFixed(3)+' KD</td>'
+    +'</tr></table>'
     +'<br><p style="color:#888;font-size:.8rem">طُبع بتاريخ: '+new Date().toLocaleString('ar-KW')+'</p>'
     +'<button onclick="window.print()" style="margin-top:10px;padding:8px 20px;background:#1a7a40;color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:1rem">🖨 طباعة</button>'
     +'</body></html>');
@@ -2268,10 +2304,29 @@ window.printCourierReport = function(courierId, name, from, to, total, delivered
 };
 
 // ══════════════════════════════════════════════
-// KNET OPTION FOR COURIER + DELIVERY TIME
+// KNET PAYMENT LINK
 // ══════════════════════════════════════════════
-// زر تحويل الكاش إلى Knet يظهر في واجهة المندوب
-// وعند التسليم يُسجَّل وقت التسليم
+window.sendKnetLink = function(orderId, clientName, amount){
+  var order = _orders.find(function(o){return o.id===orderId;});
+  if(!order){toast('طلب غير موجود');return;}
+  // رابط MyFatoorah أو رابط كي نت مخصص — عدّل حسب حسابك
+  var payLink = 'https://www.myfatoorah.com/'; // ← ضع رابط البوابة هنا
+  var phone = (order.phone||'').replace(/\D/g,'');
+  var msg = '💳 طلب الدفع الإلكتروني\n'
+    +'━━━━━━━━━━━━━━\n'
+    +'👤 العميل: '+clientName+'\n'
+    +'💰 المبلغ: '+parseFloat(amount).toFixed(3)+' KD\n'
+    +'━━━━━━━━━━━━━━\n'
+    +'🔗 رابط الدفع:\n'+payLink+'\n'
+    +'━━━━━━━━━━━━━━\n'
+    +'Kuwait Organic 🌿';
+  var encoded = encodeURIComponent(msg);
+  var waUrl = phone
+    ? 'https://wa.me/965'+phone+'?text='+encoded
+    : 'https://wa.me/?text='+encoded;
+  window.open(waUrl, '_blank');
+};
+
 
 
 
