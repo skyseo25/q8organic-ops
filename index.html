@@ -526,16 +526,22 @@ tr:hover td{background:#fafcfb;}
               <button class="btn btn-ghost btn-sm" id="rpt-f-yesterday" onclick="setRptFilter('yesterday')">أمس</button>
               <button class="btn btn-ghost btn-sm" id="rpt-f-custom" onclick="setRptFilter('custom')">تاريخ محدد</button>
             </div>
-            <input type="date" id="rpt-date-from" class="filter-input" style="display:none" oninput="renderReports()">
-            <input type="date" id="rpt-date-to" class="filter-input" style="display:none;width:120px" oninput="renderReports()">
-            <select id="rpt-courier-filter" class="filter-input" onchange="renderReports()" style="min-width:140px"></select>
+            <input type="date" id="rpt-date-from" class="filter-input" style="display:none">
+            <input type="date" id="rpt-date-to" class="filter-input" style="display:none;width:120px">
+            <select id="rpt-courier-filter" class="filter-input" style="min-width:140px;display:none"></select>
+            <button class="btn btn-green btn-sm" onclick="renderReports()" style="gap:6px">
+              <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 11-2.12-9.36L23 10"/></svg>
+              تنفيذ
+            </button>
           </div>
         </div>
         <!-- جدول التقارير المفصّل -->
         <div class="sec-card" style="margin-bottom:20px">
           <div class="sec-header">
-            <h3>📦 تقارير مناديب التوصيل</h3>
-            <div class="sec-header-actions" id="rpt-actions-wrap"></div>
+            <h3 id="rpt-table-title">📦 تقارير مناديب التوصيل</h3>
+            <div class="sec-header-actions" id="rpt-actions-wrap">
+              <button class="btn btn-ghost btn-sm" id="rpt-print-all-btn" onclick="printAllReport()" style="display:none">🖨 طباعة الكل</button>
+            </div>
           </div>
           <div class="tbl-wrap">
             <table id="rpt-main-table"><thead><tr>
@@ -1235,13 +1241,11 @@ window.renderOrders = function(){
     var locBtn = o.locationLink
       ? '<a href="'+o.locationLink+'" target="_blank" style="display:inline-flex;align-items:center;gap:3px;background:#e8f5e9;color:#1a7a40;border:1px solid #b8dfc4;border-radius:6px;padding:2px 8px;font-size:.72rem;font-weight:700;text-decoration:none;margin-top:3px">📍 '+ (_lang==='ar'?'الموقع':'Map') +'</a>'
       : '';
-    // عمود الدفع — Knet تظهر بشكل مميز مع زر إرسال رابط
+    // عمود الدفع — Knet تظهر بشكل مميز
     var payCol;
     if(o.paymentType==='knet'){
-      payCol = '<div style="display:flex;flex-direction:column;gap:4px">'
-        +'<span style="background:#e8f0ff;color:#1a4a8a;border:1.5px solid #c8d8f8;border-radius:20px;padding:3px 10px;font-size:.72rem;font-weight:800">💳 Knet</span>'
-        +(o.amount&&o.amount>0?'<button class="btn-edit-sm" style="font-size:.7rem;background:#fff8e0;color:#b8720a;border-color:#f0d080" onclick="sendKnetLink(\''+o.id+'\',\''+( o.clientName||'').replace(/'/g,'')+'\',' +parseFloat(o.amount||0).toFixed(3)+')">📤 إرسال رابط الدفع</button>':'')
-        +'</div>';
+      payCol = '<span style="background:#e8f0ff;color:#1a4a8a;border:1.5px solid #c8d8f8;border-radius:20px;padding:3px 10px;font-size:.72rem;font-weight:800">💳 Knet</span>'
+        +(o.amount&&o.amount>0?'<div style="font-size:.7rem;color:#1a4a8a;margin-top:2px">'+parseFloat(o.amount).toFixed(3)+' KD</div>':'');
     } else if(o.paymentType==='cash'){
       payCol = '<span style="background:#fff0e0;color:#b8720a;border-radius:20px;padding:3px 10px;font-size:.72rem;font-weight:700;border:1px solid #f0d090">💵 '+(o.amount?parseFloat(o.amount).toFixed(3)+' KD':'كاش')+'</span>';
     } else if(o.paymentType==='paid'){
@@ -2099,40 +2103,38 @@ window.renderReports = function(){
   var range = getRptDateRange();
   var fromD = new Date(range.from + 'T00:00:00');
   var toD   = new Date(range.to   + 'T23:59:59');
-  var courierFilterId = (document.getElementById('rpt-courier-filter')||{}).value || '';
 
-  // فلتر select المناديب (مدير/مشرف فقط)
-  var csel = document.getElementById('rpt-courier-filter');
-  if(csel){
-    if(_role==='manager'||_role==='supervisor'){
-      if(csel.options.length <= 1){
-        csel.innerHTML = '<option value="">كل المناديب</option>'
-          + _delUsers.map(function(u){ return '<option value="'+u.id+'">'+u.name+'</option>'; }).join('');
-      }
-      csel.style.display = '';
-    } else {
-      csel.style.display = 'none';
-    }
-  }
+  // تحديث عنوان التقرير بالتاريخ
+  var titleEl = document.getElementById('rpt-table-title');
+  var dateLabel = range.from === range.to
+    ? ('📦 تقرير يوم ' + range.from)
+    : ('📦 تقرير الفترة: ' + range.from + ' — ' + range.to);
+  if(titleEl) titleEl.textContent = dateLabel;
 
   // رأس الجدول حسب الصلاحية
   var thAct = document.getElementById('rpt-th-actions');
-  if(thAct) thAct.textContent = (_role==='manager'||_role==='supervisor') ? 'إجراءات' : '';
+  var canEdit = (_role==='manager'||_role==='supervisor');
+  if(thAct) thAct.textContent = canEdit ? 'إجراءات' : '';
 
-  // احسب بيانات المناديب في النطاق المحدد
-  var usersToShow = (_role==='manager'||_role==='supervisor')
-    ? (courierFilterId ? _delUsers.filter(function(u){return u.id===courierFilterId;}) : _delUsers)
+  // زر طباعة الكل للمدير/المشرف
+  var printAllBtn = document.getElementById('rpt-print-all-btn');
+  if(printAllBtn) printAllBtn.style.display = canEdit ? '' : 'none';
+
+  // تحديد المناديب للعرض
+  var usersToShow = canEdit
+    ? _delUsers
     : _delUsers.filter(function(u){ return u.id===(_u.id||_u.username)||u.username===(_u.username||''); });
 
   var seen = {};
   var rows = '';
   var seq = 1;
+  // نجمع بيانات الكل لطباعة موحدة
+  var allReportData = [];
 
   usersToShow.forEach(function(u){
     if(seen[u.id]) return;
     seen[u.id] = 1;
 
-    // الطلبات في النطاق لهذا المندوب
     var myOrds = _orders.filter(function(o){
       if(o.orderType==='inspection') return false;
       if(o.courierId !== u.id && o.courierId !== u.username) return false;
@@ -2145,33 +2147,28 @@ window.renderReports = function(){
 
     var delivered = myOrds.filter(function(o){return o.status==='delivered';}).length;
     var totalOrds = myOrds.length;
-    // حساب المكافآت فقط للمسلَّم
     var bonus = myOrds.reduce(function(s,o){
       if(o.status!=='delivered') return s;
       var dt = o.deliveredAt&&o.deliveredAt.toDate?o.deliveredAt.toDate()
               :o.createdAt&&o.createdAt.toDate?o.createdAt.toDate():new Date();
       return s + (dt.getDay()===5?0.5:0.25);
     }, 0);
-    // الكاش فقط — لا تحسب knet
     var cash = myOrds.reduce(function(s,o){
-      if(o.status!=='delivered') return s;
-      if(o.paymentType==='knet') return s;
+      if(o.status!=='delivered'||o.paymentType==='knet') return s;
       return s + parseFloat(o.amount||0);
     }, 0);
-    // مجموع Knet
     var knet = myOrds.reduce(function(s,o){
-      if(o.status!=='delivered') return s;
-      if(o.paymentType!=='knet') return s;
+      if(o.status!=='delivered'||o.paymentType!=='knet') return s;
       return s + parseFloat(o.amount||0);
     }, 0);
     var knetCount = myOrds.filter(function(o){return o.status==='delivered'&&o.paymentType==='knet';}).length;
 
-    var canEdit = (_role==='manager'||_role==='supervisor');
+    allReportData.push({id:u.id, name:u.name, totalOrds, delivered, bonus, cash, knet, knetCount});
+
     var actBtns = canEdit
       ? '<button class="btn-edit-sm" onclick="openRptEdit(\''+u.id+'\',\''+u.name+'\','+totalOrds+','+delivered+','+bonus.toFixed(3)+','+cash.toFixed(3)+')">تعديل</button> '
-        + '<button class="btn btn-green btn-sm" onclick="settleReport(\''+u.id+'\',\''+u.name+'\')">✅ إنهاء الحساب</button> '
-        + '<button class="btn btn-ghost btn-sm" onclick="printCourierReport(\''+u.id+'\',\''+u.name+'\',\''+range.from+'\',\''+range.to+'\','+totalOrds+','+delivered+','+bonus.toFixed(3)+','+cash.toFixed(3)+','+knet.toFixed(3)+')">🖨 طباعة</button>'
-      : '<button class="btn btn-ghost btn-sm" onclick="printCourierReport(\''+u.id+'\',\''+u.name+'\',\''+range.from+'\',\''+range.to+'\','+totalOrds+','+delivered+','+bonus.toFixed(3)+','+cash.toFixed(3)+','+knet.toFixed(3)+')">🖨 طباعة</button>';
+        + '<button class="btn btn-green btn-sm" onclick="settleReport(\''+u.id+'\',\''+u.name+'\',\''+range.from+'\',\''+range.to+'\')">✅ إنهاء الحساب</button>'
+      : '<button class="btn btn-ghost btn-sm" onclick="printSingleReport(\''+u.name+'\',\''+range.from+'\',\''+range.to+'\','+totalOrds+','+delivered+','+bonus.toFixed(3)+','+cash.toFixed(3)+','+knet.toFixed(3)+',\'\')">🖨 طباعة</button>';
 
     rows += '<tr>'
       +'<td style="color:var(--muted2);font-size:.78rem">'+seq+'</td>'
@@ -2180,14 +2177,17 @@ window.renderReports = function(){
       +'<td style="color:var(--green);font-weight:700;text-align:center">'+delivered+'</td>'
       +'<td style="color:var(--gold);font-weight:800">'+bonus.toFixed(3)+' KD</td>'
       +'<td style="font-weight:800">'+cash.toFixed(3)+' KD</td>'
-      +'<td style="color:var(--blue);font-weight:700">'+(knetCount>0?'<span style="background:#e8f0ff;color:#1a4a8a;border-radius:20px;padding:2px 10px;font-size:.75rem">💳 '+knetCount+' · '+knet.toFixed(3)+' KD</span>':'<span style="color:var(--muted2)">—</span>')+'</td>'
-      +(canEdit||_role==='employee'?'<td style="white-space:nowrap">'+actBtns+'</td>':'<td></td>')
+      +'<td>'+(knetCount>0?'<span style="background:#e8f0ff;color:#1a4a8a;border-radius:20px;padding:2px 10px;font-size:.75rem;font-weight:700">💳 '+knetCount+' · '+knet.toFixed(3)+' KD</span>':'<span style="color:var(--muted2)">—</span>')+'</td>'
+      +'<td style="white-space:nowrap">'+actBtns+'</td>'
       +'</tr>';
     seq++;
   });
 
   var tbody = document.getElementById('del-reports-tbody');
-  if(tbody) tbody.innerHTML = rows || '<tr><td colspan="7" class="empty">لا توجد بيانات في هذا النطاق</td></tr>';
+  if(tbody) tbody.innerHTML = rows || '<tr><td colspan="8" class="empty">لا توجد بيانات في هذا النطاق</td></tr>';
+
+  // حفظ بيانات التقرير للطباعة الموحدة
+  window._lastReportData = {range, data: allReportData};
 
   // ── ملخص الري والصيانة بالشهر ──
   var months={};
@@ -2241,11 +2241,11 @@ window.saveReportEdit = async function(){
   }catch(e){toast('خطأ: '+e.message);}
 };
 
-window.settleReport = async function(courierId, name){
+window.settleReport = async function(courierId, name, dateFrom, dateTo){
   if(!confirm('تأكيد إنهاء حساب '+name+'؟ سيتم تصفير رصيده وحفظ التقرير.'))return;
   var u = _delUsers.find(function(x){return x.id===courierId;});
   if(!u)return;
-  var range = getRptDateRange();
+  var range = dateFrom && dateTo ? {from:dateFrom, to:dateTo} : getRptDateRange();
   var fromD = new Date(range.from + 'T00:00:00');
   var toD   = new Date(range.to   + 'T23:59:59');
   var myOrds = _orders.filter(function(o){
@@ -2266,65 +2266,104 @@ window.settleReport = async function(courierId, name){
     if(o.status!=='delivered'||o.paymentType==='knet') return s;
     return s+parseFloat(o.amount||0);
   },0);
+  var knet = myOrds.reduce(function(s,o){
+    if(o.status!=='delivered'||o.paymentType!=='knet') return s;
+    return s+parseFloat(o.amount||0);
+  },0);
+  var settledBy = _u.name||_u.username;
   try{
     await window.FB.add(window.FB.col(window.FB.db,'del_reports'),{
-      courierId, courierName:u.name,
+      courierId:u.id, courierName:u.name,
       dateFrom:range.from, dateTo:range.to,
-      totalOrders:myOrds.length, delivered, bonus, cash,
-      settledBy:_u.name||_u.username,
-      settledAt:window.FB.ts(),
+      totalOrders:myOrds.length, delivered, bonus, cash, knet,
+      settledBy, settledAt:window.FB.ts(),
       savedAt:window.FB.ts(),
       type:'settlement'
     });
-    // تصفير الرصيد
     await window.FB.upd(window.FB.doc(window.FB.db,'del_users',courierId),{balance:0,lastPaid:bonus,lastPaidAt:window.FB.ts(),updatedAt:window.FB.ts()});
-    toast('✅ تم إنهاء حساب '+name+' بواسطة '+(_u.name||_u.username));
+    toast('✅ تم إنهاء حساب '+name+' بواسطة '+settledBy);
+    // طباعة تلقائية لتقرير هذا المندوب مع اسم المنهي
+    printSingleReport(u.name, range.from, range.to, myOrds.length, delivered, bonus, cash, knet, settledBy);
   }catch(e){toast('خطأ: '+e.message);}
 };
 
-window.printCourierReport = function(courierId, name, from, to, total, delivered, bonus, cash, knet){
-  var win = window.open('','_blank','width=700,height=500');
-  win.document.write('<html dir="rtl"><head><meta charset="UTF-8">'
-    +'<style>body{font-family:Arial,sans-serif;padding:30px;direction:rtl}h2{color:#1a7a40}table{width:100%;border-collapse:collapse;margin-top:16px}th,td{border:1px solid #ccc;padding:8px 12px;text-align:right}th{background:#f0f9f4}.knet{background:#e8f0ff;color:#1a4a8a;font-weight:800}@media print{button{display:none}}</style>'
+// طباعة تقرير مندوب واحد (مع اسم منهي الحساب إن وجد)
+window.printSingleReport = function(name, from, to, total, delivered, bonus, cash, knet, settledBy){
+  var win = window.open('','_blank','width=720,height=560');
+  var settleRow = settledBy
+    ? '<tr style="background:#f0f9f4"><td colspan="2" style="color:var(--green)">✅ أنهى الحساب</td><td colspan="3" style="font-weight:800;color:#1a7a40">'+settledBy+' — '+new Date().toLocaleString('ar-KW')+'</td></tr>'
+    : '';
+  win.document.write('<!DOCTYPE html><html dir="rtl"><head><meta charset="UTF-8">'
+    +'<style>body{font-family:Arial,sans-serif;padding:28px 32px;direction:rtl;color:#0f2318}'
+    +'h2{color:#1a7a40;margin-bottom:4px}p{margin:4px 0;font-size:.9rem}'
+    +'table{width:100%;border-collapse:collapse;margin-top:14px}'
+    +'th,td{border:1px solid #c8dfc8;padding:9px 14px;text-align:right;font-size:.9rem}'
+    +'th{background:#e8f5ec;font-weight:800}'
+    +'.knet-cell{background:#e8f0ff;color:#1a4a8a;font-weight:800}'
+    +'.footer{margin-top:18px;font-size:.75rem;color:#888}'
+    +'@media print{button{display:none!important}}</style>'
     +'</head><body>'
     +'<h2>🌿 Kuwait Organic — تقرير توصيل</h2>'
-    +'<p><b>المندوب:</b> '+name+' &nbsp;|&nbsp; <b>الفترة:</b> '+from+' — '+to+'</p>'
-    +'<table><tr><th>عدد الطلبات</th><th>تم تسليم</th><th>مجموع المكافآت</th><th>مجموع الكاش 💵</th><th class="knet">💳 Knet</th></tr>'
-    +'<tr>'
-    +'<td>'+total+'</td>'
-    +'<td>'+delivered+'</td>'
-    +'<td>'+parseFloat(bonus).toFixed(3)+' KD</td>'
-    +'<td>'+parseFloat(cash).toFixed(3)+' KD</td>'
-    +'<td class="knet">'+parseFloat(knet||0).toFixed(3)+' KD</td>'
-    +'</tr></table>'
-    +'<br><p style="color:#888;font-size:.8rem">طُبع بتاريخ: '+new Date().toLocaleString('ar-KW')+'</p>'
-    +'<button onclick="window.print()" style="margin-top:10px;padding:8px 20px;background:#1a7a40;color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:1rem">🖨 طباعة</button>'
+    +'<p><b>المندوب:</b> '+name+'</p>'
+    +'<p><b>الفترة:</b> '+from+(from!==to?' — '+to:'')+'</p>'
+    +'<table>'
+    +'<thead><tr><th>عدد الطلبات</th><th>تم تسليم</th><th>مجموع المكافآت</th><th>مجموع الكاش 💵</th><th class="knet-cell">💳 Knet</th></tr></thead>'
+    +'<tbody>'
+    +'<tr><td>'+total+'</td><td style="color:#1a7a40;font-weight:800">'+delivered+'</td>'
+    +'<td style="color:#b8720a;font-weight:800">'+parseFloat(bonus).toFixed(3)+' KD</td>'
+    +'<td style="font-weight:800">'+parseFloat(cash).toFixed(3)+' KD</td>'
+    +'<td class="knet-cell">'+parseFloat(knet||0).toFixed(3)+' KD</td></tr>'
+    +settleRow
+    +'</tbody></table>'
+    +'<p class="footer">طُبع بتاريخ: '+new Date().toLocaleString('ar-KW')+'</p>'
+    +'<button onclick="window.print()" style="margin-top:14px;padding:9px 24px;background:#1a7a40;color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:.95rem">🖨 طباعة</button>'
     +'</body></html>');
   win.document.close();
 };
 
-// ══════════════════════════════════════════════
-// KNET PAYMENT LINK
-// ══════════════════════════════════════════════
-window.sendKnetLink = function(orderId, clientName, amount){
-  var order = _orders.find(function(o){return o.id===orderId;});
-  if(!order){toast('طلب غير موجود');return;}
-  // رابط MyFatoorah أو رابط كي نت مخصص — عدّل حسب حسابك
-  var payLink = 'https://www.myfatoorah.com/'; // ← ضع رابط البوابة هنا
-  var phone = (order.phone||'').replace(/\D/g,'');
-  var msg = '💳 طلب الدفع الإلكتروني\n'
-    +'━━━━━━━━━━━━━━\n'
-    +'👤 العميل: '+clientName+'\n'
-    +'💰 المبلغ: '+parseFloat(amount).toFixed(3)+' KD\n'
-    +'━━━━━━━━━━━━━━\n'
-    +'🔗 رابط الدفع:\n'+payLink+'\n'
-    +'━━━━━━━━━━━━━━\n'
-    +'Kuwait Organic 🌿';
-  var encoded = encodeURIComponent(msg);
-  var waUrl = phone
-    ? 'https://wa.me/965'+phone+'?text='+encoded
-    : 'https://wa.me/?text='+encoded;
-  window.open(waUrl, '_blank');
+// طباعة تقرير موحد لكل المناديب
+window.printAllReport = function(){
+  var rpt = window._lastReportData;
+  if(!rpt||!rpt.data||!rpt.data.length){toast('نفّذ التقرير أولاً');return;}
+  var range = rpt.range;
+  var rows = rpt.data.map(function(r,i){
+    return '<tr>'
+      +'<td>'+(i+1)+'</td>'
+      +'<td><b>'+r.name+'</b></td>'
+      +'<td>'+r.totalOrds+'</td>'
+      +'<td style="color:#1a7a40;font-weight:800">'+r.delivered+'</td>'
+      +'<td style="color:#b8720a;font-weight:800">'+r.bonus.toFixed(3)+' KD</td>'
+      +'<td style="font-weight:800">'+r.cash.toFixed(3)+' KD</td>'
+      +'<td class="knet-cell">'+r.knet.toFixed(3)+' KD</td>'
+      +'</tr>';
+  }).join('');
+  // مجاميع
+  var tot = rpt.data.reduce(function(s,r){return {totalOrds:s.totalOrds+r.totalOrds,delivered:s.delivered+r.delivered,bonus:s.bonus+r.bonus,cash:s.cash+r.cash,knet:s.knet+r.knet};},{totalOrds:0,delivered:0,bonus:0,cash:0,knet:0});
+  var win = window.open('','_blank','width=820,height:640');
+  win.document.write('<!DOCTYPE html><html dir="rtl"><head><meta charset="UTF-8">'
+    +'<style>body{font-family:Arial,sans-serif;padding:28px 32px;direction:rtl;color:#0f2318}'
+    +'h2{color:#1a7a40;margin-bottom:4px}p{margin:4px 0;font-size:.9rem}'
+    +'table{width:100%;border-collapse:collapse;margin-top:14px}'
+    +'th,td{border:1px solid #c8dfc8;padding:9px 12px;text-align:right;font-size:.88rem}'
+    +'th{background:#e8f5ec;font-weight:800}'
+    +'.knet-cell{background:#e8f0ff;color:#1a4a8a;font-weight:800}'
+    +'.total-row{background:#f0f9f4;font-weight:900}'
+    +'.footer{margin-top:18px;font-size:.75rem;color:#888}'
+    +'@media print{button{display:none!important}}</style>'
+    +'</head><body>'
+    +'<h2>🌿 Kuwait Organic — تقرير يومي موحد</h2>'
+    +'<p><b>الفترة:</b> '+range.from+(range.from!==range.to?' — '+range.to:'')+'</p>'
+    +'<p><b>أُعدّ بواسطة:</b> '+(_u.name||_u.username)+'</p>'
+    +'<table>'
+    +'<thead><tr><th>#</th><th>المندوب</th><th>عدد الطلبات</th><th>تم تسليم</th><th>مجموع المكافآت</th><th>مجموع الكاش 💵</th><th class="knet-cell">💳 Knet</th></tr></thead>'
+    +'<tbody>'+rows
+    +'<tr class="total-row"><td colspan="2">الإجمالي</td><td>'+tot.totalOrds+'</td><td>'+tot.delivered+'</td>'
+    +'<td>'+tot.bonus.toFixed(3)+' KD</td><td>'+tot.cash.toFixed(3)+' KD</td><td class="knet-cell">'+tot.knet.toFixed(3)+' KD</td></tr>'
+    +'</tbody></table>'
+    +'<p class="footer">طُبع بتاريخ: '+new Date().toLocaleString('ar-KW')+'</p>'
+    +'<button onclick="window.print()" style="margin-top:14px;padding:9px 24px;background:#1a7a40;color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:.95rem">🖨 طباعة</button>'
+    +'</body></html>');
+  win.document.close();
 };
 
 
