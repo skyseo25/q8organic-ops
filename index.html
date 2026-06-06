@@ -615,6 +615,7 @@ tr:hover td{background:#fafcfb;}
   <div class="modal">
     <h3 id="order-modal-title">إضافة طلب توصيل</h3>
     <input type="hidden" id="order-edit-id">
+    <div class="field-m"><label>📦 رقم الطلب / Order #</label><input id="ord-ordernum" type="text" placeholder="مثال: #1234 أو كرتون A"></div>
     <div class="form-row">
       <div class="field-m"><label>اسم العميل / Client Name</label><input id="ord-client" type="text"></div>
       <div class="field-m"><label>الهاتف / Phone</label><input id="ord-phone" type="tel"></div>
@@ -1160,7 +1161,7 @@ window.renderOrders = function(){
     var locBtn = o.locationLink
       ? '<a href="'+o.locationLink+'" target="_blank" style="display:inline-flex;align-items:center;gap:3px;background:#e8f5e9;color:#1a7a40;border:1px solid #b8dfc4;border-radius:6px;padding:2px 8px;font-size:.72rem;font-weight:700;text-decoration:none;margin-top:3px">📍 '+ (_lang==='ar'?'الموقع':'Map') +'</a>'
       : '';
-    return '<tr><td>'+(i+1)+'</td>'      +'<td><b>'+(o.clientName||'—')+'</b><br><small style="color:var(--muted2)">'+(o.phone||'')+'</small></td>'      +'<td>'+(o.area||'—')+'<br>'+(o.block?'<small style="color:var(--muted2)">'+o.block+'</small>':'')+(locBtn?'<br>'+locBtn:'')+'</td>'      +'<td>'+typeTag+'</td>'      +'<td>'+courier+'</td>'      +'<td><span class="status '+s.cl+'">'+(_lang==='ar'?s.ar:s.en)+'</span></td>'      +'<td><button class="btn-edit-sm" onclick="openOrderModal(\''+o.id+'\')">'+t('edit')+'</button> '      +(_role==='manager'?'<button class="btn-danger" onclick="delOrder(\''+o.id+'\')">✕</button>':'')+'</td></tr>';
+    return '<tr><td>'+(i+1)+'</td>'      +'<td><b>'+(o.clientName||'—')+'</b><br><small style="color:var(--muted2)">'+(o.phone||'')+'</small>'+(o.orderNum?'<br><span style="background:#e8f0ff;color:#1a4a8a;padding:1px 6px;border-radius:4px;font-size:.68rem;font-weight:800">📦 '+o.orderNum+'</span>':'')+'</td>'      +'<td>'+(o.area||'—')+'<br>'+(o.block?'<small style="color:var(--muted2)">'+o.block+'</small>':'')+(locBtn?'<br>'+locBtn:'')+'</td>'      +'<td>'+typeTag+'</td>'      +'<td>'+courier+'</td>'      +'<td><span class="status '+s.cl+'">'+(_lang==='ar'?s.ar:s.en)+'</span></td>'      +'<td><button class="btn-edit-sm" onclick="openOrderModal(\''+o.id+'\')">'+t('edit')+'</button> '      +(_role==='manager'?'<button class="btn-danger" onclick="delOrder(\''+o.id+'\')">✕</button>':'')+'</td></tr>';
   }).join('') || '<tr><td colspan="7" class="empty">'+ (_lang==='ar'?'لا توجد طلبات':'No orders') +'</td></tr>';
 };
 
@@ -1187,9 +1188,10 @@ window.openOrderModal = function(id){
       document.getElementById('ord-courier').value=o.courierId||'';
       document.getElementById('ord-notes').value=o.notes||'';
       document.getElementById('ord-location').value=o.locationLink||'';
+      document.getElementById('ord-ordernum').value=o.orderNum||'';
     }
   } else {
-    ['ord-client','ord-phone','ord-area','ord-block','ord-address','ord-amount','ord-notes','ord-location'].forEach(function(x){document.getElementById(x).value='';});;
+    ['ord-client','ord-phone','ord-area','ord-block','ord-address','ord-amount','ord-notes','ord-location','ord-ordernum'].forEach(function(x){document.getElementById(x).value='';});
     document.getElementById('ord-payment').value='cash';
     document.getElementById('ord-courier').value='';
   }
@@ -1214,6 +1216,7 @@ window.saveOrder = async function(){
       courierId:cid, courierName:courier?courier.name:'',
       notes:document.getElementById('ord-notes').value.trim(),
       locationLink:document.getElementById('ord-location').value.trim(),
+      orderNum:document.getElementById('ord-ordernum').value.trim(),
       updatedAt:window.FB.ts()
     };
     if(!data.clientName){toast(_lang==='ar'?'أدخل اسم العميل':'Enter client name');return;}
@@ -1349,7 +1352,7 @@ window.renderCourierView = function(){
     return '<div class="order-card '+statusClass+'">'
       +'<div class="order-card-head">'
         +'<div>'
-          +'<div class="order-card-num">#'+(i+1)+(isInspection?' · 🔍 Inspection':'')+' · '+(o.createdAt&&o.createdAt.toDate?o.createdAt.toDate().toLocaleDateString('en-GB'):'—')+'</div>'
+          +'<div class="order-card-num">#'+(i+1)+(isInspection?' · 🔍 Inspection':'')+(o.orderNum?' · <span style="background:#e8f0ff;color:#1a4a8a;padding:1px 6px;border-radius:4px;font-size:.7rem;font-weight:800">📦 '+o.orderNum+'</span>':'')+' · '+(o.createdAt&&o.createdAt.toDate?o.createdAt.toDate().toLocaleDateString('en-GB'):'—')+'</div>'
           +'<div class="order-card-name">'+(o.clientName||'—')+'</div>'
           +'<div class="order-card-phone">📞 '+(o.phone||'—')+'</div>'
         +'</div>'
