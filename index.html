@@ -300,7 +300,7 @@ tr:hover td{background:#fafcfb;}
       <div class="page" id="page-orders">
         <div class="module-header">
           <div class="dash-card-icon orange" style="width:36px;height:36px;font-size:1rem">🚚</div>
-          <h2 id="lbl-orders-title">طلبات التوصيل</h2>
+          <h2 id="lbl-orders-title">طلبات التوصيل والكشف</h2>
           <span class="module-badge tag-orange" id="orders-count-badge">0</span>
         </div>
         <div class="sec-card">
@@ -529,7 +529,7 @@ tr:hover td{background:#fafcfb;}
   </button>
   <button class="mob-item" onclick="showPage('orders')" id="mob-btn-orders">
     <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
-    <span id="mob-lbl-orders">توصيل</span>
+    <span id="mob-lbl-orders">توصيل/كشف</span>
   </button>
   <button class="mob-item" onclick="showPage('irrigation')" id="mob-btn-irrigation">
     <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 2a7 7 0 017 7c0 5-7 13-7 13S5 14 5 9a7 7 0 017-7z"/></svg>
@@ -629,7 +629,15 @@ tr:hover td{background:#fafcfb;}
       <div class="field-m"><label>المنطقة</label><input id="insp-area" type="text"></div>
       <div class="field-m"><label>التاريخ</label><input id="insp-date" type="date"></div>
     </div>
-    <div class="field-m"><label>وصف المشكلة</label><textarea id="insp-desc" rows="3"></textarea></div>
+    <div class="field-m"><label>نوع الكشف / Inspection Type</label>
+      <select id="insp-type">
+        <option value="irrigation_ext">تمديد شبكة ري / Irrigation Extension</option>
+        <option value="irrigation_mnt">صيانة ري / Irrigation Maintenance</option>
+        <option value="garden_mnt">صيانة حديقة / Garden Maintenance</option>
+        <option value="warranty">كفالة / Warranty</option>
+      </select>
+    </div>
+    <div class="field-m"><label>وصف المشكلة / Description</label><textarea id="insp-desc" rows="3"></textarea></div>
     <div class="form-row">
       <div class="field-m"><label>الموظف المكلف</label><select id="insp-emp"><option value="">—</option></select></div>
       <div class="field-m"><label>الحالة</label>
@@ -865,7 +873,7 @@ function updateUI(){
 function getNavItems(){
   var all = [
     {id:'dashboard', icon:'⊞', ar:'لوحة التحكم', en:'Dashboard', roles:['manager','supervisor','employee']},
-    {id:'orders', icon:'🚚', ar:'طلبات التوصيل', en:'Delivery Orders', roles:['manager','supervisor','employee'], section_ar:'التوصيل', section_en:'Delivery'},
+    {id:'orders', icon:'🚚', ar:'طلبات التوصيل والكشف', en:'Delivery & Inspection Orders', roles:['manager','supervisor','employee'], section_ar:'التوصيل', section_en:'Delivery'},
     {id:'irrigation', icon:'🔧', ar:'الري والصيانة', en:'Irrigation & Maint.', roles:['manager','supervisor','employee'], section_ar:'الصيانة', section_en:'Maintenance'},
     {id:'customers', icon:'👥', ar:'قاعدة العملاء', en:'Customers', roles:['manager','supervisor']},
     {id:'employees', icon:'👤', ar:'الموظفون', en:'Employees', roles:['manager','supervisor'], section_ar:'الإدارة', section_en:'Management'},
@@ -991,7 +999,7 @@ function renderDashboard(){
   var todayInvs = _invoices.filter(function(i){ return (i.createdAt?i.createdAt.toDate?i.createdAt.toDate():new Date(i.createdAt):new Date()).toDateString()===new Date().toDateString(); }).length;
   var openInsp = _inspections.filter(function(i){ return i.status==='new'||i.status==='scheduled'; }).length;
   var cards = [
-    {icon:'🚚',color:'orange',title:_lang==='ar'?'طلبات التوصيل':'Active Orders',val:activeOrds,sub:_lang==='ar'?'نشطة':'active',page:'orders'},
+    {icon:'🚚',color:'orange',title:_lang==='ar'?'طلبات التوصيل والكشف':'Active Orders',val:activeOrds,sub:_lang==='ar'?'نشطة':'active',page:'orders'},
     {icon:'🔧',color:'green',title:_lang==='ar'?'فواتير اليوم':'Today Invoices',val:todayInvs,sub:_lang==='ar'?'فاتورة اليوم':'today',page:'irrigation'},
     {icon:'🔍',color:'blue',title:_lang==='ar'?'طلبات الكشف':'Inspections',val:openInsp,sub:_lang==='ar'?'مفتوحة':'open',page:'irrigation'},
     {icon:'👥',color:'gold',title:_lang==='ar'?'العملاء':'Customers',val:_customers.length,sub:_lang==='ar'?'عميل مسجل':'registered',page:'customers'},
@@ -1020,19 +1028,26 @@ function renderDashboard(){
 // ══════════════════════════════════════════════
 window.renderOrders = function(){
   var filter = document.getElementById('orders-status-filter').value;
-  var list = _orders.filter(function(o){ return !filter||o.status===filter; });
-  var PAY = {cash:'كاش',knet:'كي-نت',paid:'مدفوع'};
+  var list = _orders.filter(function(o){
+    if(filter && o.status !== filter) return false;
+    if(_role === 'employee'){
+      return o.courierId === (_u.id||_u.username) || !o.courierId;
+    }
+    return true;
+  });
+  var PAY = {cash:'كاش',knet:'كي-نت',paid:'مدفوع',free:'—'};
   var ST = {pending:{cl:'st-pending',ar:'قيد الانتظار',en:'Pending'},assigned:{cl:'st-pending',ar:'محال',en:'Assigned'},
     delivered:{cl:'st-active',ar:'مسلّم',en:'Delivered'},returned:{cl:'st-cancelled',ar:'مرتجع',en:'Returned'}};
   document.getElementById('orders-count-badge').textContent = list.length;
   document.getElementById('orders-tbody').innerHTML = list.map(function(o,i){
     var s = ST[o.status]||{cl:'st-gray',ar:o.status,en:o.status};
-    return '<tr><td>'+(i+1)+'</td><td><b>'+( o.clientName||'—')+'</b><br><small style="color:var(--muted2)">'+( o.phone||'')+'</small></td>'
-      +'<td>'+(o.area||'—')+'</td><td>'+(o.courierName||'—')+'</td>'
-      +'<td><span class="status '+s.cl+'">'+(_lang==='ar'?s.ar:s.en)+'</span></td>'
-      +'<td><span class="tag '+(o.paymentType==='knet'?'tag-blue':o.paymentType==='paid'?'tag-green':'tag-gold')+'">'+(PAY[o.paymentType]||o.paymentType||'—')+'</span></td>'
-      +'<td><button class="btn-edit-sm" onclick="openOrderModal(\''+o.id+'\')">'+t('edit')+'</button> '
-      +(_role==='manager'?'<button class="btn-danger" onclick="delOrder(\''+o.id+'\')">✕</button>':'')+'</td></tr>';
+    var typeTag = o.orderType==='inspection'
+      ? '<span class="tag tag-blue" style="font-size:.68rem">🔍 '+(o.inspTypeAr||o.inspTypeEn||'كشف')+'</span>'
+      : '<span class="tag tag-orange" style="font-size:.68rem">🚚 '+ (_lang==='ar'?'توصيل':'Delivery') +'</span>';
+    var courier = o.courierId
+      ? '<b>'+(o.courierName||'—')+'</b>'
+      : '<span style="color:var(--muted2);font-size:.75rem">'+(_lang==='ar'?'لم يُحدد':'Not assigned')+'</span>';
+    return '<tr><td>'+(i+1)+'</td>'      +'<td><b>'+(o.clientName||'—')+'</b><br><small style="color:var(--muted2)">'+(o.phone||'')+'</small></td>'      +'<td>'+(o.area||'—')+'</td>'      +'<td>'+typeTag+'</td>'      +'<td>'+courier+'</td>'      +'<td><span class="status '+s.cl+'">'+(_lang==='ar'?s.ar:s.en)+'</span></td>'      +'<td><button class="btn-edit-sm" onclick="openOrderModal(\''+o.id+'\')">'+t('edit')+'</button> '      +(_role==='manager'?'<button class="btn-danger" onclick="delOrder(\''+o.id+'\')">✕</button>':'')+'</td></tr>';
   }).join('') || '<tr><td colspan="7" class="empty">'+ (_lang==='ar'?'لا توجد طلبات':'No orders') +'</td></tr>';
 };
 
@@ -1273,18 +1288,54 @@ window.openInspModal = function(id){
 };
 
 var _savingInsp=false;
+var INS_TYPE_AR={'irrigation_ext':'تمديد شبكة ري','irrigation_mnt':'صيانة ري','garden_mnt':'صيانة حديقة','warranty':'كفالة'};
+var INS_TYPE_EN={'irrigation_ext':'Irrigation Extension','irrigation_mnt':'Irrigation Maint.','garden_mnt':'Garden Maint.','warranty':'Warranty'};
 window.saveInspection = async function(){
   if(_savingInsp)return; _savingInsp=true;
   try{
     var eid=document.getElementById('insp-edit-id').value;
     var emp=_iriUsers.find(function(x){return x.id===document.getElementById('insp-emp').value;});
-    var data={client:document.getElementById('insp-client').value.trim(),phone:document.getElementById('insp-phone').value.trim(),
-      area:document.getElementById('insp-area').value.trim(),date:document.getElementById('insp-date').value,
-      desc:document.getElementById('insp-desc').value.trim(),status:document.getElementById('insp-status').value,
-      empId:document.getElementById('insp-emp').value,empName:emp?emp.name:'',updatedAt:window.FB.ts()};
+    var inspType=document.getElementById('insp-type').value;
+    var data={
+      client:document.getElementById('insp-client').value.trim(),
+      phone:document.getElementById('insp-phone').value.trim(),
+      area:document.getElementById('insp-area').value.trim(),
+      date:document.getElementById('insp-date').value,
+      inspType:inspType,
+      desc:document.getElementById('insp-desc').value.trim(),
+      status:document.getElementById('insp-status').value,
+      empId:document.getElementById('insp-emp').value,
+      empName:emp?emp.name:'',
+      updatedAt:window.FB.ts()
+    };
     if(!data.client){toast('أدخل اسم العميل');return;}
-    if(eid){await window.FB.upd(window.FB.doc(window.FB.db,'iri_inspections',eid),data);toast('✅');}
-    else{data.createdAt=window.FB.ts();await window.FB.add(window.FB.col(window.FB.db,'iri_inspections'),data);toast('✅ تم إضافة طلب الكشف');}
+    if(eid){
+      await window.FB.upd(window.FB.doc(window.FB.db,'iri_inspections',eid),data);
+      toast('✅ تم التعديل');
+    } else {
+      data.createdAt=window.FB.ts();
+      await window.FB.add(window.FB.col(window.FB.db,'iri_inspections'),data);
+      // إضافة تلقائية في del_orders بدون مندوب
+      var orderData={
+        clientName:data.client,
+        phone:data.phone,
+        area:data.area,
+        address:'',
+        orderType:'inspection',
+        inspType:inspType,
+        inspTypeAr:INS_TYPE_AR[inspType]||inspType,
+        inspTypeEn:INS_TYPE_EN[inspType]||inspType,
+        notes:data.desc,
+        courierId:'',courierName:'',
+        paymentType:'free',
+        amount:0,
+        status:'pending',
+        createdAt:window.FB.ts(),
+        createdBy:_u.id||_u.username
+      };
+      await window.FB.add(window.FB.col(window.FB.db,'del_orders'),orderData);
+      toast('✅ تم إضافة طلب الكشف وأُرسل لقسم التوصيل');
+    }
     closeModal('modal-inspection');
   }finally{_savingInsp=false;}
 };
