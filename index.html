@@ -810,7 +810,7 @@ function t(k){ return (T[_lang]||T.ar)[k] || k; }
 function init(){
   if(!window.FB){ window.FB_CB = init; return; }
   var saved = localStorage.getItem('ops_session');
-  if(saved){ try{ _u = JSON.parse(saved); startApp(); } catch(e){ showLogin(); } }
+  if(saved){ try{ _u = JSON.parse(saved); _role = _u.role || 'manager'; startApp(); } catch(e){ showLogin(); } }
   else { showLogin(); }
 }
 
