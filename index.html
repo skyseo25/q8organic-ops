@@ -513,17 +513,17 @@ tr:hover td{background:#fafcfb;}
           <div class="dash-card-icon blue" style="width:36px;height:36px;font-size:1rem">📊</div>
           <h2>التقارير</h2>
         </div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
-          <div class="sec-card">
-            <div class="sec-header"><h3>تقارير التوصيل</h3></div>
-            <div class="tbl-wrap"><table><thead><tr><th>التاريخ</th><th>المندوب</th><th>الطلبات</th><th></th></tr></thead>
-            <tbody id="del-reports-tbody"></tbody></table></div>
-          </div>
-          <div class="sec-card">
-            <div class="sec-header"><h3>ملخص الصيانة والري</h3></div>
-            <div class="tbl-wrap"><table><thead><tr><th>الشهر</th><th>الفواتير</th><th>الإجمالي</th></tr></thead>
-            <tbody id="iri-summary-tbody"></tbody></table></div>
-          </div>
+        <div class="sec-card" style="margin-bottom:20px">
+          <div class="sec-header"><h3>📦 تقرير مناديب التوصيل</h3></div>
+          <div class="tbl-wrap"><table><thead><tr>
+            <th>المندوب</th><th>مُسلَّم</th><th>مرتجع</th><th>إجمالي</th><th>مكافأة محتسبة</th><th>رصيد حالي</th>
+          </tr></thead>
+          <tbody id="del-reports-tbody"></tbody></table></div>
+        </div>
+        <div class="sec-card">
+          <div class="sec-header"><h3>🔧 ملخص الصيانة والري</h3></div>
+          <div class="tbl-wrap"><table><thead><tr><th>الشهر</th><th>الفواتير</th><th>الإجمالي</th></tr></thead>
+          <tbody id="iri-summary-tbody"></tbody></table></div>
         </div>
       </div>
 
@@ -1061,6 +1061,8 @@ function setupListeners(){
     _delUsers=sn.docs.map(function(x){return Object.assign({id:x.id},x.data());});
     populateCourierSelect();
     if(_curPage==='employees') renderEmployees();
+    if(_curPage==='reports') renderReports();
+    if(_curPage==='courier') renderCourierView();
   });
   FB.snap(FB.q(FB.col(d,'iri_invoices'),FB.ord('createdAt','desc')),function(sn){
     _invoices=sn.docs.map(function(x){return Object.assign({id:x.id},x.data());});
@@ -1243,10 +1245,14 @@ function calcBonus(orders){
 
 window.renderCourierView = function(){
   var myId = _u.id || _u.username;
-  var myOrders = _orders.filter(function(o){ return o.courierId === myId; });
+  var myUsername = _u.username || '';
+  // نطابق بالـ id أو بالـ username (للطلبات القديمة)
+  var myOrders = _orders.filter(function(o){
+    return o.courierId === myId || o.courierId === myUsername || o.courierName === (_u.name||'');
+  });
 
-  // اقرأ الرصيد المحفوظ في del_users
-  var myCourierData = _delUsers.find(function(u){ return u.id===myId; });
+  // اقرأ الرصيد المحفوظ في del_users (البحث بـ id أو username)
+  var myCourierData = _delUsers.find(function(u){ return u.id===myId || u.username===myUsername; });
   var savedBalance = myCourierData ? parseFloat(myCourierData.balance||0) : 0;
 
   // --- Stats ---
@@ -1378,12 +1384,12 @@ window.updateOrderStatus = async function(id, status){
     // احتساب المكافأة عند التسليم فقط (مو كشف، مو مرتجع)
     if(status==='delivered' && prevStatus!=='delivered' && order.orderType!=='inspection' && order.courierId){
       var dt = order.createdAt&&order.createdAt.toDate ? order.createdAt.toDate() : new Date();
-      var bonusAmt = dt.getDay()===5 ? 0.5 : 0.25; // الجمعة 0.5، باقي الأيام 0.25
-      // أضف المكافأة لرصيد المندوب في del_users
-      var courier = _delUsers.find(function(u){ return u.id===order.courierId; });
+      var bonusAmt = dt.getDay()===5 ? 0.5 : 0.25;
+      // ابحث بالـ id أو username
+      var courier = _delUsers.find(function(u){ return u.id===order.courierId || u.username===order.courierId; });
       if(courier){
         var newBal = parseFloat(courier.balance||0) + bonusAmt;
-        await window.FB.upd(window.FB.doc(window.FB.db,'del_users',order.courierId),{balance:newBal,updatedAt:window.FB.ts()});
+        await window.FB.upd(window.FB.doc(window.FB.db,'del_users',courier.id),{balance:newBal,updatedAt:window.FB.ts()});
         toast('✅ تم التسليم · مكافأة +'+bonusAmt.toFixed(3)+' KD');
       } else {
         toast('✅ تم التسليم');
@@ -1393,10 +1399,10 @@ window.updateOrderStatus = async function(id, status){
     else if(prevStatus==='delivered' && status!=='delivered' && order.orderType!=='inspection' && order.courierId){
       var dtR = order.createdAt&&order.createdAt.toDate ? order.createdAt.toDate() : new Date();
       var bonusR = dtR.getDay()===5 ? 0.5 : 0.25;
-      var courierR = _delUsers.find(function(u){ return u.id===order.courierId; });
+      var courierR = _delUsers.find(function(u){ return u.id===order.courierId || u.username===order.courierId; });
       if(courierR){
         var newBalR = Math.max(0, parseFloat(courierR.balance||0) - bonusR);
-        await window.FB.upd(window.FB.doc(window.FB.db,'del_users',order.courierId),{balance:newBalR,updatedAt:window.FB.ts()});
+        await window.FB.upd(window.FB.doc(window.FB.db,'del_users',courierR.id),{balance:newBalR,updatedAt:window.FB.ts()});
       }
       toast(status==='returned'?'↩️ مرتجع':'✅ تم التحديث');
     }
@@ -1798,12 +1804,47 @@ window.resetCourierBalance=async function(id,name,bal){
 // REPORTS
 // ══════════════════════════════════════════════
 window.renderReports=function(){
-  document.getElementById('del-reports-tbody').innerHTML=_delReports.slice(0,20).map(function(r){
-    var dt=r.savedAt&&r.savedAt.toDate?r.savedAt.toDate().toLocaleDateString(_lang==='ar'?'ar-KW':'en-GB'):r.date||'—';
-    return '<tr><td>'+dt+'</td><td>'+(r.courierName||'—')+'</td><td>'+(r.orders?r.orders.length:0)+'</td>'
-      +'<td><button class="btn-ghost btn-sm">عرض</button></td></tr>';
-  }).join('')||'<tr><td colspan="4" class="empty">لا توجد تقارير</td></tr>';
-  // IRI summary by month
+  // ── تقرير المناديب: من _orders + _delUsers ──
+  var courierMap = {};
+  // ابن map لكل مندوب
+  _delUsers.forEach(function(u){
+    courierMap[u.id] = courierMap[u.username] = {
+      id:u.id, name:u.name, username:u.username,
+      balance:parseFloat(u.balance||0),
+      delivered:0, returned:0, total:0, bonus:0
+    };
+  });
+  // احسب من الطلبات
+  _orders.forEach(function(o){
+    var c = courierMap[o.courierId];
+    if(!c) return;
+    c.total++;
+    if(o.status==='delivered'&&o.orderType!=='inspection'){
+      c.delivered++;
+      var dt=o.createdAt&&o.createdAt.toDate?o.createdAt.toDate():new Date();
+      c.bonus += dt.getDay()===5?0.5:0.25;
+    }
+    if(o.status==='returned') c.returned++;
+  });
+  // اجمع بدون تكرار (id و username يشيران لنفس المندوب)
+  var seen = {};
+  var courierRows = _delUsers.map(function(u){
+    if(seen[u.id]) return '';
+    seen[u.id]=1;
+    var c = courierMap[u.id]||{delivered:0,returned:0,total:0,bonus:0,balance:0};
+    return '<tr>'
+      +'<td><b>'+u.name+'</b></td>'
+      +'<td style="color:var(--green);font-weight:700">'+c.delivered+'</td>'
+      +'<td style="color:var(--red)">'+c.returned+'</td>'
+      +'<td>'+c.total+'</td>'
+      +'<td style="color:var(--gold);font-weight:800">'+c.bonus.toFixed(3)+' KD</td>'
+      +'<td style="font-weight:800;color:'+(parseFloat(u.balance||0)>0?'var(--gold)':'var(--muted2)')+'">'+parseFloat(u.balance||0).toFixed(3)+' KD</td>'
+      +'</tr>';
+  }).join('')||'<tr><td colspan="6" class="empty">لا يوجد مناديب</td></tr>';
+
+  document.getElementById('del-reports-tbody').innerHTML = courierRows;
+
+  // ── ملخص الري والصيانة بالشهر ──
   var months={};
   _invoices.forEach(function(inv){
     var dt=inv.createdAt&&inv.createdAt.toDate?inv.createdAt.toDate():new Date(inv.date||'');
