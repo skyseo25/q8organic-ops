@@ -660,13 +660,13 @@ body, .content, table, input, select, textarea, .val, td, th, span, div {
     <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 2a7 7 0 017 7c0 5-7 13-7 13S5 14 5 9a7 7 0 017-7z"/></svg>
     <span id="mob-lbl-irr">صيانة</span>
   </button>
-  <button class="mob-item" onclick="showPage('customers')" id="mob-btn-customers">
+  <button class="mob-item" onclick="showPage('customers')" id="mob-btn-customers" style="display:none">
     <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
-    <span>عملاء</span>
+    <span id="mob-lbl-cust">عملاء</span>
   </button>
   <button class="mob-item" onclick="toggleDrawer()" id="mob-btn-more">
     <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
-    <span>المزيد</span>
+    <span id="mob-lbl-more">المزيد</span>
   </button>
 </div>
 
@@ -946,24 +946,56 @@ var ROLES_EN = {manager:'Manager', supervisor:'Supervisor', employee:'Employee'}
 // ══════════════════════════════════════════════
 var T = {
   ar: {
-    dashboard:'لوحة التحكم', orders:'طلبات التوصيل', irrigation:'الري والصيانة',
+    dashboard:'لوحة التحكم', orders:'طلبات التوصيل والكشف', irrigation:'الري والصيانة',
     customers:'العملاء', employees:'الموظفون', reports:'التقارير',
-    archive:'الأرشيف', settings:'الإعدادات',
+    archive:'الأرشيف', settings:'الإعدادات', courier:'طلباتي',
     greeting:'أهلاً', welcome:'لوحة التحكم الرئيسية',
     total_orders:'إجمالي الطلبات', active_orders:'الطلبات النشطة',
     invoices:'الفواتير', inspections:'طلبات الكشف',
     pending:'قيد الانتظار', delivered:'مسلّم', returned:'مرتجع',
-    logout:'تسجيل خروج', save:'حفظ', cancel:'إلغاء', add:'إضافة', delete:'حذف', edit:'تعديل',
+    assigned:'محال', delivering:'جاري التوصيل', noreply:'لا يوجد رد',
+    logout:'خروج', save:'حفظ', cancel:'إلغاء', add:'إضافة', delete:'حذف', edit:'تعديل',
+    active_orders_lbl:'الطلبات النشطة', add_order:'إضافة طلب', all_status:'كل الحالات',
+    client:'العميل', area:'المنطقة', courier_lbl:'المندوب', status:'الحالة', payment:'الدفع',
+    ext_tab:'تمديد شبكة الري', mnt_tab:'الصيانة', insp_tab:'طلبات الكشف', saved_tab:'الفواتير المحفوظة',
+    new_ext:'فاتورة تمديد جديدة', create_inv:'إنشاء فاتورة',
+    add_emp:'إضافة موظف', all_emp:'جميع الموظفين',
+    name:'الاسم', username:'المعرف', role:'الدور', symbol:'الرمز',
+    suspend:'تعليق', activate:'تفعيل',
+    manager_r:'مدير', supervisor_r:'مشرف', employee_r:'موظف',
+    exec:'تنفيذ', today:'اليوم', yesterday:'أمس', custom_date:'تاريخ محدد',
+    print_all:'طباعة الكل', settle:'إنهاء الحساب', print:'طباعة',
+    received_btn:'📦 استلمت الطلب', delivering_btn:'🚗 جاري التوصيل',
+    delivered_btn:'✅ تم التسليم', noreply_btn:'📵 لا يوجد رد', returned_btn:'↩️ مرتجع',
+    resume_btn:'🔄 استئناف', delivery_time:'تم التسليم:',
+    backup_btn:'تحميل نسخة احتياطية', last_backup:'آخر نسخة:',
+    not_assigned:'لم يُحدد',
   },
   en: {
-    dashboard:'Dashboard', orders:'Delivery Orders', irrigation:'Irrigation & Maintenance',
+    dashboard:'Dashboard', orders:'Delivery & Inspection', irrigation:'Irrigation & Maint.',
     customers:'Customers', employees:'Employees', reports:'Reports',
-    archive:'Archive', settings:'Settings',
+    archive:'Archive', settings:'Settings', courier:'My Orders',
     greeting:'Welcome', welcome:'Main Dashboard',
     total_orders:'Total Orders', active_orders:'Active Orders',
-    invoices:'Invoices', inspections:'Inspection Requests',
+    invoices:'Invoices', inspections:'Inspections',
     pending:'Pending', delivered:'Delivered', returned:'Returned',
+    assigned:'Assigned', delivering:'Delivering', noreply:'No Reply',
     logout:'Logout', save:'Save', cancel:'Cancel', add:'Add', delete:'Delete', edit:'Edit',
+    active_orders_lbl:'Active Orders', add_order:'Add Order', all_status:'All Status',
+    client:'Client', area:'Area', courier_lbl:'Courier', status:'Status', payment:'Payment',
+    ext_tab:'Irrigation Extension', mnt_tab:'Maintenance', insp_tab:'Inspections', saved_tab:'Saved Invoices',
+    new_ext:'New Extension Invoice', create_inv:'Create Invoice',
+    add_emp:'Add Employee', all_emp:'All Employees',
+    name:'Name', username:'Username', role:'Role', symbol:'Symbol',
+    suspend:'Suspend', activate:'Activate',
+    manager_r:'Manager', supervisor_r:'Supervisor', employee_r:'Employee',
+    exec:'Execute', today:'Today', yesterday:'Yesterday', custom_date:'Custom Date',
+    print_all:'Print All', settle:'Settle Account', print:'Print',
+    received_btn:'Received', delivering_btn:'Delivering',
+    delivered_btn:'Delivered', noreply_btn:'No Reply', returned_btn:'Return',
+    resume_btn:'Resume', delivery_time:'Delivered at:',
+    backup_btn:'Download Backup', last_backup:'Last backup:',
+    not_assigned:'Not assigned',
   }
 };
 function t(k){ return (T[_lang]||T.ar)[k] || k; }
@@ -1267,7 +1299,7 @@ window.renderOrders = function(){
     }
     return true;
   });
-  var PAY = {cash:'كاش',knet:'كي-نت',paid:'مدفوع',free:'—'};
+  var PAY = {cash:t('cash')||'💵 كاش',knet:'💳 Knet',paid:t('paid')||'✅ مدفوع',free:'—'};
   var ST = {pending:{cl:'st-pending',ar:'قيد الانتظار',en:'Pending'},assigned:{cl:'st-pending',ar:'محال',en:'Assigned'},
     delivered:{cl:'st-active',ar:'مسلّم',en:'Delivered'},returned:{cl:'st-cancelled',ar:'مرتجع',en:'Returned'}};
   document.getElementById('orders-count-badge').textContent = list.length;
@@ -1569,7 +1601,7 @@ window.updateOrderStatus = async function(id, status, forceKnet){
         await window.FB.upd(window.FB.doc(window.FB.db,'del_users',courier.id),{balance:newBal,updatedAt:window.FB.ts()});
         toast('✅ تم التسليم · مكافأة +'+bonusAmt.toFixed(3)+' KD');
       } else {
-        toast('✅ تم التسليم');
+        toast(t('delivered_btn'));
       }
       // تحقق إذا هذا آخر طلب نشط للمندوب → حفظ تلقائي للتقرير
       setTimeout(function(){
@@ -1591,10 +1623,10 @@ window.updateOrderStatus = async function(id, status, forceKnet){
         var newBalR = Math.max(0, parseFloat(courierR.balance||0) - bonusR);
         await window.FB.upd(window.FB.doc(window.FB.db,'del_users',courierR.id),{balance:newBalR,updatedAt:window.FB.ts()});
       }
-      toast(status==='returned'?'↩️ مرتجع':'✅ تم التحديث');
+      toast(status==='returned'?t('returned_btn'):'✅ تم التحديث');
     }
     else {
-      toast(status==='returned'?'↩️ مرتجع':'✅ تم التحديث');
+      toast(status==='returned'?t('returned_btn'):'✅ تم التحديث');
     }
   }catch(e){ toast('خطأ: '+e.message); }
 };
@@ -1936,9 +1968,9 @@ window.delCustomer=async function(id){if(!confirm('حذف؟'))return;await windo
 // ══════════════════════════════════════════════
 window.renderEmployees=function(){
   var ROLE_LABEL = {
-    manager:  {ar:'مدير',      en:'Manager'},
-    supervisor:{ar:'مشرف',    en:'Supervisor'},
-    employee:  {ar:'موظف',    en:'Employee'},
+    manager:  {ar:t('manager_r')||'مدير',    en:'Manager'},
+    supervisor:{ar:t('supervisor_r')||'مشرف', en:'Supervisor'},
+    employee:  {ar:t('employee_r')||'موظف',  en:'Employee'},
   };
   var ROLE_CL = {manager:'tag-green', supervisor:'tag-blue', employee:'tag-gray'};
   var rows = '';
@@ -2167,8 +2199,8 @@ function getRptDateRange(){
     return {from: yStr, to: yStr};
   } else {
     var f = (document.getElementById('rpt-date-from')||{}).value || todayStr;
-    var t = (document.getElementById('rpt-date-to')||{}).value || todayStr;
-    return {from: f, to: t};
+    var toVal = (document.getElementById('rpt-date-to')||{}).value || todayStr;
+    return {from: f, to: toVal};
   }
 }
 
@@ -2496,21 +2528,57 @@ window.saveSysSettings=async function(){
 // ══════════════════════════════════════════════
 window.setLang=function(lang){
   _lang=lang;
-  // sidebar buttons
-  document.getElementById('lang-ar').classList.toggle('active',lang==='ar');
-  document.getElementById('lang-en').classList.toggle('active',lang==='en');
-  // topbar buttons
-  var tAr = document.getElementById('topbar-lang-ar');
-  var tEn = document.getElementById('topbar-lang-en');
-  if(tAr){ tAr.style.background = lang==='ar'?'var(--green)':'none'; tAr.style.color = lang==='ar'?'#fff':'var(--muted)'; }
-  if(tEn){ tEn.style.background = lang==='en'?'var(--green)':'none'; tEn.style.color = lang==='en'?'#fff':'var(--muted)'; }
+  var arBtn=document.getElementById('lang-ar'); if(arBtn) arBtn.classList.toggle('active',lang==='ar');
+  var enBtn=document.getElementById('lang-en'); if(enBtn) enBtn.classList.toggle('active',lang==='en');
+  var tAr=document.getElementById('topbar-lang-ar');
+  var tEn=document.getElementById('topbar-lang-en');
+  if(tAr){tAr.style.background=lang==='ar'?'var(--green)':'none';tAr.style.color=lang==='ar'?'#fff':'var(--muted)';}
+  if(tEn){tEn.style.background=lang==='en'?'var(--green)':'none';tEn.style.color=lang==='en'?'#fff':'var(--muted)';}
   document.documentElement.setAttribute('lang',lang);
   document.documentElement.setAttribute('dir',lang==='ar'?'rtl':'ltr');
-  var lbl=document.getElementById('lbl-logout');
-  if(lbl) lbl.textContent = lang==='ar'?'خروج':'Logout';
+  applyStaticLang(lang);
   if(_u) updateUI();
   if(_curPage) showPage(_curPage);
 };
+
+function applyStaticLang(lang){
+  var isAr=lang==='ar';
+  function s(id,txt){var el=document.getElementById(id);if(el)el.textContent=txt;}
+  s('lbl-logout',t('logout'));
+  s('mob-lbl-dash',t('dashboard'));
+  s('mob-lbl-orders',isAr?'توصيل/كشف':'Orders');
+  s('mob-lbl-irr',isAr?'صيانة':'Maint.');
+  s('mob-lbl-cust',t('customers'));
+  s('mob-lbl-more',isAr?'المزيد':'More');
+  var custBtn=document.getElementById('mob-btn-customers');
+  if(custBtn) custBtn.style.display=(_role==='manager')?'':'none';
+  s('lbl-active-orders',t('active_orders_lbl'));
+  s('lbl-orders-title',t('orders'));
+  s('lbl-add-order',t('add_order'));
+  s('th-ord-client',t('client'));s('th-ord-area',t('area'));
+  s('th-ord-courier',t('courier_lbl'));s('th-ord-status',t('status'));s('th-ord-pay',t('payment'));
+  var sf=document.getElementById('orders-status-filter');
+  if(sf&&sf.options.length>=5){
+    sf.options[0].text=t('all_status');sf.options[1].text=t('pending');
+    sf.options[2].text=t('assigned');sf.options[3].text=t('delivered');sf.options[4].text=t('returned');
+  }
+  s('lbl-irr-title',t('irrigation'));
+  s('irr-tab-ext',t('ext_tab'));s('irr-tab-mnt',t('mnt_tab'));
+  s('irr-tab-insp',t('insp_tab'));s('irr-tab-saved',t('saved_tab'));
+  s('lbl-new-ext',t('new_ext'));
+  var bne=document.getElementById('btn-new-ext');
+  if(bne){var sp=bne.querySelector('span');if(sp)sp.textContent=t('create_inv');}
+  s('rpt-f-today',t('today'));s('rpt-f-yesterday',t('yesterday'));s('rpt-f-custom',t('custom_date'));
+  var rpb=document.getElementById('rpt-print-all-btn');
+  if(rpb)rpb.textContent=t('print_all');
+  var rth=document.getElementById('rpt-th-actions');
+  if(rth)rth.textContent=isAr?'إجراءات':'Actions';
+  s('lbl-emp-title',t('employees'));s('lbl-emp-all',t('all_emp'));s('lbl-add-emp',t('add_emp'));
+  s('th-emp-name',t('name'));s('th-emp-user',t('username'));
+  s('th-emp-phone',t('phone'));s('th-emp-role',t('role'));s('th-emp-sym',t('symbol'));
+  var dg=document.getElementById('dash-sub');if(dg)dg.textContent=t('welcome');
+  updateBackupTime();
+}
 
 // ══════════════════════════════════════════════
 // LOGOUT
@@ -2626,10 +2694,10 @@ window.doRestore = async function(event){
 };
 
 function updateBackupTime(){
-  var t = localStorage.getItem('lastBackupTime');
+  var bkTime = localStorage.getItem('lastBackupTime');
   var el = document.getElementById('backup-time-lbl');
   var wrap = document.getElementById('topbar-backup');
-  if(t && el){ el.textContent = 'آخر نسخة: '+t; if(wrap) wrap.style.display=''; }
+  if(bkTime && el){ el.textContent = t('last_backup')+' '+bkTime; if(wrap) wrap.style.display=''; }
 }
 
 // ══════════════════════════════════════════════
