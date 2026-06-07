@@ -902,21 +902,38 @@ tbody tr[onclick]:active { background: #d8f0e2 !important; }
         </select>
       </div>
     </div>
-    <div class="field-m">
-      <label>نوع الصنف</label>
-      <select id="item-type">
-        <option value="material">مادة / Material</option>
-        <option value="labor">أجور عمالة / Labor</option>
-        <option value="service">خدمة / Service</option>
-      </select>
+    <div class="form-row">
+      <div class="field-m"><label>القسم</label>
+        <select id="item-category">
+          <option value="تمديدات">🔧 تمديدات</option>
+          <option value="خدمات">🛠 خدمات</option>
+          <option value="مواد">📦 مواد</option>
+        </select>
+      </div>
+      <div class="field-m"><label>نوع الصنف</label>
+        <select id="item-type">
+          <option value="material">مادة / Material</option>
+          <option value="labor">👷 أجور عمالة / Labor</option>
+          <option value="service">خدمة / Service</option>
+        </select>
+      </div>
     </div>
+    <!-- رفع صورة مباشرة -->
     <div class="field-m">
-      <label>صورة الصنف (رابط)</label>
-      <input id="item-image" type="text" placeholder="https://... (اختياري)">
+      <label>صورة الصنف</label>
+      <div id="item-img-preview" style="display:none;margin-bottom:8px">
+        <img id="item-img-preview-src" src="" style="width:100%;height:120px;object-fit:cover;border-radius:8px;border:1px solid var(--border)">
+        <button onclick="clearItemImage()" style="width:100%;margin-top:4px;padding:4px;background:var(--redl);color:var(--red);border:none;border-radius:6px;cursor:pointer;font-size:.75rem">✕ إزالة الصورة</button>
+      </div>
+      <label style="display:flex;align-items:center;justify-content:center;gap:8px;background:var(--gl);border:1.5px dashed var(--gm);border-radius:10px;padding:16px;cursor:pointer;color:var(--green);font-weight:700;font-size:.85rem" id="item-upload-label">
+        📷 اضغط لرفع صورة
+        <input type="file" id="item-image-file" accept="image/*" style="display:none" onchange="previewItemImage(this)">
+      </label>
+      <input type="hidden" id="item-image-url">
     </div>
     <div class="modal-actions">
       <button class="btn-cancel" onclick="closeModal('modal-item')">إلغاء</button>
-      <button class="btn-save" onclick="saveItem()">حفظ</button>
+      <button class="btn-save" onclick="saveItem()" id="btn-save-item">حفظ</button>
     </div>
   </div>
 </div>
@@ -1218,6 +1235,7 @@ tbody tr[onclick]:active { background: #d8f0e2 !important; }
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 import { getFirestore, collection, doc, addDoc, updateDoc, deleteDoc, onSnapshot, query, orderBy, serverTimestamp, getDocs, getDoc, setDoc, where, Timestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js";
 
 // ══ FIREBASE CONFIG — استبدل بـ Firebase الجديد ══
 const app = initializeApp({
@@ -1229,10 +1247,19 @@ const app = initializeApp({
   appId: "1:564298745594:web:d7696ac45912c52347f6fb"
 }, 'ops-v1');
 const db = getFirestore(app);
+const _storage = getStorage(app);
 window.FB = {db, col:collection, doc, add:addDoc, upd:updateDoc, del:deleteDoc,
   snap:onSnapshot, q:query, ord:orderBy, ts:serverTimestamp,
   gets:getDocs, get:getDoc, set:setDoc, where,
   tsFromDate: function(d){ try{ return Timestamp.fromDate(d); }catch(e){ return serverTimestamp(); } }};
+
+// رفع ملف إلى Firebase Storage
+window.uploadFile = async function(file, path){
+  var storRef = ref(_storage, path);
+  await uploadBytes(storRef, file);
+  return await getDownloadURL(storRef);
+};
+
 window.FB_READY = true;
 if(window.FB_CB) window.FB_CB();
 </script>
@@ -2980,23 +3007,50 @@ function loadItems(){
   });
 }
 
+window.previewItemImage = function(input){
+  if(!input.files||!input.files[0]) return;
+  var file = input.files[0];
+  var reader = new FileReader();
+  reader.onload = function(e){
+    document.getElementById('item-img-preview-src').src = e.target.result;
+    document.getElementById('item-img-preview').style.display = '';
+    document.getElementById('item-upload-label').style.display = 'none';
+  };
+  reader.readAsDataURL(file);
+};
+
+window.clearItemImage = function(){
+  document.getElementById('item-image-file').value = '';
+  document.getElementById('item-image-url').value  = '';
+  document.getElementById('item-img-preview').style.display = 'none';
+  document.getElementById('item-upload-label').style.display = '';
+};
+
 window.openItemModal = function(id){
   document.getElementById('item-edit-id').value = id||'';
   document.getElementById('item-modal-title').textContent = id ? 'تعديل الصنف' : 'إضافة صنف جديد';
+  clearItemImage();
   if(id){
     var it = _items.find(function(x){return x.id===id;});
     if(it){
-      document.getElementById('item-name-ar').value  = it.nameAr||'';
-      document.getElementById('item-name-en').value  = it.nameEn||'';
-      document.getElementById('item-price').value    = it.price||'';
-      document.getElementById('item-unit').value     = it.unit||'قطعة';
-      document.getElementById('item-type').value     = it.type||'material';
-      document.getElementById('item-image').value    = it.image||'';
+      document.getElementById('item-name-ar').value   = it.nameAr||'';
+      document.getElementById('item-name-en').value   = it.nameEn||'';
+      document.getElementById('item-price').value     = it.price||'';
+      document.getElementById('item-unit').value      = it.unit||'قطعة';
+      document.getElementById('item-type').value      = it.type||'material';
+      document.getElementById('item-category').value  = it.category||'تمديدات';
+      document.getElementById('item-image-url').value = it.image||'';
+      if(it.image){
+        document.getElementById('item-img-preview-src').src = it.image;
+        document.getElementById('item-img-preview').style.display = '';
+        document.getElementById('item-upload-label').style.display = 'none';
+      }
     }
   } else {
-    ['item-name-ar','item-name-en','item-price','item-image'].forEach(function(x){document.getElementById(x).value='';});
-    document.getElementById('item-unit').value = 'قطعة';
-    document.getElementById('item-type').value = 'material';
+    ['item-name-ar','item-name-en','item-price','item-image-url'].forEach(function(x){document.getElementById(x).value='';});
+    document.getElementById('item-unit').value     = 'قطعة';
+    document.getElementById('item-type').value     = 'material';
+    document.getElementById('item-category').value = 'تمديدات';
   }
   openModal('modal-item');
 };
@@ -3004,16 +3058,28 @@ window.openItemModal = function(id){
 var _savingItem = false;
 window.saveItem = async function(){
   if(_savingItem) return; _savingItem = true;
+  var saveBtn = document.getElementById('btn-save-item');
+  if(saveBtn){ saveBtn.textContent = '⏳ جاري الحفظ...'; saveBtn.disabled = true; }
   try{
     var eid = document.getElementById('item-edit-id').value;
+    // رفع الصورة لو اختار ملف جديد
+    var imageUrl = document.getElementById('item-image-url').value;
+    var fileInput = document.getElementById('item-image-file');
+    if(fileInput.files && fileInput.files[0]){
+      var file = fileInput.files[0];
+      var ext  = file.name.split('.').pop();
+      var path = 'items/'+(eid||Date.now())+'.'+ext;
+      imageUrl = await window.uploadFile(file, path);
+    }
     var data = {
-      nameAr: document.getElementById('item-name-ar').value.trim(),
-      nameEn: document.getElementById('item-name-en').value.trim(),
-      price:  parseFloat(document.getElementById('item-price').value)||0,
-      unit:   document.getElementById('item-unit').value,
-      type:   document.getElementById('item-type').value,
-      image:  document.getElementById('item-image').value.trim(),
-      updatedAt: window.FB.ts()
+      nameAr:   document.getElementById('item-name-ar').value.trim(),
+      nameEn:   document.getElementById('item-name-en').value.trim(),
+      price:    parseFloat(document.getElementById('item-price').value)||0,
+      unit:     document.getElementById('item-unit').value,
+      type:     document.getElementById('item-type').value,
+      category: document.getElementById('item-category').value,
+      image:    imageUrl,
+      updatedAt:window.FB.ts()
     };
     if(!data.nameAr){ toast('أدخل اسم الصنف'); return; }
     if(eid){
@@ -3025,7 +3091,11 @@ window.saveItem = async function(){
       toast('✅ تم إضافة الصنف');
     }
     closeModal('modal-item');
-  }finally{ _savingItem=false; }
+  }catch(e){ toast('خطأ: '+e.message); }
+  finally{
+    _savingItem=false;
+    if(saveBtn){ saveBtn.textContent = 'حفظ'; saveBtn.disabled = false; }
+  }
 };
 
 window.deleteItem = async function(id){
@@ -3034,7 +3104,6 @@ window.deleteItem = async function(id){
   toast('تم الحذف');
 };
 
-// ── عرض الكتالوج ──
 window.renderItemsCatalog = function(){
   var grid = document.getElementById('items-catalog-grid');
   if(!grid) return;
@@ -3042,32 +3111,44 @@ window.renderItemsCatalog = function(){
     grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:30px;color:var(--muted2)">لا توجد أصناف — أضف صنفاً جديداً</div>';
     return;
   }
-  grid.innerHTML = _items.map(function(it){
-    var isLabor = it.type==='labor';
-    var typeColor = isLabor ? 'var(--green)' : it.type==='service' ? 'var(--blue)' : 'var(--gold)';
-    var typeLabel = isLabor ? '👷 عمالة' : it.type==='service' ? '🔧 خدمة' : '📦 مادة';
-    return '<div style="background:#fff;border:1.5px solid '+(isLabor?'var(--gm)':'var(--border)')+';border-radius:12px;padding:12px;position:relative;cursor:pointer" onclick="addItemToInvoice(\''+it.id+'\')">'
-      // أزرار تعديل وحذف (مدير فقط)
-      +(_role==='manager'?'<div style="position:absolute;top:6px;left:6px;display:flex;gap:4px">'
-        +'<button onclick="event.stopPropagation();openItemModal(\''+it.id+'\')" style="background:var(--gl);border:none;border-radius:6px;padding:2px 6px;font-size:.65rem;cursor:pointer;color:var(--green)">✏️</button>'
-        +'<button onclick="event.stopPropagation();deleteItem(\''+it.id+'\')" style="background:var(--redl);border:none;border-radius:6px;padding:2px 6px;font-size:.65rem;cursor:pointer;color:var(--red)">✕</button>'
-        +'</div>':'')
-      // الصورة
-      +(it.image?'<img src="'+it.image+'" style="width:100%;height:80px;object-fit:cover;border-radius:8px;margin-bottom:8px" onerror="this.style.display=\'none\'">':'<div style="width:100%;height:60px;background:var(--gl);border-radius:8px;margin-bottom:8px;display:flex;align-items:center;justify-content:center;font-size:1.8rem">'+(isLabor?'👷':'📦')+'</div>')
-      // النوع
-      +'<div style="font-size:.65rem;font-weight:700;color:'+typeColor+';margin-bottom:4px">'+typeLabel+'</div>'
-      // الاسم
-      +'<div style="font-size:.85rem;font-weight:800;color:var(--text);margin-bottom:2px">'+it.nameAr+'</div>'
-      +'<div style="font-size:.72rem;color:var(--muted);margin-bottom:6px">'+it.nameEn+'</div>'
-      // السعر
-      +'<div style="display:flex;justify-content:space-between;align-items:center">'
-        +'<span style="font-size:.88rem;font-weight:800;color:var(--gold)">'+parseFloat(it.price||0).toFixed(3)+' KD</span>'
-        +'<span style="font-size:.7rem;color:var(--muted2)">/ '+it.unit+'</span>'
-      +'</div>'
-      // زر إضافة
-      +'<button onclick="event.stopPropagation();addItemToInvoice(\''+it.id+'\')" style="width:100%;margin-top:8px;padding:6px;background:var(--green);color:#fff;border:none;border-radius:8px;font-family:Cairo,sans-serif;font-size:.78rem;font-weight:700;cursor:pointer">+ إضافة للفاتورة</button>'
-    +'</div>';
-  }).join('');
+
+  // تجميع حسب القسم
+  var cats = {};
+  _items.forEach(function(it){
+    var cat = it.category||'أخرى';
+    if(!cats[cat]) cats[cat] = [];
+    cats[cat].push(it);
+  });
+  var catIcons = {'تمديدات':'🔧','خدمات':'🛠','مواد':'📦','أخرى':'📋'};
+
+  var html = '';
+  Object.keys(cats).forEach(function(cat){
+    html += '<div style="grid-column:1/-1;font-size:.88rem;font-weight:800;color:var(--green);padding:6px 0 4px;border-bottom:2px solid var(--gm);margin-bottom:4px">'+(catIcons[cat]||'📋')+' '+cat+'</div>';
+    cats[cat].forEach(function(it){
+      var isLabor = it.type==='labor';
+      var typeColor = isLabor ? 'var(--green)' : it.type==='service' ? 'var(--blue)' : 'var(--gold)';
+      var typeLabel = isLabor ? '👷 عمالة' : it.type==='service' ? '🔧 خدمة' : '📦 مادة';
+      html += '<div style="background:#fff;border:1.5px solid '+(isLabor?'var(--gm)':'var(--border)')+';border-radius:12px;padding:12px;position:relative">'
+        +(_role==='manager'?'<div style="position:absolute;top:6px;left:6px;display:flex;gap:4px">'
+          +'<button onclick="openItemModal(\''+it.id+'\')" style="background:var(--gl);border:none;border-radius:6px;padding:2px 6px;font-size:.65rem;cursor:pointer;color:var(--green)">✏️</button>'
+          +'<button onclick="deleteItem(\''+it.id+'\')" style="background:var(--redl);border:none;border-radius:6px;padding:2px 6px;font-size:.65rem;cursor:pointer;color:var(--red)">✕</button>'
+          +'</div>':'')
+        +(it.image
+          ?'<img src="'+it.image+'" style="width:100%;height:80px;object-fit:cover;border-radius:8px;margin-bottom:8px">'
+          :'<div style="width:100%;height:60px;background:var(--gl);border-radius:8px;margin-bottom:8px;display:flex;align-items:center;justify-content:center;font-size:1.8rem">'+(isLabor?'👷':'📦')+'</div>')
+        +'<div style="font-size:.65rem;font-weight:700;color:'+typeColor+';margin-bottom:4px">'+typeLabel+'</div>'
+        +'<div style="font-size:.85rem;font-weight:800;color:var(--text);margin-bottom:2px">'+it.nameAr+'</div>'
+        +'<div style="font-size:.72rem;color:var(--muted);margin-bottom:6px">'+it.nameEn+'</div>'
+        +'<div style="display:flex;justify-content:space-between;align-items:center">'
+          +'<span style="font-size:.88rem;font-weight:800;color:var(--gold)">'+parseFloat(it.price||0).toFixed(3)+' KD</span>'
+          +'<span style="font-size:.7rem;color:var(--muted2)">/ '+it.unit+'</span>'
+        +'</div>'
+        +'<button onclick="addItemToInvoice(\''+it.id+'\')" style="width:100%;margin-top:8px;padding:7px;background:var(--green);color:#fff;border:none;border-radius:8px;font-family:Cairo,sans-serif;font-size:.78rem;font-weight:700;cursor:pointer">+ إضافة للفاتورة</button>'
+      +'</div>';
+    });
+  });
+
+  grid.innerHTML = html;
 };
 
 // ── الفاتورة ──
