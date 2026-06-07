@@ -1960,12 +1960,12 @@ window.renderCourierView = function(){
     if(o.locationLink){
       // رابط مباشر — استخدم window.location بدل target="_blank" لتجنب مشكلة iOS
       var _loc = o.locationLink;
-      mapB = '<a href="'+_loc+'" style="display:flex;align-items:center;justify-content:center;gap:6px;background:#1a7a40;color:#fff;border-radius:10px;padding:10px 16px;font-size:.85rem;font-weight:700;text-decoration:none;margin-top:8px" onclick="window.location.href=\''+_loc+'\';return false;">📍 فتح الموقع على الخريطة</a>';
+      mapB = '<a href="'+o.locationLink+'" style="display:flex;align-items:center;justify-content:center;gap:6px;background:#1a7a40;color:#fff;border-radius:10px;padding:10px 16px;font-size:.85rem;font-weight:700;text-decoration:none;margin-top:8px">📍 فتح الموقع على الخريطة</a>';
     } else if(_q){
       // لو ما عنده رابط — زرين: Apple Maps دائماً يشتغل، Google Maps للباقي
       mapB = '<div style="display:flex;gap:8px;margin-top:8px">'
-        +'<a href="https://maps.apple.com/?q='+_q+'" target="_blank" style="flex:1;display:flex;align-items:center;justify-content:center;gap:5px;background:#1a7a40;color:#fff;border-radius:10px;padding:10px;font-size:.8rem;font-weight:700;text-decoration:none">🗺 Apple Maps</a>'
-        +'<a href="https://www.google.com/maps?q='+_q+'" target="_blank" style="flex:1;display:flex;align-items:center;justify-content:center;gap:5px;background:#4285F4;color:#fff;border-radius:10px;padding:10px;font-size:.8rem;font-weight:700;text-decoration:none">📍 Google Maps</a>'
+        +'<a href="https://maps.apple.com/?q='+_q+'" style="flex:1;display:flex;align-items:center;justify-content:center;gap:5px;background:#1a7a40;color:#fff;border-radius:10px;padding:10px;font-size:.8rem;font-weight:700;text-decoration:none">🗺 Apple Maps</a>'
+        +'<a href="https://www.google.com/maps?q='+_q+'" style="flex:1;display:flex;align-items:center;justify-content:center;gap:5px;background:#4285F4;color:#fff;border-radius:10px;padding:10px;font-size:.8rem;font-weight:700;text-decoration:none">📍 Google Maps</a>'
         +'</div>';
     }
     var waB  = ''; // removed
