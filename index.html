@@ -1941,8 +1941,15 @@ window.renderCourierView = function(){
 
     var oid = o.id;
     var _q = addr ? encodeURIComponent(addr+', Kuwait') : '';
-    var _mapUrl = o.locationLink || (_q ? 'https://maps.apple.com/?q='+_q : '');
-    var mapB = _mapUrl ? '<a href="'+_mapUrl+'" target="_blank" style="display:flex;align-items:center;justify-content:center;gap:6px;background:#1a7a40;color:#fff;border-radius:10px;padding:10px 16px;font-size:.85rem;font-weight:700;text-decoration:none;margin-top:8px">📍 فتح الموقع على الخريطة</a>' : '';
+    var _mapUrl = o.locationLink
+      ? o.locationLink
+      : (_q ? 'comgooglemaps://?q='+_q : '');
+    var _mapUrlFallback = o.locationLink
+      ? o.locationLink
+      : (_q ? 'https://www.google.com/maps?q='+_q : '');
+    var mapB = (_mapUrl||_mapUrlFallback)
+      ? '<a href="'+(_mapUrl||_mapUrlFallback)+'" target="_blank" style="display:flex;align-items:center;justify-content:center;gap:6px;background:#1a7a40;color:#fff;border-radius:10px;padding:10px 16px;font-size:.85rem;font-weight:700;text-decoration:none;margin-top:8px" onclick="if(!navigator.userAgent.includes(\'iPhone\')&&!navigator.userAgent.includes(\'iPad\')){return true;}var el=this;window.location=\'comgooglemaps://?q='+(_q||'')+'\';setTimeout(function(){window.location=\''+(_mapUrlFallback||'')+'\';}),500);return false;">📍 فتح الموقع على الخريطة</a>'
+      : '';
     var waB  = ''; // removed
     var trB  = (_role==='manager'||_role==='supervisor')&&!isInsp ? '<button class="oc-btn oc-btn-ghost" style="flex:0;padding:10px 14px" onclick="openOrderModal(\''+oid+'\')">🔄 تحويل</button>' : '';
 
