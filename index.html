@@ -764,13 +764,57 @@ tbody tr[onclick]:active { background: #d8f0e2 !important; }
           <div class="dash-card-icon gray" style="width:36px;height:36px;font-size:1rem;background:#f0f4f2">📦</div>
           <h2>الأرشيف</h2>
         </div>
-        <div class="sec-card">
-          <div class="sec-header"><h3>تقارير إنهاء الحساب والأرشيف</h3>
-            <input class="filter-input" id="arch-search" oninput="renderArchive()" placeholder="بحث..." style="width:180px;">
+
+        <!-- فلاتر الأرشيف -->
+        <div class="sec-card" style="margin-bottom:14px">
+          <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center">
+            <div style="display:flex;gap:6px">
+              <button id="arch-f-today" onclick="setArchiveFilter('today')" class="btn btn-sm btn-ghost">اليوم</button>
+              <button id="arch-f-month" onclick="setArchiveFilter('month')" class="btn btn-sm btn-ghost">هذا الشهر</button>
+              <button id="arch-f-custom" onclick="setArchiveFilter('custom')" class="btn btn-sm btn-ghost">تاريخ محدد</button>
+              <button id="arch-f-all" onclick="setArchiveFilter('all')" class="btn btn-sm btn-green">الكل</button>
+            </div>
+            <div id="arch-custom-range" style="display:none;gap:6px;align-items:center;flex-wrap:wrap">
+              <input type="date" id="arch-from" onchange="renderArchive()" style="padding:5px 8px;border:1.5px solid var(--border);border-radius:8px;font-family:Cairo,sans-serif;font-size:.8rem">
+              <span style="color:var(--muted)">←</span>
+              <input type="date" id="arch-to" onchange="renderArchive()" style="padding:5px 8px;border:1.5px solid var(--border);border-radius:8px;font-family:Cairo,sans-serif;font-size:.8rem">
+            </div>
+            <input class="filter-input" id="arch-search" oninput="renderArchive()" placeholder="🔍 بحث..." style="margin-right:auto;max-width:180px">
           </div>
-          <div class="tbl-wrap"><table><thead><tr>
-            <th>التاريخ</th><th>المندوب / العميل</th><th>النوع</th><th>تم تسليم</th><th>المكافأة</th><th>الكاش</th><th>ملاحظات</th>
-          </tr></thead><tbody id="archive-tbody"></tbody></table></div>
+        </div>
+
+        <!-- تبويبات الأقسام -->
+        <div style="display:flex;gap:8px;margin-bottom:14px;border-bottom:2px solid var(--border);padding-bottom:0">
+          <button id="arch-tab-delivery" onclick="setArchiveTab('delivery')" style="padding:9px 16px;border:none;background:none;font-family:Cairo,sans-serif;font-size:.88rem;font-weight:700;cursor:pointer;border-bottom:2px solid var(--green);color:var(--green);margin-bottom:-2px">🚚 التوصيل</button>
+          <button id="arch-tab-svc" onclick="setArchiveTab('svc')" style="padding:9px 16px;border:none;background:none;font-family:Cairo,sans-serif;font-size:.88rem;font-weight:700;cursor:pointer;color:var(--muted);border-bottom:2px solid transparent;margin-bottom:-2px">🔧 الكشف والصيانة</button>
+          <button id="arch-tab-reports" onclick="setArchiveTab('reports')" style="padding:9px 16px;border:none;background:none;font-family:Cairo,sans-serif;font-size:.88rem;font-weight:700;cursor:pointer;color:var(--muted);border-bottom:2px solid transparent;margin-bottom:-2px">📊 التقارير</button>
+        </div>
+
+        <!-- محتوى التوصيل -->
+        <div id="arch-section-delivery">
+          <div class="sec-card">
+            <div class="tbl-wrap"><table><thead><tr>
+              <th>التاريخ</th><th>العميل</th><th>المنطقة</th><th>المندوب</th><th>الحالة</th><th>المبلغ</th><th>بواسطة</th>
+            </tr></thead><tbody id="arch-delivery-tbody"></tbody></table></div>
+          </div>
+        </div>
+
+        <!-- محتوى الكشف والصيانة -->
+        <div id="arch-section-svc" style="display:none">
+          <div class="sec-card">
+            <div class="tbl-wrap"><table><thead><tr>
+              <th>التاريخ</th><th>العميل</th><th>النوع</th><th>المنطقة</th><th>الموظف</th><th>الإجمالي</th><th>بواسطة</th>
+            </tr></thead><tbody id="arch-svc-tbody"></tbody></table></div>
+          </div>
+        </div>
+
+        <!-- محتوى التقارير -->
+        <div id="arch-section-reports" style="display:none">
+          <div class="sec-card">
+            <div class="tbl-wrap"><table><thead><tr>
+              <th>التاريخ</th><th>المندوب / العميل</th><th>النوع</th><th>تم تسليم</th><th>المكافأة</th><th>الكاش</th><th>ملاحظات</th>
+            </tr></thead><tbody id="archive-tbody"></tbody></table></div>
+          </div>
         </div>
       </div>
 
@@ -1626,7 +1670,7 @@ window.showPage = function(page){
   if(page==='employees') renderEmployees();
   if(page==='items')    renderItems();
   if(page==='quote')    renderQuotes();
-  if(page==='archive') renderArchive();
+  if(page==='archive') { setArchiveTab(_archTab||'delivery'); renderArchive(); }
 };
 
 // ══════════════════════════════════════════════
@@ -4325,62 +4369,168 @@ window.printAllReport = function(){
 // ══════════════════════════════════════════════
 // ARCHIVE
 // ══════════════════════════════════════════════
-window.renderArchive=function(){
-  var q=(document.getElementById('arch-search')||{}).value||'';
-  var isCourier = _u && _u._source==='del';
-  var myId = _u ? (_u.id||_u.username) : '';
-  var canEdit = _role==='manager' || _role==='supervisor';
+// ARCHIVE — الأرشيف الموحد
+// ══════════════════════════════════════════════
+var _archTab    = 'delivery'; // delivery | svc | reports
+var _archFilter = 'all';      // today | month | custom | all
 
-  // فلترة التقارير حسب الصلاحية
-  var settlements = (_delReports||[]).filter(function(r){
-    if(r.type!=='settlement') return false;
-    if(isCourier && r.courierId!==myId && r.courierName!==(_u.name||'')) return false;
-    if(q && !(r.courierName||'').includes(q)) return false;
-    return true;
+window.setArchiveFilter = function(f){
+  _archFilter = f;
+  // تبديل أزرار الفلتر
+  ['today','month','custom','all'].forEach(function(k){
+    var btn = document.getElementById('arch-f-'+k);
+    if(btn){ btn.className = 'btn btn-sm '+(k===f?'btn-green':'btn-ghost'); }
   });
+  var custRange = document.getElementById('arch-custom-range');
+  if(custRange) custRange.style.display = f==='custom'?'flex':'none';
+  renderArchive();
+};
 
-  if(!settlements.length){
-    document.getElementById('archive-tbody').innerHTML =
-      '<tr><td colspan="7" class="empty">'+(isCourier?'لا توجد تقارير مؤرشفة':'الأرشيف فارغ')+'</td></tr>';
-    return;
+window.setArchiveTab = function(tab){
+  _archTab = tab;
+  ['delivery','svc','reports'].forEach(function(t){
+    var btn = document.getElementById('arch-tab-'+t);
+    var sec = document.getElementById('arch-section-'+t);
+    var active = t===tab;
+    if(btn){ btn.style.color = active?'var(--green)':'var(--muted)'; btn.style.borderBottomColor = active?'var(--green)':'transparent'; }
+    if(sec) sec.style.display = active?'':'none';
+  });
+  renderArchive();
+};
+
+function archDateFilter(dateVal){
+  if(!dateVal) return false;
+  var dt = dateVal && dateVal.toDate ? dateVal.toDate() : new Date(dateVal);
+  if(isNaN(dt)) return false;
+  var now = new Date(); var today = now.toISOString().substring(0,10);
+  if(_archFilter==='today'){
+    return dt.toISOString().substring(0,10)===today;
+  }
+  if(_archFilter==='month'){
+    return dt.getFullYear()===now.getFullYear() && dt.getMonth()===now.getMonth();
+  }
+  if(_archFilter==='custom'){
+    var from = (document.getElementById('arch-from')||{}).value;
+    var to   = (document.getElementById('arch-to')||{}).value;
+    var dStr = dt.toISOString().substring(0,10);
+    if(from && dStr<from) return false;
+    if(to   && dStr>to)   return false;
+    return true;
+  }
+  return true; // all
+}
+
+window.renderArchive = function(){
+  var q   = ((document.getElementById('arch-search')||{}).value||'').toLowerCase();
+  var isEmployee = _role==='employee';
+  var myId   = _u ? (_u.id||_u.username||_u.name||'') : '';
+  var myName = _u ? (_u.name||_u.username||'') : '';
+
+  if(_archTab==='delivery'){
+    var tbody = document.getElementById('arch-delivery-tbody');
+    if(!tbody) return;
+    var orders = (_orders||[]).concat(_archived||[]).filter(function(o,i,arr){
+      if(!o.archived && !o.settled && o.status!=='delivered' && o.status!=='returned' && o.status!=='closed') return false;
+      if(o.orderType==='inspection') return false;
+      if(isEmployee && o.courierId!==myId) return false;
+      var dt = o.archivedAt||o.deliveredAt||o.updatedAt||o.createdAt;
+      if(!archDateFilter(dt)) return false;
+      if(q && !(o.clientName||'').toLowerCase().includes(q) && !(o.area||'').toLowerCase().includes(q) && !(o.courierName||'').toLowerCase().includes(q)) return false;
+      return true;
+    });
+    // إزالة المكررات
+    var seen = {}; orders = orders.filter(function(o){ if(seen[o.id]) return false; seen[o.id]=1; return true; });
+    tbody.innerHTML = orders.length ? orders.map(function(o){
+      var dt = o.archivedAt&&o.archivedAt.toDate ? o.archivedAt.toDate().toLocaleDateString('ar-KW',{day:'numeric',month:'short'})
+             : o.deliveredAt&&o.deliveredAt.toDate ? o.deliveredAt.toDate().toLocaleDateString('ar-KW',{day:'numeric',month:'short'})
+             : (o.createdAt&&o.createdAt.toDate?o.createdAt.toDate().toLocaleDateString('ar-KW',{day:'numeric',month:'short'}):'—');
+      return '<tr><td>'+dt+'</td><td><b>'+(o.clientName||'—')+'</b></td><td>'+(o.area||'—')+'</td>'
+        +'<td>'+(o.courierName||'—')+'</td>'
+        +'<td><span class="tag '+(o.status==='delivered'?'tag-green':'tag-red')+'">'+(o.status||'—')+'</span></td>'
+        +'<td style="font-weight:700">'+(o.amount?parseFloat(o.amount).toFixed(3)+' KD':'—')+'</td>'
+        +'<td style="font-size:.75rem;color:var(--muted)">'+(o.archivedBy||'—')+'</td></tr>';
+    }).join('') : '<tr><td colspan="7" class="empty">لا توجد طلبات مؤرشفة</td></tr>';
   }
 
-  document.getElementById('archive-tbody').innerHTML = settlements.map(function(r){
-    var dt = r.settledAt&&r.settledAt.toDate
-      ? r.settledAt.toDate().toLocaleDateString(_lang==='ar'?'ar-KW':'en-GB',{year:'numeric',month:'short',day:'numeric'})
-      : (r.dateFrom||'—');
-    var settledTime = r.settledAt&&r.settledAt.toDate
-      ? r.settledAt.toDate().toLocaleTimeString(_lang==='ar'?'ar-KW':'en-GB',{hour:'2-digit',minute:'2-digit'})
-      : '';
-    var period = r.dateFrom===r.dateTo ? r.dateFrom : (r.dateFrom||'')+'→'+(r.dateTo||'');
+  else if(_archTab==='svc'){
+    var tbody2 = document.getElementById('arch-svc-tbody');
+    if(!tbody2) return;
+    // الكشوفات المؤرشفة من iri_inspections
+    var insps = (_inspections||[]).filter(function(r){
+      if(!r.archived) return false;
+      if(isEmployee && r.empId!==myId && r.empName!==myName) return false;
+      var dt = r.archivedAt||r.updatedAt||r.createdAt;
+      if(!archDateFilter(dt)) return false;
+      if(q && !(r.client||'').toLowerCase().includes(q) && !(r.area||'').toLowerCase().includes(q)) return false;
+      return true;
+    });
+    // طلبات الكشف من del_orders المؤرشفة
+    var inspOrds = (_orders||[]).filter(function(o){
+      if(!o.archived || o.orderType!=='inspection') return false;
+      if(isEmployee && o.courierId!==myId) return false;
+      var dt = o.archivedAt||o.updatedAt||o.createdAt;
+      if(!archDateFilter(dt)) return false;
+      if(q && !(o.clientName||'').toLowerCase().includes(q)) return false;
+      return true;
+    });
+    var rows = '';
+    insps.forEach(function(r){
+      var dt = r.archivedAt&&r.archivedAt.toDate ? r.archivedAt.toDate().toLocaleDateString('ar-KW',{day:'numeric',month:'short'}) : (r.date||'—');
+      // ابحث عن عرض السعر
+      var q2 = (_quotes||[]).find(function(x){ var o=(_orders||[]).find(function(y){return y.id===x.orderId;}); return o&&o.phone===r.phone&&o.clientName===r.client; });
+      var total = q2 ? parseFloat(q2.total||q2.subtotal||0).toFixed(3)+' KD' : '—';
+      rows += '<tr><td>'+dt+'</td><td><b>'+(r.client||'—')+'</b></td><td><span class="tag" style="background:#e8f0ff;color:#1a4a8a">'+(r.inspTypeAr||'كشف')+'</span></td>'
+        +'<td>'+(r.area||'—')+'</td><td>'+(r.empName||'—')+'</td><td style="font-weight:700">'+total+'</td>'
+        +'<td style="font-size:.75rem;color:var(--muted)">'+(r.archivedBy||'—')+'</td></tr>';
+    });
+    inspOrds.forEach(function(o){
+      var dt = o.archivedAt&&o.archivedAt.toDate?o.archivedAt.toDate().toLocaleDateString('ar-KW',{day:'numeric',month:'short'}):(o.createdAt&&o.createdAt.toDate?o.createdAt.toDate().toLocaleDateString('ar-KW',{day:'numeric',month:'short'}):'—');
+      var q3 = (_quotes||[]).find(function(x){return x.orderId===o.id;});
+      var total = q3 ? parseFloat(q3.total||q3.subtotal||0).toFixed(3)+' KD' : '—';
+      rows += '<tr><td>'+dt+'</td><td><b>'+(o.clientName||'—')+'</b></td><td><span class="tag" style="background:#e8f0ff;color:#1a4a8a">'+(o.inspTypeAr||'كشف')+'</span></td>'
+        +'<td>'+(o.area||'—')+'</td><td>'+(o.courierName||'—')+'</td><td style="font-weight:700">'+total+'</td>'
+        +'<td style="font-size:.75rem;color:var(--muted)">'+(o.archivedBy||'—')+'</td></tr>';
+    });
+    tbody2.innerHTML = rows || '<tr><td colspan="7" class="empty">لا توجد كشوفات مؤرشفة</td></tr>';
+  }
 
-    // عمود النوع: إنهاء حساب + بواسطة + تاريخ ووقت
-    var typeCol = '<span class="tag tag-green">إنهاء حساب</span>'
-      +'<div style="font-size:.7rem;color:var(--muted);margin-top:3px">بواسطة <b>'+(r.settledBy||'—')+'</b></div>'
-      +'<div style="font-size:.68rem;color:var(--muted2)">'+dt+(settledTime?' — '+settledTime:'')+'</div>';
-
-    // عمود الملاحظات: إذا تم تعديل يظهر من عدّل ومتى
-    var notesCol = '';
-    if(r.editedBy){
-      var editDt = r.editedAt&&r.editedAt.toDate
-        ? r.editedAt.toDate().toLocaleDateString(_lang==='ar'?'ar-KW':'en-GB',{day:'numeric',month:'short'})
-          +' '+r.editedAt.toDate().toLocaleTimeString(_lang==='ar'?'ar-KW':'en-GB',{hour:'2-digit',minute:'2-digit'})
-        : '—';
-      notesCol = '<span style="font-size:.7rem;color:var(--blue)">تم التعديل بواسطة <b>'+r.editedBy+'</b></span>'
-        +'<div style="font-size:.67rem;color:var(--muted2)">'+editDt+'</div>';
-    }
-
-    return '<tr onclick="openArchiveDetail(\''+r.id+'\')" style="cursor:pointer" onmouseover="this.style.background=\'#f0f9f4\'" onmouseout="this.style.background=\'\'">'
-      +'<td style="font-size:.8rem">'+period+'</td>'
-      +'<td><b>'+r.courierName+'</b></td>'
-      +'<td>'+typeCol+'</td>'
-      +'<td style="text-align:center">'+r.delivered+'/'+r.totalOrders+'</td>'
-      +'<td style="color:var(--gold);font-weight:800">'+parseFloat(r.bonus||0).toFixed(3)+' KD</td>'
-      +'<td style="font-weight:700">'+parseFloat(r.cash||0).toFixed(3)+' KD</td>'
-      +'<td>'+notesCol+'</td>'
+  else if(_archTab==='reports'){
+    var tbody3 = document.getElementById('archive-tbody');
+    if(!tbody3) return;
+    var settlements = (_delReports||[]).filter(function(r){
+      if(r.type!=='settlement') return false;
+      if(isEmployee && r.courierId!==myId && r.courierName!==myName) return false;
+      var dt = r.settledAt||r.savedAt;
+      if(!archDateFilter(dt)) return false;
+      if(q && !(r.courierName||'').toLowerCase().includes(q)) return false;
+      return true;
+    });
+    tbody3.innerHTML = settlements.length ? settlements.map(function(r){
+      var dt = r.settledAt&&r.settledAt.toDate
+        ? r.settledAt.toDate().toLocaleDateString('ar-KW',{year:'numeric',month:'short',day:'numeric'})
+        : (r.dateFrom||'—');
+      var settledTime = r.settledAt&&r.settledAt.toDate
+        ? r.settledAt.toDate().toLocaleTimeString('ar-KW',{hour:'2-digit',minute:'2-digit'}) : '';
+      var typeCol = '<span class="tag tag-green">إنهاء حساب</span>'
+        +'<div style="font-size:.7rem;color:var(--muted);margin-top:3px">بواسطة <b>'+(r.settledBy||'—')+'</b></div>'
+        +'<div style="font-size:.68rem;color:var(--muted2)">'+dt+(settledTime?' — '+settledTime:'')+'</div>';
+      var notesCol = r.editedBy
+        ? '<span style="font-size:.7rem;color:var(--blue)">تعديل: <b>'+r.editedBy+'</b></span>'
+          +'<div style="font-size:.67rem;color:var(--muted2)">'+(r.editedAt&&r.editedAt.toDate?r.editedAt.toDate().toLocaleDateString('ar-KW',{day:'numeric',month:'short'}):'')+'</div>'
+        : '';
+      return '<tr onclick="openArchiveDetail(\''+r.id+'\')" style="cursor:pointer" onmouseover="this.style.background=\'#f0f9f4\'" onmouseout="this.style.background=\'\'">'
+        +'<td style="font-size:.8rem">'+(r.dateFrom||'—')+'→'+(r.dateTo||'—')+'</td>'
+        +'<td><b>'+r.courierName+'</b></td>'
+        +'<td>'+typeCol+'</td>'
+        +'<td style="text-align:center">'+(r.delivered||0)+'/'+r.totalOrders+'</td>'
+        +'<td style="color:var(--gold);font-weight:800">'+parseFloat(r.bonus||0).toFixed(3)+' KD</td>'
+        +'<td style="font-weight:700">'+parseFloat(r.cash||0).toFixed(3)+' KD</td>'
+        +'<td>'+notesCol+'</td>'
       +'</tr>';
-  }).join('');
+    }).join('') : '<tr><td colspan="7" class="empty">لا توجد تقارير مؤرشفة</td></tr>';
+  }
 };
+
 
 window.openArchiveDetail = function(rptId){
   var r = (_delReports||[]).find(function(x){return x.id===rptId;});
