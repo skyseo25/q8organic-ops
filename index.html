@@ -2440,7 +2440,7 @@ window.openOrderDetail = function(orderId){
     }
   } else {
     // ── كشف / خدمة ──
-    if(o.status==='pending'||o.status==='assigned'){
+    if(o.status==='pending'||o.status==='assigned'||o.status==='new'||!o.status){
       actions.push('<button style="'+btnStyle('#1a7a40','#fff')+'" onclick="odmInspAction(\''+orderId+'\',\'received\')">📋 استلمت الطلب</button>');
     }
     if(o.status==='received'||o.status==='scheduled'){
@@ -2482,6 +2482,24 @@ window.odmInspAction = async function(id, status){
     closeModal('modal-order-detail');
     showPage('items');
     toast('📋 أضف الأصناف ثم اضغط "احسب الآن"');
+  }
+};
+
+// تقدّم حالة الكشف من شاشة تفاصيل طلب الخدمة (للمندوب/الموظف المكلف)
+window.svcProgress = async function(inspId, relatedOrderId, status){
+  closeModal('modal-svc-detail');
+  if(relatedOrderId){
+    // يمر عبر سجل del_orders فيُحدّث الحالة ويُزامن iri_inspections
+    await window.odmInspAction(relatedOrderId, status);
+  } else {
+    // لا يوجد سجل مرتبط — حدّث سجل الكشف مباشرة
+    var map = {received:'new', delivering:'scheduled', inspected:'inspected', noreply:'new', closed:'closed'};
+    try{
+      await window.FB.upd(window.FB.doc(window.FB.db,'iri_inspections',inspId),
+        {status:(map[status]||'new'), updatedAt:window.FB.ts()});
+      var msg = {received:'✅ تم استلام الطلب', delivering:'🚗 في الطريق', inspected:'✅ تم الكشف', noreply:'📵 لا يوجد رد', closed:'🔒 تم إغلاق الطلب'};
+      toast(msg[status]||'✅');
+    }catch(e){ toast('خطأ: '+e.message); }
   }
 };
 
@@ -2613,7 +2631,7 @@ window.renderCourierView = function(){
           acts+='<button class="oc-btn oc-btn-red" onclick="odmAction(\''+oid+'\',\'returned\',false)">↩️ مرتجع</button>';
         }
       } else {
-        if(o.status==='pending'||o.status==='assigned') acts+='<button class="oc-btn oc-btn-ghost" onclick="odmInspAction(\''+oid+'\',\'received\')">📋 استلمت الطلب</button>';
+        if(o.status==='pending'||o.status==='assigned'||o.status==='new'||!o.status) acts+='<button class="oc-btn oc-btn-ghost" onclick="odmInspAction(\''+oid+'\',\'received\')">📋 استلمت الطلب</button>';
         if(o.status==='received'||o.status==='scheduled') acts+='<button class="oc-btn oc-btn-blue" onclick="odmInspAction(\''+oid+'\',\'delivering\')">🚗 في الطريق</button>';
         if(o.status==='delivering'||o.status==='received'||o.status==='scheduled'){
           acts+='<button class="oc-btn oc-btn-primary" onclick="odmInspAction(\''+oid+'\',\'inspected\')">✅ تم الكشف</button>';
@@ -3464,6 +3482,25 @@ window.openOrderDetailBySvc = function(inspId){
   var old = document.getElementById('modal-svc-detail');
   if(old) old.remove();
 
+  // ── أزرار تقدّم حالة الكشف (للمندوب/الموظف المكلف وللإدارة) ──
+  var roStatus = relatedOrder ? (relatedOrder.status||'pending') : (insp.status||'new');
+  var inspDone = (roStatus==='inspected' || roStatus==='closed');
+  var _rid = relatedOrder ? relatedOrder.id : '';
+  var _pb = function(action,label,bg){
+    return '<button onclick="svcProgress(\''+inspId+'\',\''+_rid+'\',\''+action+'\')" style="flex:1;min-width:46%;padding:12px;background:'+bg+';color:#fff;border:none;border-radius:10px;font-family:Cairo,sans-serif;font-size:.85rem;font-weight:800;cursor:pointer">'+label+'</button>';
+  };
+  var progBtns = '';
+  if(!inspDone){
+    if(roStatus==='pending'||roStatus==='assigned'||roStatus==='new'||roStatus==='') progBtns += _pb('received','📋 استلمت الطلب','#1a7a40');
+    if(roStatus==='received'||roStatus==='scheduled') progBtns += _pb('delivering','🚗 في الطريق','#1a4a8a');
+    if(roStatus==='delivering'||roStatus==='received'||roStatus==='scheduled'){
+      progBtns += _pb('inspected','✅ تم الكشف','#1a7a40');
+      progBtns += _pb('noreply','📵 لا رد','#b8860b');
+    }
+  }
+  if(roStatus==='inspected') progBtns += _pb('closed','🔒 إغلاق','#555');
+  var progHtml = progBtns ? '<div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px">'+progBtns+'</div>' : '';
+
   var html = '<div class="overlay open" id="modal-svc-detail" style="align-items:flex-end;padding:0" onclick="if(event.target===this)closeModal(\'modal-svc-detail\')">'
     +'<div style="background:#fff;width:100%;max-width:520px;border-radius:20px 20px 0 0;max-height:92vh;overflow-y:auto;box-shadow:0 -8px 40px rgba(0,0,0,0.18);animation:slideUp .25s ease">'
 
@@ -3506,6 +3543,9 @@ window.openOrderDetailBySvc = function(inspId){
 
     // عرض السعر / الفاتورة
     +quoteHtml
+
+    // أزرار تقدّم حالة الكشف
+    +progHtml
 
     // أزرار الإدارة
     +(isManager?'<div style="display:flex;gap:8px;margin-bottom:8px">'
