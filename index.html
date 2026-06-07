@@ -685,11 +685,11 @@ tbody tr[onclick]:active { background: #d8f0e2 !important; }
           <h2>الأرشيف</h2>
         </div>
         <div class="sec-card">
-          <div class="sec-header"><h3>الطلبات المؤرشفة</h3>
+          <div class="sec-header"><h3>تقارير إنهاء الحساب والأرشيف</h3>
             <input class="filter-input" id="arch-search" oninput="renderArchive()" placeholder="بحث..." style="width:180px;">
           </div>
           <div class="tbl-wrap"><table><thead><tr>
-            <th id="th-arch-date">التاريخ</th><th id="th-arch-client">العميل</th><th id="th-arch-area">المنطقة</th><th id="th-arch-courier">المندوب</th><th id="th-arch-status">الحالة</th>
+            <th>التاريخ</th><th>المندوب / العميل</th><th>النوع</th><th>تم تسليم</th><th>المكافأة</th><th>الكاش</th><th>ملاحظات</th>
           </tr></thead><tbody id="archive-tbody"></tbody></table></div>
         </div>
       </div>
@@ -1537,6 +1537,7 @@ function setupListeners(){
   FB.snap(FB.q(FB.col(d,'del_reports'),FB.ord('savedAt','desc')),function(sn){
     _delReports=sn.docs.map(function(x){return Object.assign({id:x.id},x.data());});
     if(_curPage==='reports') renderReports();
+    if(_curPage==='archive') renderArchive();
   });
 }
 
@@ -2942,6 +2943,7 @@ window.renderReports = function(){
     var myOrds = _orders.filter(function(o){
       if(o.orderType==='inspection') return false;
       if(o.courierId !== u.id && o.courierId !== u.username) return false;
+      if(o.settled) return false; // مُنهى حسابه — لا يظهر في التقارير
       var dt = o.deliveredAt && o.deliveredAt.toDate ? o.deliveredAt.toDate()
              : o.updatedAt && o.updatedAt.toDate ? o.updatedAt.toDate()
              : o.createdAt && o.createdAt.toDate ? o.createdAt.toDate() : null;
@@ -3046,7 +3048,7 @@ window.saveReportEdit = async function(){
 };
 
 window.settleReport = async function(courierId, name, dateFrom, dateTo){
-  if(!confirm('تأكيد إنهاء حساب '+name+'؟ سيتم تصفير رصيده وحفظ التقرير.'))return;
+  if(!confirm('تأكيد إنهاء حساب '+name+'؟ سيتم تصفير رصيده وحفظ التقرير في الأرشيف.'))return;
   var u = _delUsers.find(function(x){return x.id===courierId;});
   if(!u)return;
   var range = dateFrom && dateTo ? {from:dateFrom, to:dateTo} : getRptDateRange();
@@ -3076,6 +3078,7 @@ window.settleReport = async function(courierId, name, dateFrom, dateTo){
   },0);
   var settledBy = _u.name||_u.username;
   try{
+    // حفظ التقرير في del_reports
     await window.FB.add(window.FB.col(window.FB.db,'del_reports'),{
       courierId:u.id, courierName:u.name,
       dateFrom:range.from, dateTo:range.to,
@@ -3084,9 +3087,14 @@ window.settleReport = async function(courierId, name, dateFrom, dateTo){
       savedAt:window.FB.ts(),
       type:'settlement'
     });
+    // تحديث رصيد المندوب
     await window.FB.upd(window.FB.doc(window.FB.db,'del_users',courierId),{balance:0,lastPaid:bonus,lastPaidAt:window.FB.ts(),updatedAt:window.FB.ts()});
-    toast('✅ تم إنهاء حساب '+name+' بواسطة '+settledBy);
-    // طباعة تلقائية لتقرير هذا المندوب مع اسم المنهي
+    // تمييز الطلبات كـ "منتهية الحساب" حتى لا تظهر في التقارير مرة ثانية
+    var batch = myOrds.filter(function(o){return o.status==='delivered';});
+    for(var bi=0;bi<batch.length;bi++){
+      await window.FB.upd(window.FB.doc(window.FB.db,'del_orders',batch[bi].id),{settled:true,settledAt:window.FB.ts()});
+    }
+    toast('✅ تم إنهاء حساب '+name+' وحفظه في الأرشيف');
     printSingleReport(u.name, range.from, range.to, myOrds.length, delivered, bonus, cash, knet, settledBy);
   }catch(e){toast('خطأ: '+e.message);}
 };
@@ -3178,12 +3186,42 @@ window.printAllReport = function(){
 // ══════════════════════════════════════════════
 window.renderArchive=function(){
   var q=(document.getElementById('arch-search')||{}).value||'';
-  var list=_archived.filter(function(o){return !q||(o.clientName||'').includes(q)||(o.area||'').includes(q);});
-  document.getElementById('archive-tbody').innerHTML=list.map(function(o){
+
+  // ── قسم 1: تقارير إنهاء الحساب من del_reports ──
+  var settlements = _delReports ? _delReports.filter(function(r){
+    return r.type==='settlement' && (!q||(r.courierName||'').includes(q));
+  }) : [];
+
+  // ── قسم 2: الطلبات المؤرشفة العادية ──
+  var orders = _archived.filter(function(o){
+    return !q||(o.clientName||'').includes(q)||(o.area||'').includes(q);
+  });
+
+  var settlHtml = settlements.length ? settlements.map(function(r){
+    var dt = r.settledAt&&r.settledAt.toDate ? r.settledAt.toDate().toLocaleDateString(_lang==='ar'?'ar-KW':'en-GB') : (r.dateFrom||'—');
+    return '<tr style="background:#f0f9f4">'
+      +'<td>'+dt+'</td>'
+      +'<td><b>'+r.courierName+'</b></td>'
+      +'<td><span class="tag tag-green">إنهاء حساب</span></td>'
+      +'<td>'+r.delivered+'/'+r.totalOrders+'</td>'
+      +'<td style="color:var(--gold);font-weight:700">'+parseFloat(r.bonus||0).toFixed(3)+' KD</td>'
+      +'<td>'+parseFloat(r.cash||0).toFixed(3)+' KD</td>'
+      +'<td style="font-size:.75rem;color:var(--muted)">'+(_lang==='ar'?'بواسطة ':'By ')+(r.settledBy||'—')+'</td>'
+      +'</tr>';
+  }).join('') : '';
+
+  var ordersHtml = orders.length ? orders.map(function(o){
     var dt=o.createdAt&&o.createdAt.toDate?o.createdAt.toDate().toLocaleDateString(_lang==='ar'?'ar-KW':'en-GB'):'—';
-    return '<tr><td>'+dt+'</td><td>'+(o.clientName||'—')+'</td><td>'+(o.area||'—')+'</td>'
-      +'<td>'+(o.courierName||'—')+'</td><td><span class="tag '+(o.status==='delivered'?'tag-green':'tag-red')+'">'+(o.status||'—')+'</span></td></tr>';
-  }).join('')||'<tr><td colspan="5" class="empty">الأرشيف فارغ</td></tr>';
+    return '<tr><td>'+dt+'</td><td>'+(o.clientName||'—')+'</td><td><span class="tag tag-blue">طلب</span></td>'
+      +'<td colspan="2">'+(o.area||'—')+'</td>'
+      +'<td>'+(o.courierName||'—')+'</td>'
+      +'<td><span class="tag '+(o.status==='delivered'?'tag-green':'tag-red')+'">'+(o.status||'—')+'</span></td>'
+      +'</tr>';
+  }).join('') : '';
+
+  var combined = settlHtml + ordersHtml;
+  document.getElementById('archive-tbody').innerHTML = combined ||
+    '<tr><td colspan="7" class="empty">الأرشيف فارغ</td></tr>';
 };
 
 // ══════════════════════════════════════════════
