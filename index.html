@@ -4401,16 +4401,18 @@ window.setArchiveTab = function(tab){
 };
 
 function archDateFilter(dateVal){
+  if(_archFilter==='all') return true; // الكل — لا داعي لفحص التاريخ
   if(!dateVal) return false;
-  var dt = dateVal && dateVal.toDate ? dateVal.toDate() : new Date(dateVal);
-  if(isNaN(dt)) return false;
+  var dt;
+  if(dateVal && typeof dateVal.toDate === 'function'){ dt = dateVal.toDate(); }
+  else if(dateVal && dateVal.seconds){ dt = new Date(dateVal.seconds * 1000); }
+  else if(typeof dateVal === 'string'){ dt = new Date(dateVal); }
+  else if(dateVal instanceof Date){ dt = dateVal; }
+  else { return true; } // تاريخ غير معروف → اعرضه
+  if(isNaN(dt)) return true; // لو ما عرفنا نحلله → اعرضه
   var now = new Date(); var today = now.toISOString().substring(0,10);
-  if(_archFilter==='today'){
-    return dt.toISOString().substring(0,10)===today;
-  }
-  if(_archFilter==='month'){
-    return dt.getFullYear()===now.getFullYear() && dt.getMonth()===now.getMonth();
-  }
+  if(_archFilter==='today') return dt.toISOString().substring(0,10)===today;
+  if(_archFilter==='month') return dt.getFullYear()===now.getFullYear() && dt.getMonth()===now.getMonth();
   if(_archFilter==='custom'){
     var from = (document.getElementById('arch-from')||{}).value;
     var to   = (document.getElementById('arch-to')||{}).value;
@@ -4419,7 +4421,7 @@ function archDateFilter(dateVal){
     if(to   && dStr>to)   return false;
     return true;
   }
-  return true; // all
+  return true;
 }
 
 window.renderArchive = function(){
@@ -4432,12 +4434,11 @@ window.renderArchive = function(){
     var tbody = document.getElementById('arch-delivery-tbody');
     if(!tbody) return;
     var orders = (_orders||[]).concat(_archived||[]).filter(function(o){
-      // يظهر في الأرشيف: مؤرشف صراحةً، أو منتهي الحساب، أو تم التسليم/الإغلاق/المرتجع
       var inArch = o.archived || o.settled || o.status==='delivered' || o.status==='returned' || o.status==='closed';
       if(!inArch) return false;
       if(o.orderType==='inspection') return false;
       if(isEmployee && o.courierId!==myId) return false;
-      var dt = o.archivedAt||o.deliveredAt||o.updatedAt||o.createdAt;
+      var dt = o.archivedAt || o.deliveredAt || o.updatedAt || o.createdAt || null;
       if(!archDateFilter(dt)) return false;
       if(q && !(o.clientName||'').toLowerCase().includes(q) && !(o.area||'').toLowerCase().includes(q) && !(o.courierName||'').toLowerCase().includes(q)) return false;
       return true;
