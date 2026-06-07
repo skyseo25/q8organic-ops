@@ -1558,23 +1558,27 @@ function calcBonus(orders){
 window.renderCourierView = function(){
   var myId = _u.id || _u.username;
   var myUsername = _u.username || '';
-  // نطابق بالـ id أو بالـ username (للطلبات القديمة)
+
+  // المندوب يرى فقط الطلبات المحولة إليه بشكل صريح (courierId = myId)
+  // الطلبات بدون مندوب لا تظهر له
   var myOrders = _orders.filter(function(o){
-    return o.courierId === myId || o.courierId === myUsername || o.courierName === (_u.name||'');
+    return o.courierId === myId || o.courierId === myUsername;
   });
 
-  // اقرأ الرصيد المحفوظ في del_users (البحث بـ id أو username)
   var myCourierData = _delUsers.find(function(u){ return u.id===myId || u.username===myUsername; });
   var savedBalance = myCourierData ? parseFloat(myCourierData.balance||0) : 0;
 
-  // --- Stats ---
-  var active = myOrders.filter(function(o){ return o.status!=='delivered'&&o.status!=='returned'; }).length;
-  var delivered = myOrders.filter(function(o){ return o.status==='delivered'&&o.orderType!=='inspection'; }).length;
+  // إحصائيات — نفرق بين توصيل وكشف
+  var deliveryOrders    = myOrders.filter(function(o){ return o.orderType!=='inspection' && o.orderType!=='service'; });
+  var inspectionOrders  = myOrders.filter(function(o){ return o.orderType==='inspection' || o.orderType==='service'; });
+  var activeDelivery    = deliveryOrders.filter(function(o){ return o.status!=='delivered'&&o.status!=='returned'; }).length;
+  var delivered         = deliveryOrders.filter(function(o){ return o.status==='delivered'; }).length;
+  var activeInsp        = inspectionOrders.filter(function(o){ return o.status!=='closed'&&o.status!=='done'; }).length;
 
   var h = document.getElementById('courier-header-wrap');
   if(h) h.innerHTML = '<div class="courier-header">'
     +'<div class="courier-header-info">'
-    +'<h2>👋 '+(typeof _lang!=='undefined'&&_lang==='ar'?'أهلاً ':'Hello ')+(_u.name||_u.username)+'</h2>'
+    +'<h2>👋 '+(_lang==='ar'?'أهلاً ':'Hello ')+(_u.name||_u.username)+'</h2>'
     +'<p>'+(new Date().toLocaleDateString(_lang==='ar'?'ar-KW':'en-GB',{weekday:'long',year:'numeric',month:'long',day:'numeric'}))+'</p>'
     +'</div>'
     +'<div class="courier-bonus-box"><div class="bon-val">'+savedBalance.toFixed(3)+'</div><div class="bon-lbl">'+(_lang==='ar'?'KD مكافأة':'Bonus KD')+'</div></div>'
@@ -1582,86 +1586,99 @@ window.renderCourierView = function(){
 
   var s = document.getElementById('courier-stats-wrap');
   if(s) s.innerHTML =
-    '<div class="cour-stat"><div class="sv">'+myOrders.length+'</div><div class="sl">'+(_lang==='ar'?'إجمالي الطلبات':'Total')+'</div></div>'
-    +'<div class="cour-stat" style="border-color:var(--gold)"><div class="sv" style="color:var(--gold)">'+active+'</div><div class="sl">'+(_lang==='ar'?'نشط':'Active')+'</div></div>'
+    '<div class="cour-stat"><div class="sv">'+myOrders.length+'</div><div class="sl">'+(_lang==='ar'?'إجمالي':'Total')+'</div></div>'
+    +'<div class="cour-stat" style="border-color:var(--gold)"><div class="sv" style="color:var(--gold)">'+(activeDelivery+activeInsp)+'</div><div class="sl">'+(_lang==='ar'?'نشط':'Active')+'</div></div>'
     +'<div class="cour-stat" style="border-color:var(--green)"><div class="sv" style="color:var(--green)">'+delivered+'</div><div class="sl">'+(_lang==='ar'?'مُسلَّم':'Delivered')+'</div></div>';
 
-  // --- Filter tabs ---
+  // فلاتر
   var f = document.getElementById('courier-filter-wrap');
   var filters = [
-    {k:'active',ar:'النشطة',en:'Active',count:active},
-    {k:'all',ar:'الكل',en:'All',count:myOrders.length},
-    {k:'delivered',ar:'مُسلَّم',en:'Delivered',count:delivered},
-    {k:'returned',ar:'مرتجع',en:'Returned',count:myOrders.filter(function(o){return o.status==='returned';}).length},
+    {k:'active',  ar:'النشطة',  en:'Active',   count: activeDelivery+activeInsp},
+    {k:'delivery',ar:'توصيل',   en:'Delivery', count: deliveryOrders.length},
+    {k:'insp',    ar:'كشف/خدمة',en:'Inspection',count: inspectionOrders.length},
+    {k:'all',     ar:'الكل',    en:'All',       count: myOrders.length},
   ];
   if(f) f.innerHTML = filters.map(function(fi){
-    var active_cls = _courierFilter===fi.k?'btn btn-green btn-sm':'btn btn-ghost btn-sm';
-    return '<button class="'+active_cls+'" onclick="setCourierFilter(\''+fi.k+'\')">'
+    var cls = _courierFilter===fi.k ? 'btn btn-green btn-sm' : 'btn btn-ghost btn-sm';
+    return '<button class="'+cls+'" onclick="setCourierFilter(\''+fi.k+'\')">'
       +(_lang==='ar'?fi.ar:fi.en)+' <span style="background:rgba(255,255,255,.3);padding:1px 6px;border-radius:10px;font-size:.68rem">'+fi.count+'</span></button>';
   }).join('');
 
-  // --- Filter list ---
+  // قائمة مفلترة
   var list;
-  if(_courierFilter==='active') list=myOrders.filter(function(o){return o.status!=='delivered'&&o.status!=='returned';});
-  else if(_courierFilter==='delivered') list=myOrders.filter(function(o){return o.status==='delivered';});
-  else if(_courierFilter==='returned') list=myOrders.filter(function(o){return o.status==='returned';});
-  else list=myOrders;
+  if(_courierFilter==='active')    list = myOrders.filter(function(o){ return o.status!=='delivered'&&o.status!=='returned'&&o.status!=='closed'; });
+  else if(_courierFilter==='delivery') list = deliveryOrders;
+  else if(_courierFilter==='insp') list = inspectionOrders;
+  else list = myOrders;
 
-  // Status labels
-  var ST_AR = {pending:'قيد الانتظار',assigned:'قيد الانتظار',received:'استلمت الطلب',delivering:'جاري التوصيل',delivered:'تم التسليم',noreply:'لا يوجد رد',returned:'مرتجع'};
-  var ST_EN = {pending:'Pending',assigned:'Pending',received:'Received',delivering:'Delivering',delivered:'Delivered',noreply:'No Reply',returned:'Returned'};
-  var ST_CL = {pending:'st-pending',assigned:'st-pending',received:'st-done',delivering:'st-active',delivered:'st-active',noreply:'st-pending',returned:'st-cancelled'};
+  var ST_AR = {pending:'قيد الانتظار',assigned:'قيد الانتظار',received:'استلمت',delivering:'جاري التوصيل',delivered:'تم التسليم',noreply:'لا يوجد رد',returned:'مرتجع',scheduled:'مجدول',inspected:'تم الكشف',closed:'مغلق',done:'منجز'};
+  var ST_EN = {pending:'Pending',assigned:'Pending',received:'Received',delivering:'Delivering',delivered:'Delivered',noreply:'No Reply',returned:'Returned',scheduled:'Scheduled',inspected:'Inspected',closed:'Closed',done:'Done'};
+  var ST_CL = {pending:'st-pending',assigned:'st-pending',received:'st-done',delivering:'st-active',delivered:'st-active',noreply:'st-pending',returned:'st-cancelled',scheduled:'st-done',inspected:'st-active',closed:'st-gray',done:'st-active'};
   var PAY_AR = _lang==='ar'?{cash:'💵 كاش',knet:'💳 Knet',paid:'✅ مدفوع',free:'—'}:{cash:'💵 Cash',knet:'💳 Knet',paid:'✅ Paid',free:'—'};
 
   var wrap = document.getElementById('courier-orders-wrap');
   if(!wrap) return;
   if(!list.length){
-    wrap.innerHTML='<div style="text-align:center;padding:40px;color:var(--muted2)">'+(_lang==='ar'?'لا توجد طلبات':'No orders')+'</div>';
+    wrap.innerHTML='<div style="text-align:center;padding:40px;color:var(--muted2)">'+(_lang==='ar'?'لا توجد طلبات موكلة إليك':'No orders assigned to you')+'</div>';
     return;
   }
 
   wrap.innerHTML = list.map(function(o, i){
-    var statusClass = 'status-'+(o.status==='assigned'||o.status==='pending'?'pending':o.status);
-    var isInspection = o.orderType==='inspection';
+    var isInspection = o.orderType==='inspection' || o.orderType==='service';
+    var statusLabel = (_lang==='ar'?(ST_AR[o.status]||o.status):(ST_EN[o.status]||o.status));
+    var statusCl    = ST_CL[o.status]||'st-gray';
     var bonPerOrder = (!isInspection&&o.status==='delivered') ? ((function(){
       var dt=o.createdAt&&o.createdAt.toDate?o.createdAt.toDate():new Date();
       return dt.getDay()===5?0.5:0.25;
     })()) : 0;
 
-    var statusLabel = (_lang==='ar'?(ST_AR[o.status]||o.status):(ST_EN[o.status]||o.status));
-    var statusCl = ST_CL[o.status]||'st-gray';
-
-    // Buttons — show only relevant next steps
+    // ── أزرار التوصيل ──
     var btns = '';
-    if(o.status==='pending'||o.status==='assigned'){
-      btns += '<button class="st-btn st-btn-received" onclick="updateOrderStatus(\''+o.id+'\',\'received\')">📦 استلمت الطلب</button>';
-    }
-    if(o.status==='received'){
-      btns += '<button class="st-btn st-btn-delivering" onclick="updateOrderStatus(\''+o.id+'\',\'delivering\')">🚗 جاري التوصيل</button>';
-    }
-    if(o.status==='delivering'||o.status==='received'){
-      btns += '<button class="st-btn st-btn-delivered" onclick="updateOrderStatus(\''+o.id+'\',\'delivered\')">✅ تم التسليم</button>';
-      // زر Knet يظهر فقط للطلبات الكاش
-      if(o.paymentType==='cash'){
-        btns += '<button class="st-btn" style="background:#e8f0ff;color:#1a4a8a;border:1.5px solid #c8d8f8" onclick="updateOrderStatus(\''+o.id+'\',\'delivered\',true)">💳 Knet</button>';
+    if(!isInspection){
+      if(o.status==='pending'||o.status==='assigned'){
+        btns += '<button class="st-btn st-btn-received" onclick="updateOrderStatus(\''+o.id+'\',\'received\')">📦 '+(_lang==='ar'?'استلمت الطلب':'Received')+'</button>';
       }
-      btns += '<button class="st-btn st-btn-noreply" onclick="updateOrderStatus(\''+o.id+'\',\'noreply\')">📵 لا يوجد رد</button>';
-      btns += '<button class="st-btn st-btn-returned" onclick="updateOrderStatus(\''+o.id+'\',\'returned\')">↩️ مرتجع</button>';
-    }
-    if(o.status==='noreply'){
-      btns += '<button class="st-btn st-btn-delivering" onclick="updateOrderStatus(\''+o.id+'\',\'delivering\')">🔄 استئناف</button>';
-      btns += '<button class="st-btn st-btn-delivered" onclick="updateOrderStatus(\''+o.id+'\',\'delivered\')">✅ تم التسليم</button>';
-      if(o.paymentType==='cash'){
-        btns += '<button class="st-btn" style="background:#e8f0ff;color:#1a4a8a;border:1.5px solid #c8d8f8" onclick="updateOrderStatus(\''+o.id+'\',\'delivered\',true)">💳 Knet</button>';
+      if(o.status==='received'){
+        btns += '<button class="st-btn st-btn-delivering" onclick="updateOrderStatus(\''+o.id+'\',\'delivering\')">🚗 '+(_lang==='ar'?'جاري التوصيل':'Delivering')+'</button>';
       }
-      btns += '<button class="st-btn st-btn-returned" onclick="updateOrderStatus(\''+o.id+'\',\'returned\')">↩️ مرتجع</button>';
+      if(o.status==='delivering'||o.status==='received'){
+        btns += '<button class="st-btn st-btn-delivered" onclick="updateOrderStatus(\''+o.id+'\',\'delivered\')">✅ '+(_lang==='ar'?'تم التسليم':'Delivered')+'</button>';
+        if(o.paymentType==='cash'){
+          btns += '<button class="st-btn" style="background:#e8f0ff;color:#1a4a8a;border:1.5px solid #c8d8f8" onclick="updateOrderStatus(\''+o.id+'\',\'delivered\',true)">💳 Knet</button>';
+        }
+        btns += '<button class="st-btn st-btn-noreply" onclick="updateOrderStatus(\''+o.id+'\',\'noreply\')">📵 '+(_lang==='ar'?'لا يوجد رد':'No Reply')+'</button>';
+        btns += '<button class="st-btn st-btn-returned" onclick="updateOrderStatus(\''+o.id+'\',\'returned\')">↩️ '+(_lang==='ar'?'مرتجع':'Return')+'</button>';
+      }
+      if(o.status==='noreply'){
+        btns += '<button class="st-btn st-btn-delivering" onclick="updateOrderStatus(\''+o.id+'\',\'delivering\')">🔄 '+(_lang==='ar'?'استئناف':'Resume')+'</button>';
+        btns += '<button class="st-btn st-btn-delivered" onclick="updateOrderStatus(\''+o.id+'\',\'delivered\')">✅ '+(_lang==='ar'?'تم التسليم':'Delivered')+'</button>';
+        if(o.paymentType==='cash'){
+          btns += '<button class="st-btn" style="background:#e8f0ff;color:#1a4a8a;border:1.5px solid #c8d8f8" onclick="updateOrderStatus(\''+o.id+'\',\'delivered\',true)">💳 Knet</button>';
+        }
+        btns += '<button class="st-btn st-btn-returned" onclick="updateOrderStatus(\''+o.id+'\',\'returned\')">↩️ '+(_lang==='ar'?'مرتجع':'Return')+'</button>';
+      }
+    } else {
+      // ── أزرار الكشف / الخدمة ──
+      if(o.status==='pending'||o.status==='assigned'){
+        btns += '<button class="st-btn" style="background:#e8f5e9;color:#1a6b3a;border:1.5px solid #b8dfc4" onclick="updateInspStatus(\''+o.id+'\',\'received\')">📋 '+(_lang==='ar'?'استلمت الطلب':'Accept Task')+'</button>';
+      }
+      if(o.status==='received'||o.status==='scheduled'){
+        btns += '<button class="st-btn st-btn-delivering" onclick="updateInspStatus(\''+o.id+'\',\'delivering\')">🚗 '+(_lang==='ar'?'في الطريق':'On the way')+'</button>';
+      }
+      if(o.status==='delivering'||o.status==='received'||o.status==='scheduled'){
+        btns += '<button class="st-btn st-btn-delivered" onclick="updateInspStatus(\''+o.id+'\',\'inspected\')">✅ '+(_lang==='ar'?'تم الكشف':'Inspection Done')+'</button>';
+        btns += '<button class="st-btn st-btn-noreply" onclick="updateInspStatus(\''+o.id+'\',\'noreply\')">📵 '+(_lang==='ar'?'لا يوجد رد':'No Reply')+'</button>';
+      }
+      if(o.status==='inspected'){
+        btns += '<button class="st-btn" style="background:#f0f9f4;color:#1a7a40;border:1.5px solid #b8dfc4" onclick="updateInspStatus(\''+o.id+'\',\'closed\')">🔒 '+(_lang==='ar'?'إغلاق الطلب':'Close Task')+'</button>';
+      }
     }
 
     // وقت التسليم
     var deliveredTimeStr = '';
-    if(o.status==='delivered' && o.deliveredAt && o.deliveredAt.toDate){
+    if((o.status==='delivered'||o.status==='inspected') && o.deliveredAt && o.deliveredAt.toDate){
       var dTime = o.deliveredAt.toDate();
-      deliveredTimeStr = '<div style="font-size:.72rem;color:var(--green);font-weight:700;margin-top:4px">✅ '+(_lang==='ar'?'تم التسليم:':'Delivered at:')+' '
+      deliveredTimeStr = '<div style="font-size:.72rem;color:var(--green);font-weight:700;margin-top:4px">✅ '+(_lang==='ar'?'تم في:':'Done at:')+' '
         +dTime.toLocaleTimeString(_lang==='ar'?'ar-KW':'en-GB',{hour:'2-digit',minute:'2-digit'})+' — '+dTime.toLocaleDateString(_lang==='ar'?'ar-KW':'en-GB')+'</div>';
     }
 
@@ -1669,10 +1686,17 @@ window.renderCourierView = function(){
       ? '<a href="'+o.locationLink+'" target="_blank" style="display:inline-flex;align-items:center;gap:4px;background:#e8f5e9;color:#1a7a40;border:1px solid #b8dfc4;border-radius:7px;padding:5px 10px;font-size:.78rem;font-weight:700;text-decoration:none">📍 Map</a>'
       : '';
 
-    return '<div class="order-card '+statusClass+'">'
+    // تمييز بطاقات الكشف بلون مختلف
+    var cardStyle = isInspection ? 'border-right:3px solid var(--blue);' : '';
+
+    return '<div class="order-card" style="'+cardStyle+'">'
       +'<div class="order-card-head">'
         +'<div>'
-          +'<div class="order-card-num">#'+(i+1)+(isInspection?' · 🔍 Inspection':'')+(o.orderNum?' · <span style="background:#e8f0ff;color:#1a4a8a;padding:1px 6px;border-radius:4px;font-size:.7rem;font-weight:800">📦 '+o.orderNum+'</span>':'')+' · '+(o.createdAt&&o.createdAt.toDate?o.createdAt.toDate().toLocaleDateString('en-GB'):'—')+'</div>'
+          +'<div class="order-card-num">'
+            +(isInspection?'<span style="background:#e8f0ff;color:#1a4a8a;padding:2px 8px;border-radius:6px;font-size:.7rem;font-weight:800;margin-left:4px">🔍 '+(o.inspTypeAr||(_lang==='ar'?'كشف':'Inspection'))+'</span>':'')
+            +(o.orderNum?'<span style="background:#e8f0ff;color:#1a4a8a;padding:1px 6px;border-radius:4px;font-size:.7rem;font-weight:800">📦 '+o.orderNum+'</span> ':'')
+            +' · '+(o.createdAt&&o.createdAt.toDate?o.createdAt.toDate().toLocaleDateString('en-GB'):'—')
+          +'</div>'
           +'<div class="order-card-name">'+(o.clientName||'—')+'</div>'
           +'<div class="order-card-phone">📞 '+(o.phone||'—')+'</div>'
         +'</div>'
@@ -1685,10 +1709,10 @@ window.renderCourierView = function(){
         +(o.area?'<div class="order-card-row">📍 <b>'+(_lang==='en'?translateArea(o.area):o.area)+(o.block?' · '+o.block:'')+'</b></div>':'')
         +(o.address?'<div class="order-card-row" style="font-size:.78rem;color:var(--muted)">'+o.address+'</div>':'')
         +(o.notes?'<div class="order-card-row">📝 <span>'+o.notes+'</span></div>':'')
-        +'<div class="order-card-row">'
+        +(!isInspection?'<div class="order-card-row">'
           +(o.amount&&o.paymentType!=='knet'?'<span class="order-amount-badge">'+parseFloat(o.amount||0).toFixed(3)+' KD</span>':'')+' '
           +(o.paymentType?'<span style="font-size:.78rem;color:var(--muted)">'+(PAY_AR[o.paymentType]||o.paymentType)+'</span>':'')
-        +'</div>'
+          +'</div>':'')
         +deliveredTimeStr
       +'</div>'
       +(btns||locBtn ? '<div class="order-card-foot"><div style="display:flex;gap:6px;flex-wrap:wrap">'+btns+'</div>'+locBtn+'</div>' : '')
@@ -1696,9 +1720,32 @@ window.renderCourierView = function(){
   }).join('');
 };
 
-window.setCourierFilter = function(f){
-  _courierFilter = f;
-  renderCourierView();
+window.updateInspStatus = async function(id, status){
+  try{
+    var order = _orders.find(function(o){ return o.id===id; });
+    if(!order){ toast('طلب غير موجود'); return; }
+    var updateData = {status:status, updatedAt:window.FB.ts()};
+    if(status==='inspected' || status==='done'){
+      updateData.deliveredAt = window.FB.ts();
+    }
+    await window.FB.upd(window.FB.doc(window.FB.db,'del_orders',id), updateData);
+    // حدّث أيضاً في iri_inspections إذا كان مرتبطاً
+    var inspRec = _inspections.find(function(x){
+      return x.phone===order.phone && x.client===order.clientName;
+    });
+    if(inspRec){
+      var inspStatus = status==='inspected'?'inspected':status==='closed'?'closed':status==='delivering'?'scheduled':'new';
+      await window.FB.upd(window.FB.doc(window.FB.db,'iri_inspections',inspRec.id),{status:inspStatus,updatedAt:window.FB.ts()});
+    }
+    var msg = {
+      received:  _lang==='ar'?'✅ تم استلام الطلب':'Task accepted',
+      delivering:_lang==='ar'?'🚗 في الطريق':'On the way',
+      inspected: _lang==='ar'?'✅ تم الكشف':'Inspection done',
+      noreply:   _lang==='ar'?'📵 لا يوجد رد':'No reply',
+      closed:    _lang==='ar'?'🔒 تم إغلاق الطلب':'Task closed',
+    };
+    toast(msg[status]||'✅');
+  }catch(e){ toast('خطأ: '+e.message); }
 };
 
 window.updateOrderStatus = async function(id, status, forceKnet){
