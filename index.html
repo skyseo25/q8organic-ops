@@ -1398,6 +1398,7 @@ var _u = null, _role = null, _lang = 'ar';
 var _orders = [], _archived = [], _iriUsers = [], _delUsers = [];
 var _invoices = [], _inspections = [], _customers = [], _sysUsers = [];
 var _delReports = [], _iriItems = [];
+var _rptAckMs = 0; // آخر وقت ضغط فيه المدير على "اطّلعت" (ms)
 var _loginRole = 'manager';
 
 
@@ -1452,6 +1453,96 @@ function translateArea(arText){
 
 var ROLES_AR = {manager:'مدير', supervisor:'مشرف', employee:'موظف'};
 var ROLES_EN = {manager:'Manager', supervisor:'Supervisor', employee:'Employee'};
+
+// ══════════════════════════════════════════════
+// UI ENGLISH DICTIONARY + LIVE DOM TRANSLATOR
+// ══════════════════════════════════════════════
+var UI_EN = {"لوحة التحكم": "Dashboard","لوحة التحكم الرئيسية": "Main Dashboard","طلبات التوصيل والكشف": "Delivery & Inspection","طلباتي": "My Orders","إضافة طلب/خدمة": "Add Order/Service","أرشيف تقاريري": "My Reports","إضافة توصيل وخدمة": "Add Order / Service","الأصناف": "Items","التقارير": "Reports","الموظفون": "Employees","قاعدة العملاء": "Customers","العملاء": "Customers","الأرشيف": "Archive","الإعدادات": "Settings","الري والصيانة": "Irrigation & Maint.","الأعمال": "Operations","الإدارة": "Management","المزيد": "More","توصيل/كشف": "Orders","صيانة": "Maintenance","حركة اليوم": "Today's Activity","الطلبات النشطة": "Active Orders","طلبات كاش تحولت Knet": "Cash → Knet Orders","تقارير لم يتم إنهاء حسابها": "Unsettled Reports","أهلاً": "Welcome","خروج": "Logout","قيد الانتظار": "Pending","محال": "Assigned","مسلّم": "Delivered","مُسلَّم": "Delivered","مرتجع": "Returned","جاري التوصيل": "Delivering","في الطريق": "On the way","لا يوجد رد": "No Reply","مغلق": "Closed","معلق": "Suspended","مجدول": "Scheduled","منجز": "Done","نشط": "Active","النشطة": "Active","الكل": "All","كشف": "Inspection","كشف/خدمة": "Insp./Service","توصيل": "Delivery","خدمة": "Service","خدمات": "Services","تمديدات": "Extensions","تمديدات وخدمات": "Extensions & Services","أخرى": "Other","مدفوع": "Paid","مدفوعة": "Paid","مسودة": "Draft","مرسلة": "Sent","مستند": "Document","جديد": "New","الحالة": "Status","التاريخ": "Date","العميل": "Client","المندوب": "Courier","الكمية": "Quantity","الإجمالي": "Total","الإجمالي النهائي": "Final Total","المنطقة": "Area","الهاتف": "Phone","المبلغ": "Amount","الوصف": "Description","الصنف": "Item","الاسم": "Name","الدور": "Role","الرمز": "Symbol","المعرف": "Username","اسم المستخدم": "Username","النوع": "Type","الدفع": "Payment","طريقة الدفع": "Payment Method","السعر": "Price","السعر الإجمالي": "Total Price","السعر بعد الخصم": "Price After Discount","المجموع": "Subtotal","المجموع الأصلي": "Original Total","المجموع قبل الخصم": "Subtotal Before Discount","المكافأة": "Bonus","مجموع المكافآت": "Total Bonus","مجموع الكاش": "Total Cash","مجموع الكاش 💵": "Total Cash 💵","الكاش": "Cash","عدد الطلبات": "Orders","إجمالي الطلبات": "Total Orders","عدد التسليم": "Delivered Count","تم تسليم": "Delivered","إجمالي": "Total","ملاحظات": "Notes","العنوان": "Address","العنوان التفصيلي": "Detailed Address","الموظف": "Employee","الموظف المكلف": "Assigned Employee","بيانات العميل": "Client Info","نوع الكشف": "Inspection Type","تفاصيل المشكلة": "Issue Details","الفواتير": "Invoices","الفواتير المحفوظة": "Saved Invoices","جميع الموظفين": "All Employees","كل الحالات": "All Status","إجراءات": "Actions","المبلغ (KD)": "Amount (KD)","المكافأة (KD)": "Bonus (KD)","الكاش (KD)": "Cash (KD)","الإجمالي KD": "Total KD","السعر KD": "Price KD","الصنف / Item": "Item","رقم الطلب": "Order #","بدون تحديد": "None","غير محدد": "Not specified","لم يُحدد": "Not assigned","كمية": "Qty","سعر": "Price","وحدة": "Unit","صنف": "Item","اسم الصنف": "Item Name","قطعة": "Block","شارع": "Street","جادة": "Avenue","منزل": "House","القطعة / الشارع": "Block / Street","مكافأة +": "Bonus +","بقيمة": "amount","بواسطة": "by","سجل": "records","تمديد": "Extension","تمديد شبكة ري": "Irrigation Extension","تمديد شبكة الري": "Irrigation Network Extension","فاتورة": "Invoice","عرض سعر": "Quote","كشف صيانة": "Maintenance Inspection","كشف تمديد": "Extension Inspection","كشف تمديد شبكة": "Network Extension Inspection","صيانة ري": "Irrigation Maintenance","صيانة حديقة": "Garden Maintenance","كفالة": "Warranty","أجور عمالة": "Labor Charges","بلوك 12": "Block 12","بلوك ١٢": "Block 12","مدير": "Manager","مشرف": "Supervisor","موظف": "Employee","✅ تم التسليم": "✅ Delivered","↩️ مرتجع": "↩️ Return","↩ مرتجع": "↩ Return","📦 استلمت الطلب": "📦 Received","📋 استلمت الطلب": "📋 Received","🚗 جاري التوصيل": "🚗 Delivering","💳 تم التسليم — Knet": "💳 Delivered — Knet","✅ تم الكشف": "✅ Inspection done","📵 لا يوجد رد": "📵 No Reply","📵 لا رد": "📵 No Reply","🔄 استئناف": "🔄 Resume","🔄 استئناف التوصيل": "🔄 Resume Delivery","🚗 في الطريق": "🚗 On the way","🚗 في الطريق للموقع": "🚗 On the way","🔒 إغلاق": "🔒 Close","🔒 إغلاق الطلب": "🔒 Close Order","📦 حفظ في الأرشيف": "📦 Archive","🔄 تحويل": "🔄 Convert","🧾 تحويل إلى فاتورة": "🧾 Convert to Invoice","🧾 الفاتورة": "🧾 Invoice","🧾 طباعة الفاتورة": "🧾 Print Invoice","🧾 فاتورة": "🧾 Invoice","🧾 تحول لفاتورة": "🧾 Converted to Invoice","🧾 فاتورة رسمية": "🧾 Official Invoice","📍 فتح الموقع على الخريطة": "📍 Open Location on Map","📍 رابط الموقع": "📍 Location Link","📌 العنوان": "📌 Address","📅 الموعد": "📅 Appointment","👤 المندوب المكلف": "👤 Assigned Courier","👤 المندوب:": "👤 Courier:","👤 بيانات العميل": "👤 Client Info","👤 مناديب التوصيل": "👤 Couriers","📋 الأصناف": "📋 Items","📋 عرض السعر / الفاتورة": "📋 Quote / Invoice","📦 طلبات التوصيل": "📦 Delivery Orders","📬 استلم المندوب": "📬 Picked Up","🔧 كشف وصيانة اليوم": "🔧 Today's Inspections","🔧 كشف:": "🔧 Insp.:","🚚 توصيل": "🚚 Delivery","🚚 توصيل:": "🚚 Delivery:","💵 كاش": "💵 Cash","✅ مدفوع": "✅ Paid","💳 Knet — لا كاش": "💳 Knet — No Cash","🔍 للمراجعة": "🔍 Under Review","🔍 مراجعة": "🔍 Review","❌ مرفوض": "❌ Rejected","❌ رفض": "❌ Reject","✅ اتفاق": "✅ Agreed","🔄 انتظار": "🔄 Pending","🔄 في الانتظار": "🔄 Pending","⚡ حالة العرض": "⚡ Quote Status","⭐ مكافأة:": "⭐ Bonus:","✅ أنهى الحساب": "✅ Settled by","✏️ تعديل": "✏️ Edit","✏️ تعديل الكشف": "✏️ Edit Inspection","✏️ تعديل الخصم (للإدارة فقط)": "✏️ Edit Discount (Admin only)","✏️ تعديل السجل": "✏️ Edit Record","👁 عرض": "👁 View","🗑 حذف": "🗑 Delete","↩ استعادة": "↩ Restore","🖨 طباعة": "🖨 Print","🖨 عرض السعر": "🖨 Quote","🖨 طباعة عرض السعر": "🖨 Print Quote","💾 حفظ": "💾 Save","💾 حفظ التعديل": "💾 Save Changes","💾 حفظ وإرسال للطلبات": "💾 Save & Send to Orders","💾 حفظ تعديل السعر": "💾 Save Price Edit","🔄 إعادة إسناد": "🔄 Reassign","🔄 إعادة كشف + تغيير المكلف": "🔄 Re-inspect + Reassign","⚙️ تعديل السعر — للمدير فقط": "⚙️ Price Edit — Manager only","+ طلب جديد": "+ New Order","+ طلب جديد لهذا العميل": "+ New Order for this Client","+ إضافة للفاتورة": "+ Add to Invoice","تفاصيل": "Details","← رجوع للعروض": "← Back to Quotes","📋 أضف الأصناف ثم اضغط": "📋 Add items then tap","احسب الآن": "Calculate Now","استلمت": "Received","تعديل": "Edit","حفظ": "Save","إلغاء": "Cancel","حذف": "Delete","إغلاق": "Close","إضافة": "Add","تنفيذ": "Execute","طباعة": "Print","طباعة الكل": "Print All","إنهاء الحساب": "Settle Account","إنهاء حساب": "Settlement","تعليق": "Suspend","تفعيل": "Activate","تحميل نسخة احتياطية": "Download Backup","آخر نسخة:": "Last backup:","تنفيذ التقرير": "Run Report","✅ تم الإنهاء": "✅ Settled","✅ تم السداد": "✅ Paid","بانتظار السداد": "Awaiting Payment","إضافة طلب توصيل": "Add Delivery Order","إضافة طلب": "Add Order","تعديل طلب": "Edit Order","تعديل طلب خدمة": "Edit Service Order","تعديل كشف": "Edit Inspection","طلب كشف جديد": "New Inspection Request","طلب خدمة جديد": "New Service Request","إضافة موظف": "Add Employee","تعديل موظف": "Edit Employee","إضافة صنف جديد": "Add New Item","تعديل الصنف": "Edit Item","فاتورة تمديد جديدة": "New Extension Invoice","فاتورة صيانة جديدة": "New Maintenance Invoice","فاتورة تمديد شبكة الري": "Irrigation Network Extension Invoice","فاتورة صيانة": "Maintenance Invoice","إنشاء فاتورة": "Create Invoice","اختر مندوب": "Select Courier","تعديل التقرير": "Edit Report","اليوم": "Today","أمس": "Yesterday","تاريخ محدد": "Custom Date","كلمة المرور": "Password","اسم العميل": "Client Name","خصم % (0-100)": "Discount % (0-100)","مبلغ محدد KD": "Fixed Amount KD","📦 تقرير إنهاء الحساب": "📦 Settlement Report","أدخل اسم العميل": "Enter client name","أدخل اسم الصنف": "Enter item name","أدخل الاسم": "Enter name","أدخل كلمة المرور": "Enter password","لا توجد طلبات موكلة إليك": "No orders assigned to you","لا توجد طلبات توصيل نشطة": "No active delivery orders","لا توجد طلبات كشف وخدمات نشطة": "No active inspection/service orders","لا توجد طلبات كشف": "No inspection requests","لا توجد طلبات خدمة": "No service requests","لا توجد عروض أسعار": "No quotes","لا يوجد عملاء": "No clients","لا يوجد موظفون": "No employees","لا توجد أصناف — أضف صنفاً جديداً": "No items — add a new one","لا توجد إجراءات متاحة لهذا الطلب": "No actions available for this order","لا توجد بيانات عميل": "No client data","لا توجد بيانات في هذا النطاق": "No data in this range","لا توجد تحويلات معلقة ✅": "No pending conversions ✅","لا توجد تقارير لهذا اليوم": "No reports for this day","لا توجد تقارير مؤرشفة": "No archived reports","لا توجد طلبات مؤرشفة": "No archived orders","لا توجد كشوفات مؤرشفة": "No archived inspections","كل التقارير تم إنهاء حسابها ✅": "All reports have been settled ✅","اضغط على صنف لإضافته للفاتورة": "Tap an item to add it to the invoice","اضغط «تم الإنهاء» عند انتهاء أحد المشرفين من حساب التقرير": "Tap “Settled” when a supervisor finishes the report","تم الانتهاء من هذا الطلب": "This order is completed","تم الحذف": "Deleted","🗑 تم الحذف": "🗑 Deleted","تم": "Done","تم التعديل": "Updated","✅ تم التعديل": "✅ Updated","✅ تم حفظ التعديل": "✅ Changes saved","✅ تم إضافة الطلب": "✅ Order added","✅ تم إضافة الطلب وإرساله للطلبات": "✅ Order added and sent to Orders","✅ تم إضافة العميل": "✅ Client added","✅ تم إضافة الصنف": "✅ Item added","✅ تم إضافة المستخدم": "✅ User added","✅ تم استلام الطلب": "✅ Order received","✅ تم التحديث": "✅ Updated","✅ تم حفظ الفاتورة": "✅ Invoice saved","✅ تم حفظ عرض السعر": "✅ Quote saved","✅ تم حفظ تعديل السعر": "✅ Price edit saved","✅ تم حفظ الإعدادات": "✅ Settings saved","✅ تم تسجيل التسديد": "✅ Payment recorded","✅ تم تحميل النسخة الاحتياطية": "✅ Backup downloaded","🔄 تم التحديث": "🔄 Updated","🔄 تمت إعادة الإسناد": "🔄 Reassigned","🔄 تمت إعادة الكشف بنجاح": "🔄 Re-inspection done","🧾 تم التحويل إلى فاتورة": "🧾 Converted to invoice","📦 تم حفظ الطلب في الأرشيف": "📦 Order archived","↩ تمت استعادة الطلب": "↩ Order restored","↩ تمت الاستعادة": "↩ Restored","↩ تم استعادة التقرير": "↩ Report restored","تمت الإضافة": "Added","صلاحية غير كافية": "Insufficient permission","طلب غير موجود": "Order not found","الطلب غير موجود": "Order not found","مندوب غير موجود": "Courier not found","لم يُعثر على الكشف": "Inspection not found","لم يُعثر على بيانات الكشف": "Inspection data not found","هذا الإجراء للمشرف أو المدير فقط": "This action is for supervisors or managers only","نفّذ التقرير أولاً": "Run the report first","ملف غير صالح": "Invalid file","جاري الاستعادة...": "Restoring...","جاري التحقق...": "Verifying...","جاري تجهيز النسخة الاحتياطية...": "Preparing backup...","⏳ جاري الحفظ...": "⏳ Saving...","يرجى تعبئة جميع الحقول": "Please fill all fields","حسابك معلق مؤقتاً. تواصل مع المدير.": "Your account is temporarily suspended. Contact the manager.","أضف أصنافاً أولاً": "Add items first","⚠️ لم تتم إضافة أجور العمالة": "⚠️ Labor charges not added","⚠️ تعذّر رفع الصورة — سيتم الحفظ بدون صورة": "⚠️ Image upload failed — saving without image","حذف؟": "Delete?","حذف هذا الطلب؟": "Delete this order?","حذف هذه الفاتورة؟": "Delete this invoice?","حذف هذا العرض؟": "Delete this quote?","حذف هذا الصنف؟": "Delete this item?","حذف المستخدم؟": "Delete user?","حذف هذا التقرير نهائياً؟": "Permanently delete this report?","حذف هذا الكشف نهائياً؟": "Permanently delete this inspection?","حذف هذا الطلب نهائياً؟ لا يمكن التراجع": "Permanently delete this order? This cannot be undone","مسح جميع الأصناف من الفاتورة؟": "Clear all items from the invoice?","حفظ هذا الطلب في الأرشيف؟": "Archive this order?","تحويل هذا العرض إلى فاتورة نهائية؟": "Convert this quote into a final invoice?","استعادة هذا التقرير إلى صفحة التقارير؟": "Restore this report to the Reports page?","تأكيد استلام المبلغ وتسوية الطلب؟": "Confirm receiving the amount and settling the order?","الفترة:": "Period:","المندوب:": "Courier:","الهاتف:": "Phone:","رقم الطلب:": "Order #:","تعديل:": "Edited:","أُعدّ بواسطة:": "Prepared by:","طُبع بتاريخ:": "Printed on:","تم التسليم:": "Delivered at:","تم الإنهاء بواسطة:": "Settled by:","📦 تقرير الفترة:": "📦 Period Report:","📦 تقرير يوم": "📦 Daily Report","كشف رقم": "Inspection #","تقرير": "Report","تقرير توصيل": "Delivery Report","تقرير يومي موحد": "Unified Daily Report","خطأ:": "Error:","خطأ في الاتصال:": "Connection error:","خطأ في الاستعادة:": "Restore error:","السبت": "Saturday","الأحد": "Sunday","الإثنين": "Monday","الثلاثاء": "Tuesday","الأربعاء": "Wednesday","الخميس": "Thursday","الجمعة": "Friday","د.ك": "KD","مجاناً": "Free","نقد / Cash": "Cash / نقد"};
+var UI_PREFIX = {"خطأ: ": "Error: ","الفترة: ": "Period: ","المندوب: ": "Courier: ","الهاتف: ": "Phone: ","رقم الطلب: ": "Order #: ","تعديل: ": "Edited: ","بواسطة ": "by ","آخر نسخة: ": "Last backup: ","طُبع بتاريخ: ": "Printed on: ","أُعدّ بواسطة: ": "Prepared by: ","تم التسليم: ": "Delivered at: ","تم الإنهاء بواسطة: ": "Settled by: ","تقرير ": "Report ","كشف رقم ": "Inspection #","تعديل تقرير: ": "Edit report: "};
+var UI_PREFIX_KEYS = Object.keys(UI_PREFIX).sort(function(a,b){return b.length-a.length;});
+
+function _hasAr(s){ return /[\u0600-\u06FF]/.test(s); }
+// translate a single visible string fragment to English (best effort)
+function translateString(str){
+  if(_lang!=='en' || str==null) return str;
+  var s=''+str;
+  if(!_hasAr(s)) return s;
+  var key=s.trim();
+  if(key==='') return s;
+  // strip a stray leading '>' artifact just in case
+  if(UI_EN[key]!=null) return s.replace(key, UI_EN[key]);
+  if(KUWAIT_AREAS[key]!=null) return s.replace(key, KUWAIT_AREAS[key]);
+  // prefix rules
+  for(var i=0;i<UI_PREFIX_KEYS.length;i++){
+    var pk=UI_PREFIX_KEYS[i];
+    if(key.indexOf(pk)===0){
+      var rest=key.slice(pk.length);
+      // translate day names / areas inside the remainder when relevant
+      var restTr=rest;
+      // day name at start of remainder
+      var parts=rest.split(' ');
+      if(UI_EN[parts[0]]!=null){ parts[0]=UI_EN[parts[0]]; restTr=parts.join(' '); }
+      return s.replace(key, UI_PREFIX[pk]+restTr);
+    }
+  }
+  // dynamic build
+  var r=key;
+  // area substring
+  if(typeof translateArea==='function'){ var ta=translateArea(r); if(ta!==r) r=ta; }
+  // count words
+  r=r.replace(/(\d+)\s*طلب(?![\u0600-\u06FF])/g,'$1 orders')
+     .replace(/(\d+)\s*تقرير(?![\u0600-\u06FF])/g,'$1 reports')
+     .replace(/(\d+)\s*خدمة(?![\u0600-\u06FF])/g,'$1 services')
+     .replace(/(\d+)\s*صنف(?![\u0600-\u06FF])/g,'$1 items')
+     .replace(/(\d+)\s*سجل(?![\u0600-\u06FF])/g,'$1 records')
+     .replace(/(\d+)\s*وحدة(?![\u0600-\u06FF])/g,'$1 units')
+     .replace(/(\d+)\s*قطعة(?![\u0600-\u06FF])/g,'$1 pcs');
+  // address abbreviations: letter + (optional space) + digit
+  r=r.replace(/ق\s*(?=[\d\u0660-\u0669])/g,'B.')
+     .replace(/ش\s*(?=[\d\u0660-\u0669])/g,'St.')
+     .replace(/ج\s*(?=[\d\u0660-\u0669])/g,'Av.')
+     .replace(/م\s*(?=[\d\u0660-\u0669])/g,'H.');
+  if(r!==key) return s.replace(key, r);
+  return s; // unchanged
+}
+var _i18nBusy=false, _i18nTimer=null, _i18nObserver=null;
+function translateRoot(root){
+  if(_lang!=='en' || !root) return;
+  var doc = root.ownerDocument || document;
+  _i18nBusy=true;
+  try{
+    var walker=doc.createTreeWalker(root, NodeFilter.SHOW_TEXT, null);
+    var nodes=[], n;
+    while(n=walker.nextNode()) nodes.push(n);
+    for(var i=0;i<nodes.length;i++){
+      var v=nodes[i].nodeValue;
+      if(v && _hasAr(v)){ var nv=translateString(v); if(nv!==v) nodes[i].nodeValue=nv; }
+    }
+    if(root.querySelectorAll){
+      root.querySelectorAll('[placeholder]').forEach(function(el){
+        var p=el.getAttribute('placeholder');
+        if(p && _hasAr(p)){ var np=translateString(p); if(np!==p) el.setAttribute('placeholder',np); }
+      });
+    }
+  }catch(e){ /* ignore */ }
+  _i18nBusy=false;
+}
+function startI18nObserver(){
+  if(_i18nObserver || typeof MutationObserver==='undefined') return;
+  _i18nObserver=new MutationObserver(function(){
+    if(_lang!=='en' || _i18nBusy) return;
+    clearTimeout(_i18nTimer);
+    _i18nTimer=setTimeout(function(){ translateRoot(document.body); }, 25);
+  });
+  try{ _i18nObserver.observe(document.body,{childList:true,subtree:true,characterData:true}); }catch(e){}
+}
+// translate native dialogs too
+(function(){
+  var oc=window.confirm.bind(window); window.confirm=function(m){ return oc(_lang==='en'?translateString(m):m); };
+  var oa=window.alert.bind(window);   window.alert  =function(m){ return oa(_lang==='en'?translateString(m):m); };
+  var op=window.prompt.bind(window);  window.prompt =function(m,d){ return op(_lang==='en'?translateString(m):m, d); };
+})();
+
 
 // ══════════════════════════════════════════════
 // TRANSLATIONS
@@ -1776,6 +1867,12 @@ function setupListeners(){
     _delReports=sn.docs.map(function(x){return Object.assign({id:x.id},x.data());});
     if(_curPage==='reports') renderReports();
     if(_curPage==='archive') renderArchive();
+    if(_curPage==='dashboard') renderDashboard();
+  });
+  FB.snap(FB.doc(d,'ops_settings','config'),function(sn){
+    var cfg = sn && sn.exists && sn.exists() ? sn.data() : (sn && sn.data ? sn.data() : null);
+    if(cfg && typeof cfg.rptAckMs==='number') _rptAckMs = cfg.rptAckMs;
+    if(_curPage==='dashboard') renderDashboard();
   });
 }
 
@@ -1794,6 +1891,13 @@ function fmtDateLatin(dateStr){
   var p=String(dateStr).split('-');
   if(p.length===3) return parseInt(p[2],10)+'/'+parseInt(p[1],10)+'/'+p[0];
   return dateStr;
+}
+// اسم اليوم بالإنجليزي من تاريخ YYYY-MM-DD
+function dayNameEn(dateStr){
+  var days=['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+  var dt=new Date(String(dateStr)+'T12:00:00');
+  if(isNaN(dt.getTime())) return '';
+  return days[dt.getDay()];
 }
 function renderDashboard(){
   document.getElementById('dash-greeting').textContent = (_lang==='ar'?'أهلاً ':'Welcome ') + (_u.name||_u.username) + ' 👋';
@@ -1818,18 +1922,32 @@ function renderDashboard(){
     return dt && dt.toDateString()===todayStr;
   }).length;
 
-  // ── كارت 3: تقارير لم يتم إنهاء حسابها ──
+  // ── كارت 3: التقارير (معلّقة + منتهية منذ آخر اطّلاع) ──
+  // التقرير "تم إنهاء حسابه" إذا له finished أو settledAt (يتم من قسم التقارير فقط)
   var rptDayMap = {};
   (_delReports||[]).forEach(function(r){
-    if(r.finished) return;            // تم إنهاء حسابه مسبقاً
     var dk = r.dateFrom || r.dateTo
            || (r.savedAt&&r.savedAt.toDate?r.savedAt.toDate().toISOString().substring(0,10):null);
     if(!dk) return;
-    if(!rptDayMap[dk]) rptDayMap[dk] = {date:dk, count:0};
-    rptDayMap[dk].count++;
+    if(!rptDayMap[dk]) rptDayMap[dk] = {date:dk, total:0, settled:0, finishers:{}, lastMs:0};
+    var g = rptDayMap[dk]; g.total++;
+    var done = (r.finished===true) || !!r.settledAt;
+    if(done){
+      g.settled++;
+      var who = r.finishedBy || r.settledBy;
+      if(who) g.finishers[who] = 1;
+      var ft = (r.finishedAt&&r.finishedAt.toDate) ? r.finishedAt.toDate()
+             : (r.settledAt&&r.settledAt.toDate) ? r.settledAt.toDate() : null;
+      if(ft && ft.getTime() > g.lastMs) g.lastMs = ft.getTime();
+    }
   });
-  // الأحدث أولاً
-  var unfinishedDays = Object.values(rptDayMap).sort(function(a,b){return a.date<b.date?1:(a.date>b.date?-1:0);});
+  var _byDateDesc = function(a,b){return a.date<b.date?1:(a.date>b.date?-1:0);};
+  // معلّقة: فيها تقرير واحد على الأقل لم يُنهَ حسابه
+  var unfinishedDays = Object.values(rptDayMap).filter(function(g){return g.settled < g.total;}).sort(_byDateDesc);
+  // منتهية بالكامل ومنذ آخر "اطّلعت"
+  var settledRecent = Object.values(rptDayMap).filter(function(g){
+    return g.total>0 && g.settled===g.total && g.lastMs > (_rptAckMs||0);
+  }).sort(_byDateDesc);
 
   // ── كارت 4: طلبات تحولت من كاش إلى Knet ──
   var knetConverted = _orders.filter(function(o){
@@ -1908,29 +2026,53 @@ function renderDashboard(){
       }())
     +'</div>'
 
-    // كارت 3 — تقارير لم يتم إنهاء حسابها
+    // كارت 3 — تقارير لم يتم إنهاء حسابها (+ ملخص المنتهية منذ آخر اطّلاع)
     +'<div class="dash-card" style="cursor:default">'
       +'<div class="dash-card-icon blue">🧾</div>'
-      +'<h3>تقارير لم يتم إنهاء حسابها</h3>'
+      +'<h3>'+(_lang==='ar'?'تقارير لم يتم إنهاء حسابها':'Unsettled Reports')+'</h3>'
       +'<div class="val">'+unfinishedDays.length+'</div>'
       +(unfinishedDays.length
         ? unfinishedDays.map(function(d){
-          var canFinish = (_role==='manager'||_role==='supervisor');
+          var label = _lang==='ar' ? ('تقرير '+dayNameAr(d.date)+' '+fmtDateLatin(d.date))
+                                   : ('Report '+dayNameEn(d.date)+' '+fmtDateLatin(d.date));
+          var pending = d.total - d.settled;
           return '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--border)">'
             +'<div style="flex:1;min-width:0">'
-              +'<div style="font-weight:700;font-size:.86rem">تقرير '+dayNameAr(d.date)+' '+fmtDateLatin(d.date)+'</div>'
-              +'<div style="font-size:.72rem;color:var(--muted)">'+d.count+' تقرير</div>'
+              +'<div style="font-weight:700;font-size:.86rem">'+label+'</div>'
+              +'<div style="font-size:.72rem;color:var(--muted)">'+pending+(_lang==='ar'?' تقرير':' report'+(pending===1?'':'s'))+'</div>'
             +'</div>'
-            +(canFinish
-              ? '<button onclick="finishReportDay(\''+d.date+'\')" style="background:var(--green);color:#fff;border:none;border-radius:8px;padding:6px 12px;font-size:.74rem;font-weight:800;cursor:pointer;white-space:nowrap">✅ تم الإنهاء</button>'
-              : '')
           +'</div>';
         }).join('')
-          + ((_role==='manager'||_role==='supervisor')
-              ? '<div style="font-size:.7rem;color:var(--muted2);text-align:center;padding:8px 2px 0">اضغط «تم الإنهاء» عند انتهاء أحد المشرفين من حساب التقرير</div>'
-              : '')
-        :'<div style="color:var(--muted2);font-size:.82rem;text-align:center;padding:12px">كل التقارير تم إنهاء حسابها ✅</div>'
+          + '<div style="font-size:.7rem;color:var(--muted2);text-align:center;padding:8px 2px 0">'+(_lang==='ar'?'يتم إنهاء الحساب من قسم التقارير':'Settle from the Reports section')+'</div>'
+        :'<div style="color:var(--muted2);font-size:.82rem;text-align:center;padding:12px">'+(_lang==='ar'?'كل التقارير تم إنهاء حسابها ✅':'All reports have been settled ✅')+'</div>'
       )
+      // ── ملخص التقارير التي تم إنهاء حسابها (منذ آخر اطّلاع) ──
+      +'<div style="margin-top:12px;padding-top:10px;border-top:2px solid var(--border)">'
+        +'<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:6px">'
+          +'<div style="display:flex;align-items:center;gap:8px">'
+            +'<span style="font-size:.8rem;font-weight:800;color:var(--green)">'+(_lang==='ar'?'تم إنهاء حسابها':'Settled')+'</span>'
+            +'<span style="background:var(--gl);color:var(--green);border-radius:20px;padding:2px 12px;font-size:.85rem;font-weight:900">'+settledRecent.length+'</span>'
+          +'</div>'
+          +(_role==='manager'
+            ? '<button onclick="ackSettledReports()" style="background:#1a4a8a;color:#fff;border:none;border-radius:8px;padding:6px 14px;font-size:.74rem;font-weight:800;cursor:pointer;white-space:nowrap">'+(_lang==='ar'?'👁 اطّلعت':'👁 Reviewed')+'</button>'
+            : '')
+        +'</div>'
+        +(settledRecent.length
+          ? settledRecent.map(function(d){
+              var label = _lang==='ar' ? ('تقرير '+dayNameAr(d.date)+' '+fmtDateLatin(d.date))
+                                       : ('Report '+dayNameEn(d.date)+' '+fmtDateLatin(d.date));
+              var names = Object.keys(d.finishers).join('، ') || '—';
+              return '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid var(--border)">'
+                +'<div style="flex:1;min-width:0">'
+                  +'<div style="font-weight:700;font-size:.82rem">'+label+'</div>'
+                  +'<div style="font-size:.7rem;color:var(--muted)">'+(_lang==='ar'?'بواسطة ':'by ')+names+'</div>'
+                +'</div>'
+                +'<span style="color:var(--green);font-size:.9rem">✅</span>'
+              +'</div>';
+            }).join('')
+          : '<div style="color:var(--muted2);font-size:.78rem;text-align:center;padding:8px">'+(_lang==='ar'?'لا جديد منذ آخر اطّلاع':'Nothing new since last review')+'</div>'
+        )
+      +'</div>'
     +'</div>'
 
     // كارت 4 — كاش تحولت إلى Knet
@@ -4388,7 +4530,7 @@ window.printQuoteFromData = function(qid, asInvoice){
     +'</div>')
     +'<p style="margin-top:20px;font-size:.7rem;color:#aaa;text-align:center">Kuwait Organic — q8organic.com'+(asInvoice?' — فاتورة رسمية':' — صالح 30 يوماً')+'</p>'
     +'</body></html>');
-  w.document.close();
+  w.document.close(); if(_lang==='en'){try{translateRoot(w.document.body);}catch(e){}}
   setTimeout(function(){ w.print(); }, 700);
 };
 
@@ -4501,7 +4643,7 @@ window.printQuote = function(){
   });
   var w=window.open('','_blank');
   w.document.write(buildPrintDoc({docTitle:'عرض سعر',order:order,items:items,subtotal:subtotal,disc:disc,final:subtotal-disc,asInvoice:false}));
-  w.document.close(); setTimeout(function(){w.print();},700);
+  w.document.close(); if(_lang==='en'){try{translateRoot(w.document.body);}catch(e){}} setTimeout(function(){w.print();},700);
 };
 
 // تحويل صورة إلى base64 لتجاوز مشكلة CORS عند الطباعة
@@ -4548,7 +4690,7 @@ window.printQuoteFromData = async function(qid, asInvoice){
     isInvoiced: q.quoteStatus==='invoiced',
     adminNote: adminNote
   }));
-  w.document.close(); setTimeout(function(){w.print();},900);
+  w.document.close(); if(_lang==='en'){try{translateRoot(w.document.body);}catch(e){}} setTimeout(function(){w.print();},900);
 };
 
 
@@ -4731,28 +4873,16 @@ window.saveReportEdit = async function(){
 };
 
 // إنهاء حساب تقرير يوم كامل (يضغطه المشرف بعد الانتهاء من الحساب)
-window.finishReportDay = async function(dateKey){
-  if(_role!=='manager'&&_role!=='supervisor'){ toast('هذا الإجراء للمشرف أو المدير فقط'); return; }
-  var label = 'تقرير '+dayNameAr(dateKey)+' '+fmtDateLatin(dateKey);
-  if(!confirm('تأكيد إنهاء حساب '+label+'؟')) return;
-  var targets = (_delReports||[]).filter(function(r){
-    if(r.finished) return false;
-    var dk = r.dateFrom || r.dateTo
-           || (r.savedAt&&r.savedAt.toDate?r.savedAt.toDate().toISOString().substring(0,10):null);
-    return dk===dateKey;
-  });
-  if(!targets.length){ toast('لا توجد تقارير لهذا اليوم'); return; }
+// المدير يضغط "اطّلعت" → يصفّر عدّاد التقارير المنتهية ويبدأ العدّ من جديد
+window.ackSettledReports = async function(){
+  if(_role!=='manager'){ toast('هذا الإجراء للمدير فقط'); return; }
+  var now = Date.now();
+  _rptAckMs = now; // تحديث محلي فوري
+  if(_curPage==='dashboard') renderDashboard();
   try{
-    for(var i=0;i<targets.length;i++){
-      await window.FB.upd(window.FB.doc(window.FB.db,'del_reports',targets[i].id),{
-        finished:true,
-        finishedBy:(_u.name||_u.username),
-        finishedAt:window.FB.ts()
-      });
-      targets[i].finished = true; // تحديث محلي فوري قبل وصول الـ snapshot
-    }
-    toast('✅ تم إنهاء حساب '+label+' بواسطة '+(_u.name||_u.username));
-    renderDashboard();
+    await window.FB.set(window.FB.doc(window.FB.db,'ops_settings','config'),
+      {rptAckMs:now, rptAckBy:(_u.name||_u.username), rptAckAt:window.FB.ts()}, {merge:true});
+    toast('✅ تم — بدأ العدّ من جديد');
   }catch(e){ toast('خطأ: '+e.message); }
 };
 
@@ -4798,6 +4928,19 @@ window.settleReport = async function(courierId, name, dateFrom, dateTo){
     });
     // تحديث رصيد المندوب
     await window.FB.upd(window.FB.doc(window.FB.db,'del_users',courierId),{balance:0,lastPaid:bonus,lastPaidAt:window.FB.ts(),updatedAt:window.FB.ts()});
+    // وسم تقارير هذا المندوب المعلّقة ضمن الفترة كـ "منتهية الحساب" حتى تختفي من لوحة التحكم
+    var pendingRpts = (_delReports||[]).filter(function(r){
+      if(r.finished===true || r.settledAt) return false;
+      if(r.courierId!==u.id && r.courierId!==u.username && r.courierName!==u.name) return false;
+      var dk = r.dateFrom || r.dateTo
+             || (r.savedAt&&r.savedAt.toDate?r.savedAt.toDate().toISOString().substring(0,10):null);
+      return dk && dk>=range.from && dk<=range.to;
+    });
+    for(var pr=0; pr<pendingRpts.length; pr++){
+      await window.FB.upd(window.FB.doc(window.FB.db,'del_reports',pendingRpts[pr].id),
+        {finished:true, finishedBy:settledBy, finishedAt:window.FB.ts()});
+      pendingRpts[pr].finished = true; pendingRpts[pr].finishedBy = settledBy;
+    }
     // تمييز الطلبات كـ "منتهية الحساب" حتى لا تظهر في التقارير مرة ثانية
     var batch = myOrds.filter(function(o){return o.status==='delivered';});
     for(var bi=0;bi<batch.length;bi++){
@@ -4839,7 +4982,7 @@ window.printSingleReport = function(name, from, to, total, delivered, bonus, cas
     +'<p class="footer">طُبع بتاريخ: '+new Date().toLocaleString('ar-KW')+'</p>'
     +'<button onclick="window.print()" style="margin-top:14px;padding:9px 24px;background:#1a7a40;color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:.95rem">🖨 طباعة</button>'
     +'</body></html>');
-  win.document.close();
+  win.document.close(); if(_lang==='en'){try{translateRoot(win.document.body);}catch(e){}}
 };
 
 // طباعة تقرير موحد لكل المناديب
@@ -4884,7 +5027,7 @@ window.printAllReport = function(){
     +'<p class="footer">طُبع بتاريخ: '+new Date().toLocaleString('ar-KW')+'</p>'
     +'<button onclick="window.print()" style="margin-top:14px;padding:9px 24px;background:#1a7a40;color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:.95rem">🖨 طباعة</button>'
     +'</body></html>');
-  win.document.close();
+  win.document.close(); if(_lang==='en'){try{translateRoot(win.document.body);}catch(e){}}
 };
 
 
@@ -5346,6 +5489,7 @@ window.setLang=function(lang){
   applyStaticLang(lang);
   if(_u) updateUI();
   if(_curPage) showPage(_curPage);
+  if(lang==='en'){ startI18nObserver(); setTimeout(function(){ translateRoot(document.body); }, 30); }
 };
 
 function applyStaticLang(lang){
@@ -5437,11 +5581,11 @@ document.querySelectorAll('.overlay').forEach(function(o){
 
 var _toastTimer;
 window.toast=function(msg){
-  var el=document.getElementById('toast'); el.textContent=msg; el.classList.add('show');
+  var el=document.getElementById('toast'); el.textContent=(_lang==='en'?translateString(msg):msg); el.classList.add('show');
   clearTimeout(_toastTimer); _toastTimer=setTimeout(function(){el.classList.remove('show');},2500);
 };
 
-window.showLoading=function(msg){ document.getElementById('loading').classList.add('show'); if(msg)document.getElementById('loading-text').textContent=msg; };
+window.showLoading=function(msg){ document.getElementById('loading').classList.add('show'); if(msg)document.getElementById('loading-text').textContent=(_lang==='en'?translateString(msg):msg); };
 window.hideLoading=function(){ document.getElementById('loading').classList.remove('show'); };
 
 window.toggleDrawer=function(){
