@@ -2895,21 +2895,21 @@ window.openOrderDetailBySvc = function(inspId){
 };
 
 window.updateSvcQuotePrice = function(qid, subtotal, source){
+  subtotal = parseFloat(subtotal)||0;
   var pctEl = document.getElementById('svq-disc-pct-'+qid);
   var amtEl = document.getElementById('svq-disc-amt-'+qid);
   if(!pctEl||!amtEl) return;
   var disc;
   if(source==='pct'){
     var pct = Math.min(100, Math.max(0, parseFloat(pctEl.value)||0));
-    disc = Math.round(subtotal * pct/100 * 1000)/1000;
+    disc = pct===100 ? subtotal : Math.round(subtotal * pct/100 * 1000)/1000;
     amtEl.value = disc.toFixed(3);
   } else {
-    disc = Math.max(0, parseFloat(amtEl.value)||0);
+    disc = Math.min(subtotal*10, Math.max(0, parseFloat(amtEl.value)||0)); // لا يزيد عن 10x المبلغ
     var pct2 = subtotal>0 ? (disc/subtotal*100) : 0;
-    pctEl.value = pct2.toFixed(1);
+    pctEl.value = Math.min(100,pct2).toFixed(1);
   }
-  var final = subtotal - disc;
-  // تحديث العرض
+  var final = Math.max(0, subtotal - disc);
   var discRow = document.getElementById('svqt-disc-row-'+qid);
   var discVal = document.getElementById('svqt-disc-val-'+qid);
   var finalEl = document.getElementById('svqt-final-'+qid);
@@ -2919,10 +2919,11 @@ window.updateSvcQuotePrice = function(qid, subtotal, source){
 };
 
 window.saveSvcQuotePrice = async function(qid, subtotal){
+  subtotal = parseFloat(subtotal)||0;
   var amtEl = document.getElementById('svq-disc-amt-'+qid);
   if(!amtEl) return;
   var disc  = Math.max(0, parseFloat(amtEl.value)||0);
-  var final = subtotal - disc;
+  var final = Math.max(0, subtotal - disc);
   var adminNote = 'تعديل السعر من قبل الأدمن — '+new Date().toLocaleDateString('ar-KW');
   await window.FB.upd(window.FB.doc(window.FB.db,'iri_invoices_v2',qid),{
     discount:disc, total:final,
