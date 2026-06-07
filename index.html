@@ -2492,6 +2492,28 @@ window.odmInspAction = async function(id, status){
   }
 };
 
+// فتح صفحة الأصناف لتعديل/إضافة أصناف الكشف (للمندوب المكلف والإدارة)
+window.editInspQuote = function(orderId, quoteId){
+  closeModal('modal-svc-detail');
+  _currentInspOrderId = orderId;
+  var q = quoteId ? (_quotes||[]).find(function(x){return x.id===quoteId;}) : (_quotes||[]).find(function(x){return x.orderId===orderId;});
+  _invoiceItems = (q&&q.items?q.items:[]).map(function(it){
+    return {itemId:it.itemId, item:{nameAr:it.nameAr,nameEn:it.nameEn,image:it.image,price:it.price,unit:it.unit}, qty:it.qty};
+  });
+  showPage('items');
+  toast(_lang==='ar'?'📋 عدّل الأصناف ثم اضغط «احسب الآن»':'📋 Edit items then tap Calculate');
+};
+
+// إلغاء حالة الإغلاق (إعادة فتح الكشف) — للمندوب المكلف والإدارة
+window.reopenInsp = async function(orderId, inspId){
+  closeModal('modal-svc-detail');
+  try{
+    if(orderId){ await window.updateInspStatus(orderId,'inspected'); }
+    else if(inspId){ await window.FB.upd(window.FB.doc(window.FB.db,'iri_inspections',inspId),{status:'inspected',updatedAt:window.FB.ts()}); }
+    toast(_lang==='ar'?'🔓 تم إلغاء الإغلاق':'🔓 Reopened');
+  }catch(e){ toast('خطأ: '+e.message); }
+};
+
 // تقدّم حالة الكشف من شاشة تفاصيل طلب الخدمة (للمندوب/الموظف المكلف)
 window.svcProgress = async function(inspId, relatedOrderId, status){
   closeModal('modal-svc-detail');
@@ -3523,6 +3545,14 @@ window.openOrderDetailBySvc = function(inspOrId){
     }
   }
   if(roStatus==='inspected') progBtns += _pb('closed','🔒 إغلاق','#555');
+  // تعديل الأصناف / عرض السعر — متاح للمندوب المكلف والإدارة طالما يوجد طلب مرتبط
+  if(relatedOrder){
+    progBtns += '<button onclick="editInspQuote(\''+relatedOrder.id+'\',\''+(relatedQuote?relatedQuote.id:'')+'\')" style="flex:1;min-width:46%;padding:12px;background:#1a4a8a;color:#fff;border:none;border-radius:10px;font-family:Cairo,sans-serif;font-size:.85rem;font-weight:800;cursor:pointer">📋 تعديل الأصناف / عرض السعر</button>';
+  }
+  // إلغاء حالة الإغلاق (إعادة فتح)
+  if(roStatus==='closed' && relatedOrder){
+    progBtns += '<button onclick="reopenInsp(\''+relatedOrder.id+'\',\''+inspId+'\')" style="flex:1;min-width:46%;padding:12px;background:#b8720a;color:#fff;border:none;border-radius:10px;font-family:Cairo,sans-serif;font-size:.85rem;font-weight:800;cursor:pointer">🔓 إلغاء الإغلاق</button>';
+  }
   var progHtml = progBtns ? '<div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px">'+progBtns+'</div>' : '';
 
   var html = '<div class="overlay open" id="modal-svc-detail" style="align-items:flex-end;padding:0" onclick="if(event.target===this)closeModal(\'modal-svc-detail\')">'
@@ -4484,21 +4514,29 @@ window.saveQuote = async function(){
   var subtotal = _invoiceItems.reduce(function(s,x){return s+x.qty*parseFloat(x.item.price||0);},0);
   var disc = parseFloat((document.getElementById('qt-discount')||{}).value)||0;
   var final = subtotal - disc;
-  var data = {
-    orderId: _currentInspOrderId||'',
-    items: _invoiceItems.map(function(x){return {
+  var items = _invoiceItems.map(function(x){return {
       itemId:x.itemId, nameAr:x.item.nameAr, nameEn:x.item.nameEn||'',
       image:x.item.image||'', price:x.item.price, unit:x.item.unit,
       qty:x.qty, lineTotal:x.qty*parseFloat(x.item.price||0)
-    };}),
-    subtotal, discount:disc, total:final, type:'quote',
-    createdBy:_u.id||_u.username, createdAt:window.FB.ts()
-  };
+    };});
   if(_currentInspOrderId){
     await window.FB.upd(window.FB.doc(window.FB.db,'del_orders',_currentInspOrderId),{quoteTotal:final,quoteDiscount:disc,updatedAt:window.FB.ts()});
   }
-  await window.FB.add(window.FB.col(window.FB.db,'iri_invoices_v2'), data);
-  toast('✅ تم حفظ عرض السعر');
+  // إن وُجد عرض سعر سابق لنفس الطلب، نحدّثه بدل إنشاء نسخة مكررة
+  var existing = _currentInspOrderId ? (_quotes||[]).find(function(q){return q.orderId===_currentInspOrderId;}) : null;
+  if(existing){
+    await window.FB.upd(window.FB.doc(window.FB.db,'iri_invoices_v2',existing.id), {
+      items, subtotal, discount:disc, total:final,
+      editedBy:_u.id||_u.username, editedAt:window.FB.ts()
+    });
+    toast('✅ تم حفظ التعديل');
+  } else {
+    await window.FB.add(window.FB.col(window.FB.db,'iri_invoices_v2'), {
+      orderId:_currentInspOrderId||'', items, subtotal, discount:disc, total:final, type:'quote',
+      createdBy:_u.id||_u.username, createdAt:window.FB.ts()
+    });
+    toast('✅ تم حفظ عرض السعر');
+  }
   _currentInspOrderId = null;
   _invoiceItems = [];
   renderQuotes();
