@@ -685,8 +685,8 @@ tbody tr[onclick]:active { background: #d8f0e2 !important; }
       <!-- QUOTE PAGE — عرض السعر -->
       <div class="page" id="page-quote">
         <div class="module-header">
-          <div class="dash-card-icon blue" style="width:36px;height:36px;font-size:1rem">💰</div>
-          <h2>عروض الأسعار</h2>
+          <div class="dash-card-icon blue" style="width:36px;height:36px;font-size:1rem">🧾</div>
+          <h2>الفواتير والعروض</h2>
         </div>
         <!-- قائمة العروض المحفوظة -->
         <div class="sec-card" style="margin-bottom:16px" id="quotes-list-wrap">
@@ -1732,6 +1732,7 @@ function getNavItems(){
     return [
       {id:'courier',    icon:'🚚', ar:'طلباتي',          en:'My Orders',      roles:['employee']},
       {id:'irrigation', icon:'➕', ar:'خدماتي',  en:'My Services',      roles:['employee']},
+      {id:'quote',      icon:'🧾', ar:'الفواتير والعروض', en:'Invoices & Quotes', roles:['employee']},
       {id:'archive',    icon:'📦', ar:'أرشيف تقاريري',   en:'My Reports',     roles:['employee']},
     ];
   }
@@ -1740,6 +1741,7 @@ function getNavItems(){
     {id:'orders',     icon:'🚚', ar:'طلبات التوصيل والكشف',   en:'Active Orders',        roles:['manager','supervisor'],           section_ar:'الأعمال',  section_en:'Operations'},
     {id:'irrigation', icon:'➕', ar:(_role==='employee'?'خدماتي':'إضافة توصيل وخدمة'),      en:(_role==='employee'?'My Services':'Add Order / Service'),  roles:['manager','supervisor','employee'], section_ar:'الأعمال',  section_en:'Operations'},
     {id:'items',      icon:'📋', ar:'الأصناف',                 en:'Items',               roles:['manager','supervisor','employee'], section_ar:'الأعمال',  section_en:'Operations'},
+    {id:'quote',      icon:'🧾', ar:'الفواتير والعروض',        en:'Invoices & Quotes',   roles:['manager','supervisor','employee'], section_ar:'الأعمال',  section_en:'Operations'},
     {id:'reports',    icon:'📊', ar:'التقارير',                en:'Reports',             roles:['manager','supervisor'],           section_ar:'الإدارة',  section_en:'Management'},
     {id:'employees',  icon:'👤', ar:'الموظفون',                en:'Employees',           roles:['manager','supervisor'],           section_ar:'الإدارة',  section_en:'Management'},
     {id:'customers',  icon:'👥', ar:'قاعدة العملاء',          en:'Customers',           roles:['manager'],                       section_ar:'الإدارة',  section_en:'Management'},
@@ -1793,8 +1795,8 @@ window.showPage = function(page){
   // Page title
   var items = getNavItems();
   var found = items.find(function(x){ return x.id===page; });
-  var titles = {dashboard:'لوحة التحكم',orders:'طلبات التوصيل والكشف',courier:'طلباتي',irrigation:'الري والصيانة',customers:'العملاء',employees:'الموظفون',reports:'التقارير',archive:'الأرشيف',settings:'الإعدادات'};
-  var titlesEn = {dashboard:'Dashboard',orders:'Delivery & Inspection',courier:'My Orders',irrigation:'Irrigation & Maint.',customers:'Customers',employees:'Employees',reports:'Reports',archive:'Archive',settings:'Settings'};
+  var titles = {dashboard:'لوحة التحكم',orders:'طلبات التوصيل والكشف',courier:'طلباتي',irrigation:'الري والصيانة',quote:'الفواتير والعروض',customers:'العملاء',employees:'الموظفون',reports:'التقارير',archive:'الأرشيف',settings:'الإعدادات'};
+  var titlesEn = {dashboard:'Dashboard',orders:'Delivery & Inspection',courier:'My Orders',irrigation:'Irrigation & Maint.',quote:'Invoices & Quotes',customers:'Customers',employees:'Employees',reports:'Reports',archive:'Archive',settings:'Settings'};
   document.getElementById('page-title').textContent = found ? (_lang==='ar'?found.ar:found.en) : (_lang==='ar'?(titles[page]||page):(titlesEn[page]||page));
   // Render
   if(page==='dashboard') renderDashboard();
@@ -4280,16 +4282,17 @@ window.saveInvoiceItems = async function(){
   if(!confirm('حفظ عرض السعر؟ المجموع: '+subtotal.toFixed(3)+' KD')) return;
   var items = _invoiceItems.map(function(x){return {itemId:x.itemId,nameAr:x.item.nameAr,nameEn:x.item.nameEn||'',image:x.item.image||'',price:x.item.price,unit:x.item.unit,type:x.item.type||'',qty:x.qty,lineTotal:x.qty*parseFloat(x.item.price||0)};});
   // اربط العرض بطلب الكشف الحالي، وحدّث إن وُجد عرض سابق لنفس الطلب
+  var _who = _u.name||_u.username||_u.id;
   var existing = _currentInspOrderId ? (_quotes||[]).find(function(q){return q.orderId===_currentInspOrderId;}) : null;
   try{
     if(existing){
       await window.FB.upd(window.FB.doc(window.FB.db,'iri_invoices_v2',existing.id),{
-        items, subtotal, total:subtotal, editedBy:_u.id||_u.username, editedAt:window.FB.ts()
+        items, subtotal, total:subtotal, editedBy:_u.id||_u.username, editedAt:window.FB.ts(), lastEditBy:_who, lastEditAt:window.FB.ts()
       });
     } else {
       await window.FB.add(window.FB.col(window.FB.db,'iri_invoices_v2'),{
         orderId:_currentInspOrderId||'', items, subtotal, discount:0, total:subtotal, type:'quote',
-        createdBy:_u.id||_u.username, createdAt:window.FB.ts()
+        createdBy:_u.id||_u.username, createdAt:window.FB.ts(), lastEditBy:_who, lastEditAt:window.FB.ts()
       });
     }
     if(_currentInspOrderId){
@@ -4372,19 +4375,33 @@ window.renderQuotes = function(){
   if(listWrap) listWrap.style.display='';
   document.getElementById('quote-content').innerHTML='';
 
-  if(!_quotes.length){
-    tbody.innerHTML='<tr><td colspan="6" class="empty">لا توجد عروض أسعار</td></tr>';
+  var isMgr = _role==='manager'||_role==='supervisor';
+  var myId=_u.id||'', myU=_u.username||'', myN=_u.name||'';
+  function mine(q){
+    if([myId,myU,myN].indexOf(q.createdBy)!==-1) return true;
+    if([myId,myU,myN].indexOf(q.lastEditBy)!==-1) return true;
+    var o=_orders.find(function(x){return x.id===q.orderId;});
+    if(o && ([o.courierId,o.courierName].indexOf(myId)!==-1||[o.courierId,o.courierName].indexOf(myU)!==-1||o.courierName===myN)) return true;
+    return false;
+  }
+  var list = isMgr ? _quotes : (_quotes||[]).filter(mine);
+
+  if(!list.length){
+    tbody.innerHTML='<tr><td colspan="6" class="empty">لا توجد فواتير أو عروض</td></tr>';
     return;
   }
-  tbody.innerHTML = _quotes.map(function(q){
+  tbody.innerHTML = list.map(function(q){
     var dt = q.createdAt&&q.createdAt.toDate ? q.createdAt.toDate().toLocaleDateString('ar-KW') : '—';
     var order = _orders.find(function(o){return o.id===q.orderId;});
     var client = order ? order.clientName : (q.items&&q.items[0]?q.items[0].nameAr:'—');
     var itemCount = q.items ? q.items.length : 0;
     var total = (q.total !== undefined && q.total !== null) ? parseFloat(q.total) : parseFloat(q.subtotal||0);
+    var badge = q.quoteStatus==='invoiced'
+      ? '<span style="background:#e8f5ee;color:var(--green);padding:1px 6px;border-radius:4px;font-size:.62rem;font-weight:800">فاتورة</span>'
+      : '<span style="background:#fff5e0;color:var(--gold);padding:1px 6px;border-radius:4px;font-size:.62rem;font-weight:800">عرض سعر</span>';
     return '<tr onclick="openQuoteDetail(\''+q.id+'\')" style="cursor:pointer" onmouseover="this.style.background=\'#f0f9f4\'" onmouseout="this.style.background=\'\'">'
       +'<td>'+dt+'</td>'
-      +'<td><b>'+(client||'—')+'</b></td>'
+      +'<td><b>'+(client||'—')+'</b> '+badge+'</td>'
       +'<td>'+itemCount+' صنف</td>'
       +'<td style="font-weight:700;color:var(--green)">'+total.toFixed(3)+' KD</td>'
       +'<td style="font-size:.78rem;color:var(--muted)">'+(q.createdBy||'—')+'</td>'
@@ -4403,6 +4420,8 @@ window.openQuoteDetail = function(qid){
   var existDisc= parseFloat(q.discount||0);
   var existTotal= (q.total !== undefined && q.total !== null) ? parseFloat(q.total) : subtotal;
   var qStatus  = q.quoteStatus||'pending'; // pending | agreed | review | rejected | invoiced
+  var existPct = subtotal>0 ? (existDisc/subtotal*100) : 0;
+  var maxPct   = isManager ? 100 : 10;
   var statusLabels = {pending:'🔄 في الانتظار', agreed:'✅ تم الاتفاق', review:'🔍 للمراجعة', rejected:'❌ مرفوض', invoiced:'🧾 تحول لفاتورة'};
   var statusColors = {pending:'var(--gold)',agreed:'var(--green)',review:'var(--blue)',rejected:'var(--red)',invoiced:'#555'};
 
@@ -4444,7 +4463,8 @@ window.openQuoteDetail = function(qid){
           +'<span>🔧 '+(order.inspTypeAr||'كشف')+'</span>'
           +'<span>👤 المندوب: '+(q.createdBy||'—')+'</span>'
         +'</div>'
-      :'<div style="color:var(--muted2)">لا توجد بيانات عميل</div>')
+      :'<div style="color:var(--muted2)">لا توجد بيانات عميل</div>'
+       +'<div style="font-size:.75rem;color:var(--muted2);margin-top:6px">👤 المندوب الذي كشف: '+(q.createdBy||'—')+'</div>')
     +'</div>'
 
     // ── الأصناف ──
@@ -4461,36 +4481,44 @@ window.openQuoteDetail = function(qid){
 
     // ── الإجماليات ──
     +'<div style="background:#fff;border:1px solid var(--border);border-radius:12px;padding:14px;margin-bottom:14px">'
-      +'<div style="display:flex;justify-content:space-between;padding:5px 0;font-size:.88rem"><span style="color:var(--muted)">المجموع قبل الخصم</span><span style="font-weight:700">'+subtotal.toFixed(3)+' KD</span></div>'
-      +(existDisc>0?'<div style="display:flex;justify-content:space-between;padding:5px 0;font-size:.88rem;color:var(--orange)"><span>الخصم ('+(subtotal>0?((existDisc/subtotal)*100).toFixed(1):0)+'%)</span><span>- '+existDisc.toFixed(3)+' KD</span></div>':'')
+      +'<div style="display:flex;justify-content:space-between;padding:5px 0;font-size:.88rem"><span style="color:var(--muted)">السعر قبل الخصم</span><span style="font-weight:700">'+subtotal.toFixed(3)+' KD</span></div>'
+      +'<div style="display:flex;justify-content:space-between;padding:5px 0;font-size:.88rem;color:var(--orange)"><span>الخصم</span><span id="qd-disc-amt">- '+existDisc.toFixed(3)+' KD</span></div>'
       +'<div style="display:flex;justify-content:space-between;padding:8px 0 4px;border-top:2px solid var(--gm);margin-top:4px">'
-        +'<span style="font-size:1rem;font-weight:900">الإجمالي النهائي</span>'
+        +'<span style="font-size:1rem;font-weight:900">السعر بعد الخصم</span>'
         +'<span id="qd-final" style="font-size:1.2rem;font-weight:900;color:var(--green)">'+existTotal.toFixed(3)+' KD</span>'
       +'</div>'
-      // تعديل خصم للمدير (بدون قيود)
-      +(isManager?'<div style="margin-top:12px;padding-top:10px;border-top:1px dashed var(--border)">'
-        +'<label style="font-size:.75rem;font-weight:700;color:var(--muted);margin-bottom:6px;display:block">✏️ تعديل الخصم (للإدارة فقط)</label>'
-        +'<input id="qd-disc-edit" type="number" step="0.001" min="0" value="'+existDisc.toFixed(3)+'" oninput="updateDetailTotal('+subtotal+')" style="width:100%;padding:9px;border:1.5px solid var(--border);border-radius:8px;font-family:Cairo,sans-serif;font-size:.9rem">'
-      +'</div>':'')
+      // تعديل نسبة الخصم — مدير حتى 100% / مندوب حتى 10%
+      +'<div style="margin-top:12px;padding-top:10px;border-top:1px dashed var(--border)">'
+        +'<label style="font-size:.75rem;font-weight:700;color:var(--muted);margin-bottom:6px;display:block">✏️ تعديل نسبة الخصم '+(isManager?'(حتى 100%)':'(حد أقصى 10%)')+'</label>'
+        +'<input id="qd-disc-pct" type="number" step="0.1" min="0" max="'+maxPct+'" value="'+existPct.toFixed(1)+'" oninput="updateDetailTotal('+subtotal+','+maxPct+')" style="width:100%;padding:9px;border:1.5px solid var(--border);border-radius:8px;font-family:Cairo,sans-serif;font-size:.9rem">'
+        +'<div id="qd-disc-warn" style="display:none;font-size:.72rem;color:var(--red);margin-top:4px">⚠️ الحد الأقصى للخصم '+maxPct+'%</div>'
+      +'</div>'
     +'</div>'
 
-    // ── الحالة ──
-    +'<div style="font-size:.68rem;font-weight:800;color:var(--green);margin-bottom:8px;letter-spacing:1px">⚡ حالة العرض</div>'
+    // ── آخر تعديل ──
+    +(q.lastEditAt&&q.lastEditAt.toDate?'<div style="font-size:.72rem;color:var(--muted2);margin-bottom:12px">🕒 آخر تعديل: '+(q.lastEditBy||'—')+' — '+q.lastEditAt.toDate().toLocaleString('ar-KW',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'})+'</div>':'')
+
+    // ── الحالة (للمدير فقط) ──
+    +(isManager?'<div style="font-size:.68rem;font-weight:800;color:var(--green);margin-bottom:8px;letter-spacing:1px">⚡ حالة العرض</div>'
     +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px">'
       +['pending','agreed','review','rejected'].map(function(s){
         var selected = qStatus===s;
         return '<button onclick="setQuoteStatus(\''+qid+'\',\''+s+'\')" style="padding:10px;border-radius:10px;border:'+(selected?'none':'1px solid var(--border)')+';background:'+(selected?statusColors[s]:'#fff')+';color:'+(selected?'#fff':statusColors[s])+';font-family:Cairo,sans-serif;font-size:.82rem;font-weight:700;cursor:pointer">'+statusLabels[s]+'</button>';
       }).join('')
-    +'</div>'
+    +'</div>':'')
 
     // ── الأزرار ──
     +'<div style="display:flex;flex-direction:column;gap:8px;padding-bottom:30px">'
-      +(isManager&&qStatus==='agreed'&&q.quoteStatus!=='invoiced'?
-        '<button onclick="convertToInvoice(\''+qid+'\')" style="padding:13px;background:var(--green);color:#fff;border:none;border-radius:12px;font-family:Cairo,sans-serif;font-size:.9rem;font-weight:800;cursor:pointer">🧾 تحويل إلى فاتورة</button>':'')
-      +(isManager?'<button onclick="saveQuoteEdit(\''+qid+'\','+subtotal+')" style="padding:12px;background:#1a4a8a;color:#fff;border:none;border-radius:12px;font-family:Cairo,sans-serif;font-size:.88rem;font-weight:800;cursor:pointer">💾 حفظ التعديل</button>':'')
+      // مندوب: تعديل الأصناف (إضافة / حذف)
+      +((!isManager&&order)?'<button onclick="editInspQuote(\''+order.id+'\',\''+qid+'\')" style="padding:12px;background:#1a4a8a;color:#fff;border:none;border-radius:12px;font-family:Cairo,sans-serif;font-size:.88rem;font-weight:800;cursor:pointer">📋 تعديل الأصناف (إضافة / حذف)</button>':'')
+      // حفظ تعديل الخصم
+      +'<button onclick="saveQuoteEdit(\''+qid+'\','+subtotal+','+maxPct+')" style="padding:12px;background:var(--green);color:#fff;border:none;border-radius:12px;font-family:Cairo,sans-serif;font-size:.88rem;font-weight:800;cursor:pointer">💾 حفظ التعديل</button>'
+      // مدير: تحويل لفاتورة + إعادة إسناد
+      +(isManager&&q.quoteStatus!=='invoiced'?'<button onclick="convertToInvoice(\''+qid+'\')" style="padding:13px;background:#1a7a40;color:#fff;border:none;border-radius:12px;font-family:Cairo,sans-serif;font-size:.9rem;font-weight:800;cursor:pointer">🧾 تحويل إلى فاتورة</button>':'')
       +(isManager?'<button onclick="reassignInspection(\''+qid+'\')" style="padding:12px;background:var(--orangel);color:var(--orange);border:1px solid #f0d090;border-radius:12px;font-family:Cairo,sans-serif;font-size:.88rem;font-weight:700;cursor:pointer">🔄 إعادة كشف + تغيير المكلف</button>':'')
-      +'<button onclick="printQuoteFromData(\''+qid+'\',false)" style="padding:12px;background:#555;color:#fff;border:none;border-radius:12px;font-family:Cairo,sans-serif;font-size:.88rem;font-weight:800;cursor:pointer">🖨 طباعة عرض السعر</button>'
-      +(q.quoteStatus==='invoiced'?'<button onclick="printQuoteFromData(\''+qid+'\',true)" style="padding:12px;background:var(--green);color:#fff;border:none;border-radius:12px;font-family:Cairo,sans-serif;font-size:.88rem;font-weight:800;cursor:pointer">🧾 طباعة الفاتورة</button>':'')
+      // طباعة
+      +'<button onclick="printQuoteFromData(\''+qid+'\',false)" style="padding:12px;background:#555;color:#fff;border:none;border-radius:12px;font-family:Cairo,sans-serif;font-size:.88rem;font-weight:800;cursor:pointer">🖨 طباعة كعرض سعر</button>'
+      +(isManager?'<button onclick="printQuoteFromData(\''+qid+'\',true)" style="padding:12px;background:var(--green);color:#fff;border:none;border-radius:12px;font-family:Cairo,sans-serif;font-size:.88rem;font-weight:800;cursor:pointer">🧾 طباعة كفاتورة</button>':'')
     +'</div>';
 };
 
@@ -4521,10 +4549,15 @@ window.reassignInspection = async function(qid){
 };
 
 
-window.updateDetailTotal = function(subtotal){
-  var disc = parseFloat(document.getElementById('qd-disc-edit').value)||0;
-  var finalEl = document.getElementById('qd-final');
-  if(finalEl) finalEl.textContent = (subtotal-disc).toFixed(3)+' KD';
+window.updateDetailTotal = function(subtotal, maxPct){
+  maxPct = maxPct||100;
+  var el = document.getElementById('qd-disc-pct'); if(!el) return;
+  var raw = parseFloat(el.value)||0;
+  var pct = Math.min(maxPct, Math.max(0, raw));
+  var disc = Math.round(subtotal*pct/100*1000)/1000;
+  var amtEl = document.getElementById('qd-disc-amt'); if(amtEl) amtEl.textContent = '- '+disc.toFixed(3)+' KD';
+  var finalEl = document.getElementById('qd-final'); if(finalEl) finalEl.textContent = (subtotal-disc).toFixed(3)+' KD';
+  var warn = document.getElementById('qd-disc-warn'); if(warn) warn.style.display = (raw>maxPct)?'block':'none';
 };
 
 window.saveQuote = async function(){
@@ -4540,17 +4573,18 @@ window.saveQuote = async function(){
     await window.FB.upd(window.FB.doc(window.FB.db,'del_orders',_currentInspOrderId),{quoteTotal:final,quoteDiscount:disc,updatedAt:window.FB.ts()});
   }
   // إن وُجد عرض سعر سابق لنفس الطلب، نحدّثه بدل إنشاء نسخة مكررة
+  var _who = _u.name||_u.username||_u.id;
   var existing = _currentInspOrderId ? (_quotes||[]).find(function(q){return q.orderId===_currentInspOrderId;}) : null;
   if(existing){
     await window.FB.upd(window.FB.doc(window.FB.db,'iri_invoices_v2',existing.id), {
       items, subtotal, discount:disc, total:final,
-      editedBy:_u.id||_u.username, editedAt:window.FB.ts()
+      editedBy:_u.id||_u.username, editedAt:window.FB.ts(), lastEditBy:_who, lastEditAt:window.FB.ts()
     });
     toast('✅ تم حفظ التعديل');
   } else {
     await window.FB.add(window.FB.col(window.FB.db,'iri_invoices_v2'), {
       orderId:_currentInspOrderId||'', items, subtotal, discount:disc, total:final, type:'quote',
-      createdBy:_u.id||_u.username, createdAt:window.FB.ts()
+      createdBy:_u.id||_u.username, createdAt:window.FB.ts(), lastEditBy:_who, lastEditAt:window.FB.ts()
     });
     toast('✅ تم حفظ عرض السعر');
   }
@@ -4559,11 +4593,22 @@ window.saveQuote = async function(){
   renderQuotes();
 };
 
-window.saveQuoteEdit = async function(qid, subtotal){
-  var disc = parseFloat(document.getElementById('qd-disc-edit').value)||0;
+window.saveQuoteEdit = async function(qid, subtotal, maxPct){
+  maxPct = maxPct||100;
+  var el = document.getElementById('qd-disc-pct');
+  var raw = parseFloat(el?el.value:0)||0;
+  if(raw>maxPct){ toast(_lang==='ar'?('⚠️ الحد الأقصى للخصم '+maxPct+'%'):('⚠️ Max discount '+maxPct+'%')); return; }
+  var pct = Math.min(maxPct, Math.max(0, raw));
+  var disc = Math.round(subtotal*pct/100*1000)/1000;
   var total = subtotal - disc;
-  await window.FB.upd(window.FB.doc(window.FB.db,'iri_invoices_v2',qid),{discount:disc,total:total,editedBy:_u.id||_u.username,editedAt:window.FB.ts()});
+  var who = _u.name||_u.username||_u.id;
+  await window.FB.upd(window.FB.doc(window.FB.db,'iri_invoices_v2',qid),{
+    discount:disc, total:total,
+    editedBy:_u.id||_u.username, editedAt:window.FB.ts(),
+    lastEditBy:who, lastEditAt:window.FB.ts()
+  });
   toast('✅ تم حفظ التعديل');
+  openQuoteDetail(qid);
 };
 
 window.delQuote = async function(qid){
