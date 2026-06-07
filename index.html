@@ -1727,7 +1727,8 @@ window.renderOrders = function(){
   var list = _orders.filter(function(o){
     if(filter && o.status !== filter) return false;
     if(_role === 'employee'){
-      return o.courierId === (_u.id||_u.username) || !o.courierId;
+      var myId = _u.id||_u.username;
+      return o.courierId === myId;
     }
     return true;
   });
@@ -2470,7 +2471,14 @@ window.delInvoice = async function(id){
 window.renderInspections = function(){
   var ST={new:{cl:'st-pending',ar:'جديد',en:'New'},scheduled:{cl:'st-done',ar:'مجدول',en:'Scheduled'},
     inspected:{cl:'st-active',ar:'تم الكشف',en:'Inspected'},closed:{cl:'st-gray',ar:'مغلق',en:'Closed'}};
-  document.getElementById('insp-tbody').innerHTML = _inspections.filter(function(i){return !i.archived;}).map(function(ins){
+  var myId   = _u ? (_u.id||_u.username||_u.name||'') : '';
+  var myName = _u ? (_u.name||_u.username||'') : '';
+  var isEmployee = _role==='employee';
+  document.getElementById('insp-tbody').innerHTML = _inspections.filter(function(i){
+    if(i.archived) return false;
+    if(isEmployee) return i.empId===myId || i.empName===myName || i.empId===myName;
+    return true;
+  }).map(function(ins){
     var dt=ins.createdAt&&ins.createdAt.toDate?ins.createdAt.toDate().toLocaleDateString(_lang==='ar'?'ar-KW':'en-GB'):'—';
     var s=ST[ins.status]||{cl:'st-gray',ar:ins.status,en:ins.status};
     return '<tr><td>'+dt+'</td><td>'+( ins.client||'—')+'</td><td>'+( ins.phone||'—')+'</td>'
@@ -3054,7 +3062,16 @@ window.saveSvcRequest = async function(){
 window.renderSvcRequests = function(){
   var tbody = document.getElementById('svc-tbody');
   if(!tbody) return;
-  var data = (_inspections||[]).slice().sort(function(a,b){return (b.date||'').localeCompare(a.date||'');});
+  var myId = _u ? (_u.id||_u.username||_u.name||'') : '';
+  var myName = _u ? (_u.name||_u.username||'') : '';
+  var isEmployee = _role==='employee';
+  var data = (_inspections||[]).filter(function(r){
+    if(isEmployee){
+      // يرى فقط طلباته المحالة إليه
+      return r.empId===myId || r.empName===myName || r.empId===myName;
+    }
+    return true;
+  }).slice().sort(function(a,b){return (b.date||'').localeCompare(a.date||'');});
   var ST = {new:{cl:'st-pending',ar:'جديد',en:'New'},scheduled:{cl:'st-done',ar:'مجدول',en:'Scheduled'},
     inspected:{cl:'st-active',ar:'تم الكشف',en:'Inspected'},closed:{cl:'st-gray',ar:'مغلق',en:'Closed'}};
   tbody.innerHTML = data.length ? data.map(function(r,i){
