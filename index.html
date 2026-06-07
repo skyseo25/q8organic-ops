@@ -2748,33 +2748,143 @@ window.resetCourierBalance=async function(id,name,bal){
 // SERVICE REQUEST (طلب خدمة)
 // ══════════════════════════════════════════════
 window.openOrderDetailBySvc = function(inspId){
-  // ابحث عن الطلب المرتبط في del_orders
   var insp = _inspections.find(function(x){return x.id===inspId;});
   if(!insp){ toast('لم يُعثر على الكشف'); return; }
-  var related = _orders.find(function(o){
+
+  // ابحث عن عرض السعر المرتبط
+  var relatedOrder = _orders.find(function(o){
     return o.orderType==='inspection' && o.phone===insp.phone && o.clientName===insp.client;
   });
-  if(related){
-    openOrderDetail(related.id);
-  } else {
-    // أنشئ كائن مؤقت بيانات الكشف وافتح المودال مباشرة
-    var fake = Object.assign({id:inspId, orderType:'service', status:insp.status||'pending',
-      clientName:insp.client, phone:insp.phone, area:insp.area, block:insp.block||'',
-      street:insp.street||'', avenue:insp.avenue||'', house:insp.house||'',
-      locationLink:insp.locationLink||'', notes:insp.desc||'',
-      inspTypeAr:insp.inspTypeAr||(insp.inspType==='insp_ext'?'كشف تمديد شبكة':'كشف صيانة'),
-      courierName:insp.empName||''
-    }, {});
-    // أضفه مؤقتاً
-    _orders.push(fake);
-    openOrderDetail(inspId);
-    // احذفه بعد الإغلاق
-    setTimeout(function(){
-      var idx = _orders.findIndex(function(o){return o.id===inspId&&o.orderType==='service';});
-      if(idx>=0) _orders.splice(idx,1);
-    }, 10000);
+  var relatedQuote = _quotes.find(function(q){
+    return q.orderId && relatedOrder && q.orderId===relatedOrder.id;
+  }) || _quotes.find(function(q){
+    var o = _orders.find(function(x){return x.id===q.orderId;});
+    return o && o.phone===insp.phone && o.clientName===insp.client;
+  });
+
+  var isManager = _role==='manager'||_role==='supervisor';
+
+  var ST = {new:'جديد',pending:'قيد الانتظار',scheduled:'مجدول',receiving:'استلمت',delivering:'في الطريق',inspected:'تم الكشف',closed:'مغلق',noreply:'لا يوجد رد'};
+  var SC = {new:'st-pending',pending:'st-pending',scheduled:'st-done',receiving:'st-done',delivering:'st-active',inspected:'st-active',closed:'st-gray',noreply:'st-pending'};
+
+  var addr = [insp.area, insp.block?'ق'+insp.block:'', insp.street?'ش'+insp.street:'', insp.avenue?'ج'+insp.avenue:'', insp.house?'م'+insp.house:''].filter(Boolean).join(' · ');
+
+  // عرض السعر / الفاتورة المرتبطة
+  var quoteHtml = '';
+  if(relatedQuote){
+    var qStatus = relatedQuote.quoteStatus||'pending';
+    var qLabels = {pending:'🔄 في الانتظار',agreed:'✅ تم الاتفاق',review:'🔍 للمراجعة',rejected:'❌ مرفوض',invoiced:'🧾 فاتورة'};
+    var qColors = {pending:'var(--gold)',agreed:'var(--green)',review:'var(--blue)',rejected:'var(--red)',invoiced:'#555'};
+    var subtotal = parseFloat(relatedQuote.subtotal||0);
+    var disc = parseFloat(relatedQuote.discount||0);
+    var total = parseFloat(relatedQuote.total||subtotal);
+
+    var itemRows = (relatedQuote.items||[]).map(function(it){
+      return '<div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--border)">'
+        +(it.image?'<img src="'+it.image+'" style="width:40px;height:40px;object-fit:cover;border-radius:6px;flex-shrink:0">':'<div style="width:40px;height:40px;background:var(--gl);border-radius:6px;display:flex;align-items:center;justify-content:center;flex-shrink:0">📦</div>')
+        +'<div style="flex:1"><div style="font-weight:800;font-size:.85rem">'+it.nameAr+'</div><div style="font-size:.7rem;color:var(--muted)">'+it.nameEn+'</div></div>'
+        +'<div style="font-size:.8rem;color:var(--muted)">'+it.qty+' '+it.unit+'</div>'
+        +(isManager?'<div style="font-size:.82rem;font-weight:700;color:var(--gold)">'+parseFloat(it.lineTotal||0).toFixed(3)+' KD</div>':'')
+      +'</div>';
+    }).join('');
+
+    quoteHtml = '<div style="border:1px solid var(--border);border-radius:12px;padding:14px;margin-bottom:14px">'
+      +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">'
+        +'<span style="font-size:.72rem;font-weight:800;color:var(--green);letter-spacing:1px">📋 عرض السعر / الفاتورة</span>'
+        +'<span style="font-size:.8rem;font-weight:700;color:'+qColors[qStatus]+'">'+qLabels[qStatus]+'</span>'
+      +'</div>'
+      +itemRows
+      +'<div style="margin-top:10px;padding-top:8px;border-top:1px solid var(--border)">'
+        +(isManager?'<div style="display:flex;justify-content:space-between;font-size:.82rem;margin-bottom:4px"><span style="color:var(--muted)">المجموع</span><span>'+subtotal.toFixed(3)+' KD</span></div>':'')
+        +(disc>0?'<div style="display:flex;justify-content:space-between;font-size:.82rem;margin-bottom:4px;color:var(--orange)"><span>خصم</span><span>- '+disc.toFixed(3)+' KD ('+(subtotal>0?((disc/subtotal)*100).toFixed(0):0)+'%)</span></div>':'')
+        +'<div style="display:flex;justify-content:space-between;font-size:1rem;font-weight:900;color:var(--green);margin-top:4px"><span>الإجمالي النهائي</span><span>'+total.toFixed(3)+' KD</span></div>'
+      +'</div>'
+      // أزرار الحالة للمدير
+      +(isManager?'<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:10px">'
+        +['pending','agreed','review','rejected'].map(function(s){
+          var sel = qStatus===s;
+          var lb = {pending:'🔄 انتظار',agreed:'✅ اتفاق',review:'🔍 مراجعة',rejected:'❌ رفض'}[s];
+          var col = {pending:'var(--gold)',agreed:'var(--green)',review:'var(--blue)',rejected:'var(--red)'}[s];
+          return '<button onclick="setQuoteStatus(\''+relatedQuote.id+'\',\''+s+'\');closeModal(\'modal-svc-detail\')" style="padding:8px;border-radius:8px;border:'+(sel?'none':'1px solid var(--border)')+';background:'+(sel?col:'#fff')+';color:'+(sel?'#fff':col)+';font-family:Cairo,sans-serif;font-size:.78rem;font-weight:700;cursor:pointer">'+lb+'</button>';
+        }).join('')
+      +'</div>'+(qStatus==='agreed'&&relatedQuote.quoteStatus!=='invoiced'?'<button onclick="convertToInvoice(\''+relatedQuote.id+'\');closeModal(\'modal-svc-detail\')" style="width:100%;margin-top:6px;padding:9px;background:var(--green);color:#fff;border:none;border-radius:8px;font-family:Cairo,sans-serif;font-size:.82rem;font-weight:700;cursor:pointer">🧾 تحويل إلى فاتورة</button>':''):'')
+      // طباعة
+      +'<div style="display:flex;gap:8px;margin-top:10px">'
+        +'<button onclick="printQuoteFromData(\''+relatedQuote.id+'\',false)" style="flex:1;padding:9px;background:#555;color:#fff;border:none;border-radius:8px;font-family:Cairo,sans-serif;font-size:.78rem;font-weight:700;cursor:pointer">🖨 عرض السعر</button>'
+        +(relatedQuote.quoteStatus==='invoiced'?'<button onclick="printQuoteFromData(\''+relatedQuote.id+'\',true)" style="flex:1;padding:9px;background:var(--green);color:#fff;border:none;border-radius:8px;font-family:Cairo,sans-serif;font-size:.78rem;font-weight:700;cursor:pointer">🧾 الفاتورة</button>':'')
+      +'</div>'
+    +'</div>';
   }
+
+  // بناء المودال
+  var old = document.getElementById('modal-svc-detail');
+  if(old) old.remove();
+
+  var html = '<div class="overlay open" id="modal-svc-detail" style="align-items:flex-end;padding:0" onclick="if(event.target===this)closeModal(\'modal-svc-detail\')">'
+    +'<div style="background:#fff;width:100%;max-width:520px;border-radius:20px 20px 0 0;max-height:92vh;overflow-y:auto;box-shadow:0 -8px 40px rgba(0,0,0,0.18);animation:slideUp .25s ease">'
+
+    // هيدر
+    +'<div style="padding:16px 18px 12px;border-bottom:1px solid var(--border);position:sticky;top:0;background:#fff;z-index:2;border-radius:20px 20px 0 0">'
+      +'<div style="display:flex;justify-content:space-between;align-items:center">'
+        +'<div>'
+          +'<span style="background:#e8f0ff;color:#1a4a8a;padding:3px 10px;border-radius:6px;font-size:.75rem;font-weight:800">🔍 '+(insp.inspTypeAr||'كشف')+'</span>'
+          +'<span class="status '+(SC[insp.status]||'st-gray')+'" style="margin-right:8px">'+(ST[insp.status]||insp.status||'—')+'</span>'
+        +'</div>'
+        +'<button onclick="closeModal(\'modal-svc-detail\')" style="width:30px;height:30px;border-radius:50%;border:none;background:#f0f0f0;color:#666;cursor:pointer;font-weight:700">✕</button>'
+      +'</div>'
+      +'<div style="font-size:1.2rem;font-weight:900;margin-top:8px">'+(insp.client||'—')+'</div>'
+      +'<a href="tel:'+(insp.phone||'')+'" style="font-size:.88rem;color:var(--green);font-weight:700;text-decoration:none">📞 '+(insp.phone||'—')+'</a>'
+    +'</div>'
+
+    +'<div style="padding:16px 18px">'
+
+    // موقع
+    +(insp.locationLink?'<a href="'+insp.locationLink+'" style="display:flex;align-items:center;justify-content:center;gap:6px;background:#1a7a40;color:#fff;border-radius:10px;padding:11px;font-size:.85rem;font-weight:700;text-decoration:none;margin-bottom:12px">📍 فتح الموقع على الخريطة</a>':'')
+
+    // العنوان
+    +'<div style="background:var(--gl);border-radius:10px;padding:12px;margin-bottom:12px">'
+      +'<div style="font-size:.68rem;font-weight:800;color:var(--green);margin-bottom:6px">📌 العنوان</div>'
+      +(addr?'<div style="font-size:.88rem">'+addr+'</div>':'<div style="color:var(--muted2);font-size:.82rem">—</div>')
+      +(insp.desc||insp.notes?'<div style="font-size:.8rem;color:var(--muted);margin-top:6px">📝 '+(insp.desc||insp.notes)+'</div>':'')
+    +'</div>'
+
+    // المندوب والموعد
+    +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px">'
+      +'<div style="background:#fff;border:1px solid var(--border);border-radius:10px;padding:10px">'
+        +'<div style="font-size:.68rem;color:var(--muted);margin-bottom:4px">👤 المندوب المكلف</div>'
+        +'<div style="font-weight:700;font-size:.88rem">'+(insp.empName||'—')+'</div>'
+      +'</div>'
+      +'<div style="background:#fff;border:1px solid var(--border);border-radius:10px;padding:10px">'
+        +'<div style="font-size:.68rem;color:var(--muted);margin-bottom:4px">📅 الموعد</div>'
+        +'<div style="font-weight:700;font-size:.82rem">'+(insp.datetime ? new Date(insp.datetime).toLocaleString('ar-KW',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'}) : (insp.date||'—'))+'</div>'
+      +'</div>'
+    +'</div>'
+
+    // عرض السعر / الفاتورة
+    +quoteHtml
+
+    // أزرار الإدارة
+    +(isManager?'<div style="display:flex;gap:8px;margin-bottom:8px">'
+      +'<button onclick="openSvcRequestModal(\''+inspId+'\');closeModal(\'modal-svc-detail\')" style="flex:1;padding:10px;background:var(--gl);color:var(--green);border:1px solid var(--gm);border-radius:10px;font-family:Cairo,sans-serif;font-size:.82rem;font-weight:700;cursor:pointer">✏️ تعديل الكشف</button>'
+      +(relatedOrder?'<button onclick="reassignInspByOrder(\''+relatedOrder.id+'\');closeModal(\'modal-svc-detail\')" style="flex:1;padding:10px;background:var(--orangel);color:var(--orange);border:1px solid #f0d090;border-radius:10px;font-family:Cairo,sans-serif;font-size:.82rem;font-weight:700;cursor:pointer">🔄 إعادة إسناد</button>':'')
+    +'</div>':'')
+
+    +'</div></div></div>';
+
+  document.body.insertAdjacentHTML('beforeend', html);
 };
+
+window.reassignInspByOrder = async function(orderId){
+  var newName = prompt('اسم الموظف الجديد:');
+  if(!newName) return;
+  await window.FB.upd(window.FB.doc(window.FB.db,'del_orders',orderId),{
+    status:'pending', courierName:newName, courierId:'',
+    inspRetaskBy:_u.id||_u.username, inspRetaskAt:window.FB.ts(), updatedAt:window.FB.ts()
+  });
+  toast('🔄 تمت إعادة الإسناد');
+};
+
+
 
 
 window.openSvcRequestModal = function(id){
