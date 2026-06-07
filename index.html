@@ -3441,7 +3441,7 @@ window.openOrderDetailBySvc = function(inspOrId){
 
   // ابحث عن عرض السعر المرتبط
   var relatedOrder = _orders.find(function(o){
-    return o.orderType==='inspection' && o.phone===insp.phone && o.clientName===insp.client;
+    return (o.orderType==='inspection'||o.orderType==='service') && o.phone===insp.phone && o.clientName===insp.client;
   });
   var relatedQuote = _quotes.find(function(q){
     return q.orderId && relatedOrder && q.orderId===relatedOrder.id;
@@ -4276,18 +4276,30 @@ window.renderInvoiceItems = function(){
 
 window.saveInvoiceItems = async function(){
   if(!_invoiceItems.length){ toast('أضف أصنافاً أولاً'); return; }
-  var hasLabor = _invoiceItems.some(function(x){return x.item.type==='labor';});
   var subtotal = _invoiceItems.reduce(function(s,x){return s+x.qty*parseFloat(x.item.price||0);},0);
-  if(!confirm('حفظ الفاتورة الحالية؟ المجموع: '+subtotal.toFixed(3)+' KD')) return;
-  var data = {
-    items: _invoiceItems.map(function(x){return {itemId:x.itemId,nameAr:x.item.nameAr,nameEn:x.item.nameEn||'',image:x.item.image||'',price:x.item.price,unit:x.item.unit,type:x.item.type,qty:x.qty,lineTotal:x.qty*parseFloat(x.item.price||0)};}),
-    subtotal, hasLabor, total: hasLabor?subtotal:0,
-    createdBy: _u.id||_u.username, createdAt: window.FB.ts()
-  };
-  await window.FB.add(window.FB.col(window.FB.db,'iri_invoices_v2'), data);
-  toast('✅ تم حفظ الفاتورة');
-  _invoiceItems = [];
-  renderInvoiceItems();
+  if(!confirm('حفظ عرض السعر؟ المجموع: '+subtotal.toFixed(3)+' KD')) return;
+  var items = _invoiceItems.map(function(x){return {itemId:x.itemId,nameAr:x.item.nameAr,nameEn:x.item.nameEn||'',image:x.item.image||'',price:x.item.price,unit:x.item.unit,type:x.item.type||'',qty:x.qty,lineTotal:x.qty*parseFloat(x.item.price||0)};});
+  // اربط العرض بطلب الكشف الحالي، وحدّث إن وُجد عرض سابق لنفس الطلب
+  var existing = _currentInspOrderId ? (_quotes||[]).find(function(q){return q.orderId===_currentInspOrderId;}) : null;
+  try{
+    if(existing){
+      await window.FB.upd(window.FB.doc(window.FB.db,'iri_invoices_v2',existing.id),{
+        items, subtotal, total:subtotal, editedBy:_u.id||_u.username, editedAt:window.FB.ts()
+      });
+    } else {
+      await window.FB.add(window.FB.col(window.FB.db,'iri_invoices_v2'),{
+        orderId:_currentInspOrderId||'', items, subtotal, discount:0, total:subtotal, type:'quote',
+        createdBy:_u.id||_u.username, createdAt:window.FB.ts()
+      });
+    }
+    if(_currentInspOrderId){
+      await window.FB.upd(window.FB.doc(window.FB.db,'del_orders',_currentInspOrderId),{quoteTotal:subtotal,updatedAt:window.FB.ts()});
+    }
+    toast('✅ تم حفظ عرض السعر');
+    _invoiceItems = [];
+    _currentInspOrderId = null;
+    renderItems();
+  }catch(e){ toast('خطأ: '+e.message); }
 };
 
 window.renderItems = function(){
@@ -4300,6 +4312,7 @@ window.renderItems = function(){
 
 window.openQuotePage = function(){
   if(!_invoiceItems.length){ toast('أضف أصنافاً أولاً'); return; }
+  showPage('quote'); // انتقل أولاً (يستدعي renderQuotes الذي يمسح المحتوى) ثم نملأ المحتوى بعده
   var subtotal = _invoiceItems.reduce(function(s,x){return s+x.qty*parseFloat(x.item.price||0);},0);
   var hasLabor = _invoiceItems.some(function(x){return x.item.type==='labor'||x.item.category==='أجور عمالة';});
   var order = _orders.find(function(o){return o.id===_currentInspOrderId;});
@@ -4341,7 +4354,6 @@ window.openQuotePage = function(){
   // أخفِ قائمة العروض عند العرض الجديد
   var listWrap = document.getElementById('quotes-list-wrap');
   if(listWrap) listWrap.style.display='none';
-  showPage('quote');
 };
 
 var _quotes = [];
