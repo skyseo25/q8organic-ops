@@ -2204,7 +2204,7 @@ window.renderOrders = function(){
     var inspRows = inspectionOrders.map(function(o,i){
       var s = ST[o.status]||{cl:'st-gray',ar:o.status};
       var dt = o.createdAt&&o.createdAt.toDate?o.createdAt.toDate().toLocaleDateString('ar-KW',{day:'numeric',month:'short'}):'—';
-      return '<tr onclick="openOrderDetail(\''+o.id+'\')" style="cursor:pointer" onmouseover="this.style.background=\'#f0f9f4\'" onmouseout="this.style.background=\'\'">'
+      return '<tr onclick="openInspDetailByOrder(\''+o.id+'\')" style="cursor:pointer" onmouseover="this.style.background=\'#f0f9f4\'" onmouseout="this.style.background=\'\'">'
         +'<td>'+(i+1)+'</td>'
         +'<td style="font-size:.78rem">'+dt+'</td>'
         +'<td><b>'+(o.clientName||'—')+'</b></td>'
@@ -3396,9 +3396,26 @@ window.resetCourierBalance=async function(id,name,bal){
 // ══════════════════════════════════════════════
 // SERVICE REQUEST (طلب خدمة)
 // ══════════════════════════════════════════════
-window.openOrderDetailBySvc = function(inspId){
-  var insp = _inspections.find(function(x){return x.id===inspId;});
+// فتح التفاصيل الكاملة لطلب كشف موجود في del_orders (يجد سجل الكشف المرتبط أو يبنيه من الطلب)
+window.openInspDetailByOrder = function(orderId){
+  var o = _orders.find(function(x){return x.id===orderId;});
+  if(!o){ toast('الطلب غير موجود'); return; }
+  var insp = _inspections.find(function(i){ return (i.phone&&i.phone===o.phone) && (i.client===o.clientName); });
+  if(!insp){
+    insp = {
+      id:'', client:o.clientName||'', phone:o.phone||'', area:o.area||'', block:o.block||'',
+      street:o.street||'', avenue:o.avenue||'', house:o.house||'', address:o.address||'',
+      locationLink:o.locationLink||'', desc:o.notes||'', notes:o.notes||'',
+      inspTypeAr:o.inspTypeAr||'كشف', status:o.status, empName:o.courierName||'', datetime:'', date:''
+    };
+  }
+  openOrderDetailBySvc(insp);
+};
+
+window.openOrderDetailBySvc = function(inspOrId){
+  var insp = (inspOrId && typeof inspOrId==='object') ? inspOrId : _inspections.find(function(x){return x.id===inspOrId;});
   if(!insp){ toast('لم يُعثر على الكشف'); return; }
+  var inspId = insp.id || '';
 
   // ابحث عن عرض السعر المرتبط
   var relatedOrder = _orders.find(function(o){
@@ -3556,10 +3573,10 @@ window.openOrderDetailBySvc = function(inspId){
 
     // أزرار الإدارة
     +(isManager?'<div style="display:flex;gap:8px;margin-bottom:8px">'
-      +'<button onclick="openSvcRequestModal(\''+inspId+'\');closeModal(\'modal-svc-detail\')" style="flex:1;padding:10px;background:var(--gl);color:var(--green);border:1px solid var(--gm);border-radius:10px;font-family:Cairo,sans-serif;font-size:.82rem;font-weight:700;cursor:pointer">✏️ تعديل الكشف</button>'
+      +(insp.id?'<button onclick="openSvcRequestModal(\''+inspId+'\');closeModal(\'modal-svc-detail\')" style="flex:1;padding:10px;background:var(--gl);color:var(--green);border:1px solid var(--gm);border-radius:10px;font-family:Cairo,sans-serif;font-size:.82rem;font-weight:700;cursor:pointer">✏️ تعديل الكشف</button>':'')
       +(relatedOrder?'<button onclick="reassignInspByOrder(\''+relatedOrder.id+'\');closeModal(\'modal-svc-detail\')" style="flex:1;padding:10px;background:var(--orangel);color:var(--orange);border:1px solid #f0d090;border-radius:10px;font-family:Cairo,sans-serif;font-size:.82rem;font-weight:700;cursor:pointer">🔄 إعادة إسناد</button>':'')
     +'</div>'
-    +'<button onclick="openSvcQuickOrder(\''+inspId+'\');closeModal(\'modal-svc-detail\')" style="width:100%;padding:11px;background:var(--green);color:#fff;border:none;border-radius:10px;font-family:Cairo,sans-serif;font-size:.85rem;font-weight:800;cursor:pointer;margin-bottom:8px">+ طلب جديد لهذا العميل</button>'
+    +(insp.id?'<button onclick="openSvcQuickOrder(\''+inspId+'\');closeModal(\'modal-svc-detail\')" style="width:100%;padding:11px;background:var(--green);color:#fff;border:none;border-radius:10px;font-family:Cairo,sans-serif;font-size:.85rem;font-weight:800;cursor:pointer;margin-bottom:8px">+ طلب جديد لهذا العميل</button>':'')
     +'<button onclick="archiveInspection(\''+(relatedOrder?relatedOrder.id:'')+'\',\''+inspId+'\')" style="width:100%;padding:11px;background:#4a5568;color:#fff;border:none;border-radius:10px;font-family:Cairo,sans-serif;font-size:.85rem;font-weight:800;cursor:pointer;margin-bottom:8px">📦 حفظ في الأرشيف</button>'
     :'')
 
