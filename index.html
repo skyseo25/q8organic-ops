@@ -651,8 +651,16 @@ tbody tr[onclick]:active { background: #d8f0e2 !important; }
       <div class="page" id="page-quote">
         <div class="module-header">
           <div class="dash-card-icon blue" style="width:36px;height:36px;font-size:1rem">💰</div>
-          <h2>عرض السعر</h2>
+          <h2>عروض الأسعار</h2>
         </div>
+        <!-- قائمة العروض المحفوظة -->
+        <div class="sec-card" style="margin-bottom:16px" id="quotes-list-wrap">
+          <div class="sec-header"><h3>العروض المحفوظة</h3></div>
+          <div class="tbl-wrap"><table><thead><tr>
+            <th>التاريخ</th><th>العميل</th><th>الأصناف</th><th>الإجمالي</th><th>المندوب</th><th></th>
+          </tr></thead><tbody id="quotes-tbody"></tbody></table></div>
+        </div>
+        <!-- نموذج العرض الجديد / التفاصيل -->
         <div id="quote-content" style="max-width:520px;margin:0 auto"></div>
       </div>
 
@@ -1518,6 +1526,7 @@ function startApp(){
   document.documentElement.setAttribute('dir', _lang==='ar'?'rtl':'ltr');
   updateUI();
   loadItems();
+  loadQuotes();
   setupListeners();
   // المندوب (_source=del) يذهب لصفحته الخاصة
   if(_u._source === 'del'){
@@ -1616,7 +1625,7 @@ window.showPage = function(page){
   if(page==='customers') renderCustomers();
   if(page==='employees') renderEmployees();
   if(page==='items')    renderItems();
-  if(page==='quote')    {} // المحتوى يُبنى بـ openQuotePage
+  if(page==='quote')    renderQuotes();
   if(page==='archive') renderArchive();
 };
 
@@ -3299,93 +3308,195 @@ window.openQuotePage = function(){
 
   var rows = _invoiceItems.map(function(r){
     var lineTotal = r.qty * parseFloat(r.item.price||0);
-    return '<tr>'
-      +'<td style="padding:8px 12px">'+(r.item.nameAr||'')+'</td>'
-      +'<td style="padding:8px 12px;text-align:center">'+r.qty+' '+r.item.unit+'</td>'
-      +'<td style="padding:8px 12px;text-align:center">'+parseFloat(r.item.price).toFixed(3)+' KD</td>'
-      +'<td style="padding:8px 12px;text-align:center;font-weight:700">'+lineTotal.toFixed(3)+' KD</td>'
-      +'</tr>';
+    return '<div style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:#fff;border:1px solid var(--border);border-radius:10px;margin-bottom:8px">'
+      +(r.item.image?'<img src="'+r.item.image+'" style="width:52px;height:52px;object-fit:cover;border-radius:8px;flex-shrink:0">':'<div style="width:52px;height:52px;background:var(--gl);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:1.5rem;flex-shrink:0">📦</div>')
+      +'<div style="flex:1"><div style="font-weight:800;font-size:.9rem">'+r.item.nameAr+'</div><div style="font-size:.72rem;color:var(--muted)">'+r.item.nameEn+'</div></div>'
+      +'<div style="text-align:center;font-size:.85rem;color:var(--muted)">'+r.qty+' '+r.item.unit+'</div>'
+      +'<div style="font-size:.85rem;font-weight:800;color:var(--gold)">'+lineTotal.toFixed(3)+' KD</div>'
+    +'</div>';
   }).join('');
 
   document.getElementById('quote-content').innerHTML =
-    // بيانات العميل
     (order?'<div style="background:var(--gl);border-radius:12px;padding:14px;margin-bottom:16px">'
-      +'<div style="font-size:1rem;font-weight:900">'+( order.clientName||'—')+'</div>'
-      +'<div style="font-size:.82rem;color:var(--muted)">📞 '+(order.phone||'')+'  📍 '+(order.area||'')+'</div>'
+      +'<div style="font-size:1rem;font-weight:900">'+order.clientName+'</div>'
+      +'<div style="font-size:.82rem;color:var(--muted)">📞 '+order.phone+'  📍 '+(order.area||'')+(order.block?' ق'+order.block:'')+(order.street?' ش'+order.street:'')+'</div>'
       +'<div style="font-size:.75rem;color:var(--muted2);margin-top:2px">'+(order.inspTypeAr||'كشف')+'</div>'
     +'</div>':'')
-    // جدول الأصناف
-    +'<div style="background:#fff;border:1px solid var(--border);border-radius:12px;overflow:hidden;margin-bottom:16px">'
-      +'<table style="width:100%;border-collapse:collapse;font-size:.85rem">'
-        +'<thead><tr style="background:var(--gl)">'
-          +'<th style="padding:10px 12px;text-align:right;font-weight:700">الصنف</th>'
-          +'<th style="padding:10px 12px;text-align:center;font-weight:700">الكمية</th>'
-          +'<th style="padding:10px 12px;text-align:center;font-weight:700">السعر</th>'
-          +'<th style="padding:10px 12px;text-align:center;font-weight:700">الإجمالي</th>'
-        +'</tr></thead>'
-        +'<tbody>'+rows+'</tbody>'
-      +'</table>'
-    +'</div>'
-    // الإجمالي + الخصم
+    +'<div style="margin-bottom:12px">'+rows+'</div>'
     +'<div style="background:#fff;border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px">'
-      +'<div style="display:flex;justify-content:space-between;margin-bottom:10px">'
-        +'<span style="color:var(--muted)">المجموع</span>'
-        +'<span id="qt-subtotal" style="font-weight:700">'+subtotal.toFixed(3)+' KD</span>'
-      +'</div>'
-      +(!hasLabor?'<div style="background:#fff5e0;border-radius:8px;padding:8px 12px;font-size:.78rem;color:var(--gold);margin-bottom:10px">⚠️ لم تتم إضافة أجور العمالة — الإجمالي غير مكتمل</div>':'')
-      // حقل الخصم
-      +'<div style="margin-bottom:12px">'
-        +'<label style="font-size:.8rem;font-weight:700;color:var(--muted);margin-bottom:6px;display:block">خصم (الحد الأقصى '+maxDiscount.toFixed(3)+' KD = 10%)</label>'
-        +'<input id="qt-discount" type="number" step="0.001" min="0" max="'+maxDiscount+'" placeholder="0.000" oninput="updateQuoteTotal('+subtotal+','+maxDiscount+')" style="width:100%;padding:10px;border:1.5px solid var(--border);border-radius:8px;font-family:Cairo,sans-serif;font-size:.9rem">'
-        +'<div id="qt-discount-warn" style="display:none;font-size:.75rem;color:var(--red);margin-top:4px">⚠️ الخصم لا يتجاوز '+maxDiscount.toFixed(3)+' KD (10%)</div>'
-      +'</div>'
+      +'<div style="display:flex;justify-content:space-between;margin-bottom:10px"><span style="color:var(--muted)">المجموع</span><span id="qt-subtotal" style="font-weight:700">'+subtotal.toFixed(3)+' KD</span></div>'
+      +(!hasLabor?'<div style="background:#fff5e0;border-radius:8px;padding:8px 12px;font-size:.78rem;color:var(--gold);margin-bottom:10px">⚠️ لم تتم إضافة أجور العمالة</div>':'')
+      // خصم المندوب (10% max)
+      +'<div style="margin-bottom:8px"><label style="font-size:.78rem;font-weight:700;color:var(--muted);margin-bottom:4px;display:block">خصم المندوب (الحد الأقصى 10% = '+maxDiscount.toFixed(3)+' KD)</label>'
+      +'<input id="qt-discount" type="number" step="0.001" min="0" max="'+maxDiscount+'" placeholder="0.000" oninput="updateQuoteTotal('+subtotal+','+maxDiscount+')" style="width:100%;padding:9px;border:1.5px solid var(--border);border-radius:8px;font-family:Cairo,sans-serif"></div>'
+      +'<div id="qt-discount-warn" style="display:none;font-size:.75rem;color:var(--red);margin-bottom:8px">⚠️ الحد الأقصى '+maxDiscount.toFixed(3)+' KD</div>'
       +'<div style="display:flex;justify-content:space-between;align-items:center;border-top:2px solid var(--gm);padding-top:12px">'
-        +'<span style="font-size:1rem;font-weight:900">الإجمالي النهائي</span>'
-        +'<span id="qt-final" style="font-size:1.3rem;font-weight:900;color:var(--green)">'+subtotal.toFixed(3)+' KD</span>'
-      +'</div>'
+      +'<span style="font-size:1rem;font-weight:900">الإجمالي النهائي</span>'
+      +'<span id="qt-final" style="font-size:1.3rem;font-weight:900;color:var(--green)">'+subtotal.toFixed(3)+' KD</span></div>'
     +'</div>'
-    // أزرار حفظ وطباعة
     +'<div style="display:flex;gap:10px;padding-bottom:24px">'
-      +'<button onclick="saveQuote()" style="flex:1;padding:13px;background:var(--green);color:#fff;border:none;border-radius:12px;font-family:Cairo,sans-serif;font-size:.9rem;font-weight:800;cursor:pointer">💾 حفظ عرض السعر</button>'
+      +'<button onclick="saveQuote()" style="flex:1;padding:13px;background:var(--green);color:#fff;border:none;border-radius:12px;font-family:Cairo,sans-serif;font-size:.9rem;font-weight:800;cursor:pointer">💾 حفظ</button>'
       +'<button onclick="printQuote()" style="flex:1;padding:13px;background:#1a4a8a;color:#fff;border:none;border-radius:12px;font-family:Cairo,sans-serif;font-size:.9rem;font-weight:800;cursor:pointer">🖨 طباعة</button>'
     +'</div>';
 
+  // أخفِ قائمة العروض عند العرض الجديد
+  var listWrap = document.getElementById('quotes-list-wrap');
+  if(listWrap) listWrap.style.display='none';
   showPage('quote');
 };
 
-window.updateQuoteTotal = function(subtotal, maxDiscount){
-  var disc = parseFloat(document.getElementById('qt-discount').value)||0;
-  var warn = document.getElementById('qt-discount-warn');
-  var final = document.getElementById('qt-final');
-  if(disc > maxDiscount){
-    disc = maxDiscount;
-    document.getElementById('qt-discount').value = maxDiscount.toFixed(3);
-    if(warn) warn.style.display='';
-  } else {
-    if(warn) warn.style.display='none';
+var _quotes = [];
+
+function loadQuotes(){
+  window.FB.snap(window.FB.q(window.FB.col(window.FB.db,'iri_invoices_v2'),window.FB.ord('createdAt','desc')), function(sn){
+    _quotes = sn.docs.map(function(x){return Object.assign({id:x.id},x.data());});
+    if(_curPage==='quote') renderQuotes();
+  });
+}
+
+window.renderQuotes = function(){
+  var listWrap = document.getElementById('quotes-list-wrap');
+  var tbody = document.getElementById('quotes-tbody');
+  if(!tbody) return;
+  if(listWrap) listWrap.style.display='';
+  document.getElementById('quote-content').innerHTML='';
+
+  if(!_quotes.length){
+    tbody.innerHTML='<tr><td colspan="6" class="empty">لا توجد عروض أسعار</td></tr>';
+    return;
   }
-  if(final) final.textContent = (subtotal - disc).toFixed(3)+' KD';
+  tbody.innerHTML = _quotes.map(function(q){
+    var dt = q.createdAt&&q.createdAt.toDate ? q.createdAt.toDate().toLocaleDateString('ar-KW') : '—';
+    var order = _orders.find(function(o){return o.id===q.orderId;});
+    var client = order ? order.clientName : (q.items&&q.items[0]?q.items[0].nameAr:'—');
+    var itemCount = q.items ? q.items.length : 0;
+    var total = parseFloat(q.total||q.subtotal||0);
+    return '<tr onclick="openQuoteDetail(\''+q.id+'\')" style="cursor:pointer" onmouseover="this.style.background=\'#f0f9f4\'" onmouseout="this.style.background=\'\'">'
+      +'<td>'+dt+'</td>'
+      +'<td><b>'+(client||'—')+'</b></td>'
+      +'<td>'+itemCount+' صنف</td>'
+      +'<td style="font-weight:700;color:var(--green)">'+total.toFixed(3)+' KD</td>'
+      +'<td style="font-size:.78rem;color:var(--muted)">'+(q.createdBy||'—')+'</td>'
+      +'<td><button class="btn-edit-sm" onclick="event.stopPropagation();openQuoteDetail(\''+q.id+'\')">تفاصيل</button>'
+      +(_role==='manager'?'<button class="btn-danger" onclick="event.stopPropagation();delQuote(\''+q.id+'\')">✕</button>':'')
+      +'</td></tr>';
+  }).join('');
+};
+
+window.openQuoteDetail = function(qid){
+  var q = _quotes.find(function(x){return x.id===qid;});
+  if(!q) return;
+  var order = _orders.find(function(o){return o.id===q.orderId;});
+  var isManager = _role==='manager';
+  var subtotal = parseFloat(q.subtotal||0);
+  var existDisc = parseFloat(q.discount||0);
+
+  var rows = (q.items||[]).map(function(it){
+    return '<div style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:#fff;border:1px solid var(--border);border-radius:10px;margin-bottom:8px">'
+      +(it.image?'<img src="'+it.image+'" style="width:52px;height:52px;object-fit:cover;border-radius:8px;flex-shrink:0">':'<div style="width:52px;height:52px;background:var(--gl);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:1.5rem;flex-shrink:0">📦</div>')
+      +'<div style="flex:1"><div style="font-weight:800;font-size:.9rem">'+it.nameAr+'</div><div style="font-size:.72rem;color:var(--muted)">'+it.nameEn+'</div></div>'
+      +'<div style="font-size:.82rem;color:var(--muted)">'+it.qty+' '+it.unit+'</div>'
+      +(isManager?'<div style="font-size:.85rem;font-weight:800;color:var(--gold)">'+parseFloat(it.lineTotal||0).toFixed(3)+' KD</div>':'')
+    +'</div>';
+  }).join('');
+
+  var listWrap = document.getElementById('quotes-list-wrap');
+  if(listWrap) listWrap.style.display='none';
+
+  document.getElementById('quote-content').innerHTML =
+    '<button onclick="renderQuotes()" style="background:none;border:none;color:var(--green);font-family:Cairo,sans-serif;font-size:.85rem;cursor:pointer;margin-bottom:12px;padding:0">← رجوع للعروض</button>'
+    +(order?'<div style="background:var(--gl);border-radius:12px;padding:14px;margin-bottom:14px">'
+      +'<div style="font-weight:900">'+order.clientName+'</div>'
+      +'<div style="font-size:.82rem;color:var(--muted)">📞 '+order.phone+'</div>'
+      +'<div style="font-size:.8rem;color:var(--muted)">📍 '+(order.area||'')+(order.block?' ق'+order.block:'')+(order.street?' ش'+order.street:'')+' '+(order.avenue?'ج'+order.avenue:'')+' '+(order.house?'م'+order.house:'')+'</div>'
+      +(order.notes?'<div style="font-size:.78rem;color:var(--muted2)">📝 '+order.notes+'</div>':'')
+      +'<div style="font-size:.75rem;color:var(--muted2);margin-top:4px">المندوب: '+(q.createdBy||'—')+' | '+(order.inspTypeAr||'كشف')+'</div>'
+    +'</div>':'')
+    +'<div style="margin-bottom:12px">'+rows+'</div>'
+    +'<div style="background:#fff;border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px">'
+      +(isManager?'<div style="display:flex;justify-content:space-between;margin-bottom:8px"><span style="color:var(--muted)">المجموع</span><span style="font-weight:700">'+subtotal.toFixed(3)+' KD</span></div>':'')
+      // المدير يقدر يعدّل بدون قيود
+      +(isManager?'<div style="margin-bottom:8px"><label style="font-size:.78rem;font-weight:700;color:var(--muted);margin-bottom:4px;display:block">خصم (بدون قيود — فقط للمدير)</label>'
+        +'<input id="qd-disc-edit" type="number" step="0.001" min="0" value="'+existDisc.toFixed(3)+'" oninput="updateDetailTotal('+subtotal+')" style="width:100%;padding:9px;border:1.5px solid var(--border);border-radius:8px;font-family:Cairo,sans-serif"></div>':'')
+      +'<div style="display:flex;justify-content:space-between;align-items:center;'+(isManager?'border-top:2px solid var(--gm);padding-top:12px;margin-top:4px':'')+'">'
+        +'<span style="font-size:1rem;font-weight:900">الإجمالي النهائي</span>'
+        +'<span id="qd-final" style="font-size:1.3rem;font-weight:900;color:var(--green)">'+(parseFloat(q.total||subtotal)).toFixed(3)+' KD</span>'
+      +'</div>'
+    +'</div>'
+    +(isManager?'<div style="display:flex;gap:10px;margin-bottom:10px">'
+      +'<button onclick="saveQuoteEdit(\''+qid+'\','+subtotal+')" style="flex:1;padding:12px;background:var(--green);color:#fff;border:none;border-radius:12px;font-family:Cairo,sans-serif;font-size:.88rem;font-weight:800;cursor:pointer">💾 حفظ التعديل</button>'
+      +'</div>':'')
+    +'<button onclick="printQuoteFromData(\''+qid+'\')" style="width:100%;padding:12px;background:#1a4a8a;color:#fff;border:none;border-radius:12px;font-family:Cairo,sans-serif;font-size:.88rem;font-weight:800;cursor:pointer;margin-bottom:24px">🖨 طباعة</button>';
+};
+
+window.updateDetailTotal = function(subtotal){
+  var disc = parseFloat(document.getElementById('qd-disc-edit').value)||0;
+  var finalEl = document.getElementById('qd-final');
+  if(finalEl) finalEl.textContent = (subtotal-disc).toFixed(3)+' KD';
 };
 
 window.saveQuote = async function(){
   var subtotal = _invoiceItems.reduce(function(s,x){return s+x.qty*parseFloat(x.item.price||0);},0);
-  var disc = parseFloat(document.getElementById('qt-discount').value)||0;
+  var disc = parseFloat((document.getElementById('qt-discount')||{}).value)||0;
   var final = subtotal - disc;
   var data = {
     orderId: _currentInspOrderId||'',
-    items: _invoiceItems.map(function(x){return {itemId:x.itemId,nameAr:x.item.nameAr,price:x.item.price,unit:x.item.unit,qty:x.qty,lineTotal:x.qty*parseFloat(x.item.price||0)};}),
-    subtotal, discount:disc, total:final,
-    createdBy: _u.id||_u.username, createdAt: window.FB.ts(), type:'quote'
+    items: _invoiceItems.map(function(x){return {
+      itemId:x.itemId, nameAr:x.item.nameAr, nameEn:x.item.nameEn||'',
+      image:x.item.image||'', price:x.item.price, unit:x.item.unit,
+      qty:x.qty, lineTotal:x.qty*parseFloat(x.item.price||0)
+    };}),
+    subtotal, discount:disc, total:final, type:'quote',
+    createdBy:_u.id||_u.username, createdAt:window.FB.ts()
   };
   if(_currentInspOrderId){
-    // ربط عرض السعر بالطلب
     await window.FB.upd(window.FB.doc(window.FB.db,'del_orders',_currentInspOrderId),{quoteTotal:final,quoteDiscount:disc,updatedAt:window.FB.ts()});
   }
   await window.FB.add(window.FB.col(window.FB.db,'iri_invoices_v2'), data);
   toast('✅ تم حفظ عرض السعر');
   _currentInspOrderId = null;
   _invoiceItems = [];
+  renderQuotes();
 };
+
+window.saveQuoteEdit = async function(qid, subtotal){
+  var disc = parseFloat(document.getElementById('qd-disc-edit').value)||0;
+  var total = subtotal - disc;
+  await window.FB.upd(window.FB.doc(window.FB.db,'iri_invoices_v2',qid),{discount:disc,total:total,editedBy:_u.id||_u.username,editedAt:window.FB.ts()});
+  toast('✅ تم حفظ التعديل');
+};
+
+window.delQuote = async function(qid){
+  if(!confirm('حذف هذا العرض؟')) return;
+  await window.FB.del(window.FB.doc(window.FB.db,'iri_invoices_v2',qid));
+  toast('تم الحذف');
+};
+
+window.printQuoteFromData = function(qid){
+  var q = _quotes.find(function(x){return x.id===qid;});
+  if(q){
+    // نسخ بيانات العرض للطباعة
+    var order = _orders.find(function(o){return o.id===q.orderId;});
+    var savedItems = (q.items||[]).map(function(it){
+      return {qty:it.qty, item:{nameAr:it.nameAr,nameEn:it.nameEn,image:it.image||'',price:it.price,unit:it.unit}};
+    });
+    var prevItems = _invoiceItems;
+    var prevOrderId = _currentInspOrderId;
+    _invoiceItems = savedItems;
+    _currentInspOrderId = q.orderId;
+    // override discount
+    var disc = parseFloat(q.discount||0);
+    // inject discount value
+    setTimeout(function(){
+      var el = document.getElementById('qt-discount');
+      if(el) el.value = disc.toFixed(3);
+      printQuote();
+      _invoiceItems = prevItems;
+      _currentInspOrderId = prevOrderId;
+    }, 100);
+  }
+};
+
 
 window.printQuote = function(){
   var subtotal = _invoiceItems.reduce(function(s,x){return s+x.qty*parseFloat(x.item.price||0);},0);
@@ -3412,21 +3523,20 @@ window.printQuote = function(){
     +'</table>';
   }
 
-  // صفوف الأصناف مع صورة + اسم ثنائي اللغة
+  // صفوف الأصناف — بدون أسعار للطباعة
   var rows = _invoiceItems.map(function(r){
-    var lineTotal = r.qty * parseFloat(r.item.price||0);
     var imgHtml = r.item.image
       ? '<img src="'+r.item.image+'" style="width:48px;height:48px;object-fit:cover;border-radius:6px;border:1px solid #ddd;vertical-align:middle;margin-left:8px">'
       : '<div style="width:48px;height:48px;background:#e8f5e9;border-radius:6px;display:inline-flex;align-items:center;justify-content:center;font-size:1.4rem;vertical-align:middle;margin-left:8px">📦</div>';
     return '<tr>'
-      +'<td style="padding:10px 10px;border-bottom:1px solid #eee">'
+      +'<td style="padding:10px;border-bottom:1px solid #eee">'
         +'<div style="display:flex;align-items:center">'+imgHtml
           +'<div><div style="font-weight:800;font-size:.88rem">'+r.item.nameAr+'</div>'
           +'<div style="font-size:.75rem;color:#888">'+r.item.nameEn+'</div></div>'
         +'</div>'
       +'</td>'
       +'<td style="padding:10px;border-bottom:1px solid #eee;text-align:center;white-space:nowrap">'+r.qty+' '+r.item.unit+'</td>'
-      +'<td style="padding:10px;border-bottom:1px solid #eee;text-align:center;white-space:nowrap">'+parseFloat(r.item.price).toFixed(3)+' KD</td>'
+    +'</tr>';
       +'<td style="padding:10px;border-bottom:1px solid #eee;text-align:center;font-weight:700;color:#1a7a40;white-space:nowrap">'+lineTotal.toFixed(3)+' KD</td>'
     +'</tr>';
   }).join('');
@@ -3462,7 +3572,7 @@ window.printQuote = function(){
     // الأصناف
     +'<div class="section-title">الأصناف</div>'
     +'<table class="items-table" style="margin-bottom:14px">'
-      +'<thead><tr><th style="text-align:right;padding:10px 12px">الصنف / Item</th><th>الكمية</th><th>السعر</th><th>الإجمالي</th></tr></thead>'
+      +'<thead><tr><th style="text-align:right;padding:10px 12px">الصنف / Item</th><th>الكمية</th></tr></thead>'
       +'<tbody>'+rows+'</tbody>'
     +'</table>'
     // الإجماليات
