@@ -1817,7 +1817,10 @@ function renderDashboard(){
 
   // ── كارت 4: طلبات تحولت من كاش إلى Knet ──
   var knetConverted = _orders.filter(function(o){
-    return o.paymentType==='knet' && o.originalPayment==='cash' && !o.knetSettled && !o.archived;
+    if(o.archived||o.knetSettled) return false;
+    if(o.knetChanged&&o.originalPayment==='cash') return true;
+    if(o.paymentType==='knet'&&o.status==='delivered'&&!o.knetSettled) return true;
+    return false;
   });
 
   var grid = document.getElementById('dash-grid');
@@ -1834,12 +1837,59 @@ function renderDashboard(){
       +'</div>'
     +'</div>'
 
-    // كارت 2 — طلبات اليوم
-    +'<div class="dash-card" onclick="showPage(\'orders\')" style="cursor:pointer">'
+    // كارت 2 — حركة اليوم
+    +'<div class="dash-card" style="cursor:default">'
       +'<div class="dash-card-icon green">📅</div>'
-      +'<h3>طلبات اليوم</h3>'
-      +'<div class="val">'+todayOrders+'</div>'
-      +'<div class="sub">طلب اليوم</div>'
+      +'<h3>حركة اليوم</h3>'
+      // طلبات اليوم
+      +'<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--border)">'
+        +'<span style="font-size:.82rem;color:var(--muted)">📦 طلبات التوصيل</span>'
+        +'<span style="font-weight:800">'+todayOrders+'</span>'
+      +'</div>'
+      // عدد المناديب النشطين
+      +'<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--border)">'
+        +'<span style="font-size:.82rem;color:var(--muted)">👤 مناديب التوصيل</span>'
+        +'<span style="font-weight:800">'+(function(){
+          var ids={};
+          _orders.filter(function(o){return o.courierId&&o.orderType!=='inspection'&&!o.archived;}).forEach(function(o){ids[o.courierId]=1;});
+          return Object.keys(ids).length;
+        }())+'</span>'
+      +'</div>'
+      // الكشف والصيانة اليوم
+      +'<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--border)">'
+        +'<span style="font-size:.82rem;color:var(--muted)">🔧 كشف وصيانة اليوم</span>'
+        +'<span style="font-weight:800">'+(function(){
+          var s=todayStr;
+          return _orders.filter(function(o){
+            if(o.orderType!=='inspection') return false;
+            var dt=o.createdAt&&o.createdAt.toDate?o.createdAt.toDate():null;
+            return dt&&dt.toDateString()===s;
+          }).length + (_inspections||[]).filter(function(i){
+            var dt=i.createdAt&&i.createdAt.toDate?i.createdAt.toDate():null;
+            return dt&&dt.toDateString()===s;
+          }).length;
+        }())+'</span>'
+      +'</div>'
+      // حالات الطلبات النشطة اليوم
+      +(function(){
+        var counts={received:0,delivered:0,delivering:0,returned:0};
+        _orders.filter(function(o){return o.orderType!=='inspection'&&!o.archived;}).forEach(function(o){
+          if(counts[o.status]!==undefined) counts[o.status]++;
+        });
+        return '<div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;margin-top:6px">'
+          +[
+            {k:'received',  l:'📬 استلم المندوب', c:'#1a4a8a', bg:'#e8f0ff'},
+            {k:'delivered', l:'✅ تم التسليم',    c:'var(--green)', bg:'var(--gl)'},
+            {k:'delivering',l:'🚗 جاري التوصيل',  c:'var(--orange)', bg:'var(--orangel)'},
+            {k:'returned',  l:'↩ مرتجع',          c:'var(--red)', bg:'var(--redl)'},
+          ].map(function(s){
+            return '<div style="background:'+s.bg+';border-radius:8px;padding:5px 8px;text-align:center">'
+              +'<div style="font-size:.68rem;color:'+s.c+'">'+s.l+'</div>'
+              +'<div style="font-size:1rem;font-weight:900;color:'+s.c+'">'+counts[s.k]+'</div>'
+            +'</div>';
+          }).join('')
+        +'</div>';
+      }())
     +'</div>'
 
     // كارت 3 — المناديب مع طلبات معلقة
@@ -2498,6 +2548,12 @@ window.updateOrderStatus = async function(id, status, forceKnet){
     // إذا اختار المندوب Knet
     if(forceKnet){
       updateData.paymentType = 'knet';
+      // حفظ أن الأصل كان كاش وتحوّل
+      if(order.paymentType === 'cash'){
+        updateData.originalPayment = 'cash';
+        updateData.knetChanged = true;
+        updateData.knetSettled = false;
+      }
     }
 
     await window.FB.upd(window.FB.doc(window.FB.db,'del_orders',id), updateData);
