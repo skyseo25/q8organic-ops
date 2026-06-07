@@ -530,7 +530,7 @@ tbody tr[onclick]:active { background: #d8f0e2 !important; }
         </div>
 
         <!-- زراّن رئيسيان -->
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:20px">
+        <div id="irr-add-buttons" style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:20px">
           <button onclick="openOrderModal()" style="padding:20px 14px;border-radius:16px;border:none;background:var(--green);color:#fff;font-family:Cairo,sans-serif;font-size:1rem;font-weight:800;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:6px;box-shadow:0 4px 16px rgba(26,122,64,.2)">
             <span style="font-size:1.6rem">🚚</span>
             طلب توصيل
@@ -1731,14 +1731,14 @@ function getNavItems(){
   if(_u && _u._source === 'del'){
     return [
       {id:'courier',    icon:'🚚', ar:'طلباتي',          en:'My Orders',      roles:['employee']},
-      {id:'irrigation', icon:'➕', ar:'إضافة طلب/خدمة',  en:'Add Order',      roles:['employee']},
+      {id:'irrigation', icon:'➕', ar:'خدماتي',  en:'My Services',      roles:['employee']},
       {id:'archive',    icon:'📦', ar:'أرشيف تقاريري',   en:'My Reports',     roles:['employee']},
     ];
   }
   var all = [
     {id:'dashboard',  icon:'⊞',  ar:'لوحة التحكم',            en:'Dashboard',           roles:['manager','supervisor','employee']},
     {id:'orders',     icon:'🚚', ar:'طلبات التوصيل والكشف',   en:'Active Orders',        roles:['manager','supervisor'],           section_ar:'الأعمال',  section_en:'Operations'},
-    {id:'irrigation', icon:'➕', ar:'إضافة توصيل وخدمة',      en:'Add Order / Service',  roles:['manager','supervisor','employee'], section_ar:'الأعمال',  section_en:'Operations'},
+    {id:'irrigation', icon:'➕', ar:(_role==='employee'?'خدماتي':'إضافة توصيل وخدمة'),      en:(_role==='employee'?'My Services':'Add Order / Service'),  roles:['manager','supervisor','employee'], section_ar:'الأعمال',  section_en:'Operations'},
     {id:'items',      icon:'📋', ar:'الأصناف',                 en:'Items',               roles:['manager','supervisor','employee'], section_ar:'الأعمال',  section_en:'Operations'},
     {id:'reports',    icon:'📊', ar:'التقارير',                en:'Reports',             roles:['manager','supervisor'],           section_ar:'الإدارة',  section_en:'Management'},
     {id:'employees',  icon:'👤', ar:'الموظفون',                en:'Employees',           roles:['manager','supervisor'],           section_ar:'الإدارة',  section_en:'Management'},
@@ -1801,9 +1801,16 @@ window.showPage = function(page){
   if(page==='orders'){ setOrdersTab(_ordersTab||'delivery'); }
   if(page==='courier') renderCourierView();
   if(page==='irrigation'){
-    // أخفي تبويبات المدير عن الموظف
+    var isMgrIrr = (_role==='manager'||_role==='supervisor');
+    // أخفي تبويبات المدير وأزرار الإضافة عن الموظف/المندوب
     var mgrTabs = document.getElementById('irr-manager-tabs');
-    if(mgrTabs) mgrTabs.style.display = (_role==='manager'||_role==='supervisor') ? 'flex' : 'none';
+    if(mgrTabs) mgrTabs.style.display = isMgrIrr ? 'flex' : 'none';
+    var addBtns = document.getElementById('irr-add-buttons');
+    if(addBtns) addBtns.style.display = isMgrIrr ? 'grid' : 'none';
+    var irrTitle = document.getElementById('lbl-irr-title');
+    if(irrTitle) irrTitle.textContent = isMgrIrr
+      ? (_lang==='ar'?'إضافة توصيل وخدمة':'Add Order / Service')
+      : (_lang==='ar'?'خدماتي':'My Services');
     showIrrTab('svc');
   }
   if(page==='customers') renderCustomers();
@@ -2998,10 +3005,10 @@ window.renderInspections = function(){
   }).map(function(ins){
     var dt=ins.createdAt&&ins.createdAt.toDate?ins.createdAt.toDate().toLocaleDateString(_lang==='ar'?'ar-KW':'en-GB'):'—';
     var s=ST[ins.status]||{cl:'st-gray',ar:ins.status,en:ins.status};
-    return '<tr><td>'+dt+'</td><td>'+( ins.client||'—')+'</td><td>'+( ins.phone||'—')+'</td>'
+    return '<tr onclick="openOrderDetailBySvc(\''+ins.id+'\')" style="cursor:pointer" onmouseover="this.style.background=\'#f0f9f4\'" onmouseout="this.style.background=\'\'"><td>'+dt+'</td><td>'+( ins.client||'—')+'</td><td>'+( ins.phone||'—')+'</td>'
       +'<td>'+(_lang==='en'?translateArea(ins.area||''):ins.area||'—')+'</td><td><span class="status '+s.cl+'">'+(_lang==='ar'?s.ar:s.en)+'</span></td>'
       +'<td>'+(ins.empName||'—')+'</td>'
-      +'<td><button class="btn-edit-sm" onclick="openInspModal(\''+ins.id+'\')">'+t('edit')+'</button> '
+      +'<td onclick="event.stopPropagation()"><button class="btn-edit-sm" onclick="openInspModal(\''+ins.id+'\')">'+t('edit')+'</button> '
       +(_role==='manager'?'<button class="btn-danger" onclick="delInsp(\''+ins.id+'\')">✕</button>':'')+'</td></tr>';
   }).join('')||'<tr><td colspan="7" class="empty">لا توجد طلبات كشف</td></tr>';
 };
