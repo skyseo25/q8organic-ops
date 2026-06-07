@@ -3451,7 +3451,7 @@ window.openOrderDetailBySvc = function(inspOrId){
   });
 
   var isManager = _role==='manager'||_role==='supervisor';
-  var canEditPrice = isManager || _role==='employee'; // صلاحية تعديل السعر (المدير والمشرف والمندوب المكلف)
+  var canEditPrice = isManager; // تعديل الخصم للمدير/المشرف فقط
 
   var ST = {new:'جديد',pending:'قيد الانتظار',scheduled:'مجدول',receiving:'استلمت',delivering:'في الطريق',inspected:'تم الكشف',closed:'مغلق',noreply:'لا يوجد رد'};
   var SC = {new:'st-pending',pending:'st-pending',scheduled:'st-done',receiving:'st-done',delivering:'st-active',inspected:'st-active',closed:'st-gray',noreply:'st-pending'};
@@ -3495,7 +3495,7 @@ window.openOrderDetailBySvc = function(inspOrId){
       // ── تعديل السعر ──
       +(canEditPrice?
         '<div style="margin-top:12px;padding:12px;background:#f8f9fa;border-radius:10px;border:1px dashed var(--border)">'
-          +'<div style="font-size:.72rem;font-weight:800;color:var(--muted);margin-bottom:10px;letter-spacing:1px">⚙️ تعديل السعر</div>'
+          +'<div style="font-size:.72rem;font-weight:800;color:var(--muted);margin-bottom:10px;letter-spacing:1px">⚙️ تعديل الخصم — للمدير فقط</div>'
           +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">'
             // خصم (0-100%)
             +'<div><label style="font-size:.72rem;color:var(--muted);display:block;margin-bottom:4px">خصم % (0-100)</label>'
@@ -3516,12 +3516,20 @@ window.openOrderDetailBySvc = function(inspOrId){
           var col = {pending:'var(--gold)',agreed:'var(--green)',review:'var(--blue)',rejected:'var(--red)'}[s];
           return '<button onclick="setQuoteStatus(\''+relatedQuote.id+'\',\''+s+'\');closeModal(\'modal-svc-detail\')" style="padding:8px;border-radius:8px;border:'+(sel?'none':'1px solid var(--border)')+';background:'+(sel?col:'#fff')+';color:'+(sel?'#fff':col)+';font-family:Cairo,sans-serif;font-size:.78rem;font-weight:700;cursor:pointer">'+lb+'</button>';
         }).join('')
-      +'</div>'+(qStatus==='agreed'&&relatedQuote.quoteStatus!=='invoiced'?'<button onclick="convertToInvoice(\''+relatedQuote.id+'\');closeModal(\'modal-svc-detail\')" style="width:100%;margin-top:6px;padding:9px;background:var(--green);color:#fff;border:none;border-radius:8px;font-family:Cairo,sans-serif;font-size:.82rem;font-weight:700;cursor:pointer">🧾 تحويل إلى فاتورة</button>':''):'')
+      +'</div>'+(relatedQuote.quoteStatus!=='invoiced'?'<button onclick="convertToInvoice(\''+relatedQuote.id+'\');closeModal(\'modal-svc-detail\')" style="width:100%;margin-top:6px;padding:9px;background:var(--green);color:#fff;border:none;border-radius:8px;font-family:Cairo,sans-serif;font-size:.82rem;font-weight:700;cursor:pointer">🧾 تحويل إلى فاتورة</button>':''):'')
       // طباعة
       +'<div style="display:flex;gap:8px;margin-top:10px">'
         +'<button onclick="printQuoteFromData(\''+relatedQuote.id+'\',false)" style="flex:1;padding:9px;background:#555;color:#fff;border:none;border-radius:8px;font-family:Cairo,sans-serif;font-size:.78rem;font-weight:700;cursor:pointer">🖨 عرض السعر</button>'
         +(relatedQuote.quoteStatus==='invoiced'?'<button onclick="printQuoteFromData(\''+relatedQuote.id+'\',true)" style="flex:1;padding:9px;background:var(--green);color:#fff;border:none;border-radius:8px;font-family:Cairo,sans-serif;font-size:.78rem;font-weight:700;cursor:pointer">🧾 الفاتورة</button>':'')
       +'</div>'
+    +'</div>';
+  } else {
+    // لا يوجد عرض سعر بعد — أظهر القسم دائماً مع زر التحويل إلى عرض سعر (بعد إتمام الكشف)
+    var doneForQuote = relatedOrder ? (relatedOrder.status==='inspected'||relatedOrder.status==='closed') : (insp.status==='inspected'||insp.status==='closed');
+    quoteHtml = '<div style="border:1px dashed var(--border);border-radius:12px;padding:16px;margin-bottom:14px;text-align:center">'
+      +'<div style="font-size:.72rem;font-weight:800;color:var(--green);letter-spacing:1px;margin-bottom:8px">📋 عرض السعر / الفاتورة</div>'
+      +'<div style="color:var(--muted2);font-size:.85rem;margin-bottom:'+((relatedOrder&&doneForQuote)?'12px':'0')+'">لم يتم تسعير الكشف بعد — لا توجد أصناف مضافة</div>'
+      +((relatedOrder&&doneForQuote)?'<button onclick="editInspQuote(\''+relatedOrder.id+'\',\'\')" style="width:100%;padding:12px;background:#1a4a8a;color:#fff;border:none;border-radius:10px;font-family:Cairo,sans-serif;font-size:.88rem;font-weight:800;cursor:pointer">➕ تحويل إلى عرض سعر (إضافة الأصناف)</button>':'<div style="color:var(--muted2);font-size:.75rem;margin-top:6px">يظهر زر التحويل إلى عرض سعر بعد أن يُنهي المندوب الكشف</div>')
     +'</div>';
   }
 
