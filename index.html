@@ -3451,6 +3451,7 @@ window.openOrderDetailBySvc = function(inspOrId){
   });
 
   var isManager = _role==='manager'||_role==='supervisor';
+  var canEditPrice = isManager || _role==='employee'; // صلاحية تعديل السعر (المدير والمشرف والمندوب المكلف)
 
   var ST = {new:'جديد',pending:'قيد الانتظار',scheduled:'مجدول',receiving:'استلمت',delivering:'في الطريق',inspected:'تم الكشف',closed:'مغلق',noreply:'لا يوجد رد'};
   var SC = {new:'st-pending',pending:'st-pending',scheduled:'st-done',receiving:'st-done',delivering:'st-active',inspected:'st-active',closed:'st-gray',noreply:'st-pending'};
@@ -3472,7 +3473,7 @@ window.openOrderDetailBySvc = function(inspOrId){
         +(it.image?'<img src="'+it.image+'" style="width:40px;height:40px;object-fit:cover;border-radius:6px;flex-shrink:0">':'<div style="width:40px;height:40px;background:var(--gl);border-radius:6px;display:flex;align-items:center;justify-content:center;flex-shrink:0">📦</div>')
         +'<div style="flex:1"><div style="font-weight:800;font-size:.85rem">'+it.nameAr+'</div><div style="font-size:.7rem;color:var(--muted)">'+it.nameEn+'</div></div>'
         +'<div style="font-size:.8rem;color:var(--muted)">'+it.qty+' '+it.unit+'</div>'
-        +(isManager?'<div style="font-size:.82rem;font-weight:700;color:var(--gold)">'+parseFloat(it.lineTotal||0).toFixed(3)+' KD</div>':'')
+        +'<div style="font-size:.82rem;font-weight:700;color:var(--gold)">'+parseFloat(it.lineTotal||0).toFixed(3)+' KD</div>'
       +'</div>';
     }).join('');
 
@@ -3491,10 +3492,10 @@ window.openOrderDetailBySvc = function(inspOrId){
         +(relatedQuote.adminNote?'<div style="margin-top:6px;padding:6px 10px;background:#fff5e0;border-radius:8px;font-size:.75rem;color:var(--gold)">⚙️ '+relatedQuote.adminNote+'</div>':'')
       +'</div>'
 
-      // ── تعديل السعر للمدير فقط ──
-      +(isManager?
+      // ── تعديل السعر ──
+      +(canEditPrice?
         '<div style="margin-top:12px;padding:12px;background:#f8f9fa;border-radius:10px;border:1px dashed var(--border)">'
-          +'<div style="font-size:.72rem;font-weight:800;color:var(--muted);margin-bottom:10px;letter-spacing:1px">⚙️ تعديل السعر — للمدير فقط</div>'
+          +'<div style="font-size:.72rem;font-weight:800;color:var(--muted);margin-bottom:10px;letter-spacing:1px">⚙️ تعديل السعر</div>'
           +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">'
             // خصم (0-100%)
             +'<div><label style="font-size:.72rem;color:var(--muted);display:block;margin-bottom:4px">خصم % (0-100)</label>'
@@ -3545,10 +3546,6 @@ window.openOrderDetailBySvc = function(inspOrId){
     }
   }
   if(roStatus==='inspected') progBtns += _pb('closed','🔒 إغلاق','#555');
-  // تعديل الأصناف / عرض السعر — متاح للمندوب المكلف والإدارة طالما يوجد طلب مرتبط
-  if(relatedOrder){
-    progBtns += '<button onclick="editInspQuote(\''+relatedOrder.id+'\',\''+(relatedQuote?relatedQuote.id:'')+'\')" style="flex:1;min-width:46%;padding:12px;background:#1a4a8a;color:#fff;border:none;border-radius:10px;font-family:Cairo,sans-serif;font-size:.85rem;font-weight:800;cursor:pointer">📋 تعديل الأصناف / عرض السعر</button>';
-  }
   // إلغاء حالة الإغلاق (إعادة فتح)
   if(roStatus==='closed' && relatedOrder){
     progBtns += '<button onclick="reopenInsp(\''+relatedOrder.id+'\',\''+inspId+'\')" style="flex:1;min-width:46%;padding:12px;background:#b8720a;color:#fff;border:none;border-radius:10px;font-family:Cairo,sans-serif;font-size:.85rem;font-weight:800;cursor:pointer">🔓 إلغاء الإغلاق</button>';
