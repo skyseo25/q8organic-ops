@@ -690,6 +690,58 @@ body, .content, table, input, select, textarea, .val, td, th, span, div {
 </div>
 
 <!-- MODALS -->
+<!-- ══ ORDER DETAIL MODAL ══ -->
+<div class="overlay" id="modal-order-detail" style="align-items:flex-end;padding:0">
+  <div style="background:#fff;width:100%;max-width:520px;border-radius:20px 20px 0 0;max-height:92vh;overflow-y:auto;box-shadow:0 -8px 40px rgba(0,0,0,0.18);animation:slideUp .25s ease">
+    <!-- هيدر ثابت -->
+    <div style="padding:18px 18px 14px;border-bottom:1px solid var(--border);position:sticky;top:0;background:#fff;z-index:2;border-radius:20px 20px 0 0">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+        <div id="odm-type-badge"></div>
+        <button onclick="closeModal('modal-order-detail')" style="width:30px;height:30px;border-radius:50%;border:none;background:#f0f0f0;color:#666;cursor:pointer;font-size:.9rem;font-weight:700">✕</button>
+      </div>
+      <div id="odm-client-name" style="font-size:1.25rem;font-weight:900;color:var(--text)"></div>
+      <a id="odm-phone-link" href="#" style="font-size:.9rem;color:var(--green);font-weight:700;text-decoration:none">📞 <span id="odm-phone"></span></a>
+    </div>
+    <div style="padding:16px 18px">
+      <!-- الحالة -->
+      <div style="display:flex;align-items:center;justify-content:space-between;background:var(--gl);border-radius:10px;padding:10px 14px;margin-bottom:14px">
+        <span style="font-size:.78rem;font-weight:700;color:var(--green)">الحالة الحالية</span>
+        <span id="odm-status-badge" class="status"></span>
+      </div>
+      <!-- زر الموقع -->
+      <div id="odm-location-wrap" style="margin-bottom:12px;display:none">
+        <a id="odm-location-btn" href="#" target="_blank" style="display:flex;align-items:center;justify-content:center;gap:8px;background:#1a7a40;color:#fff;border-radius:12px;padding:13px;font-size:.9rem;font-weight:700;text-decoration:none">📍 فتح الموقع على الخريطة</a>
+      </div>
+      <!-- العنوان -->
+      <div style="background:var(--white);border:1px solid var(--border);border-radius:12px;padding:14px;margin-bottom:12px">
+        <div style="font-size:.68rem;font-weight:700;color:var(--muted);margin-bottom:8px;letter-spacing:1px">📌 العنوان</div>
+        <div id="odm-address" style="font-size:.88rem;line-height:1.8;color:var(--text)"></div>
+      </div>
+      <!-- تفاصيل -->
+      <div id="odm-notes-wrap" style="background:var(--white);border:1px solid var(--border);border-radius:12px;padding:14px;margin-bottom:12px;display:none">
+        <div style="font-size:.68rem;font-weight:700;color:var(--muted);margin-bottom:6px;letter-spacing:1px">📝 تفاصيل الطلب</div>
+        <div id="odm-notes" style="font-size:.88rem;line-height:1.7;color:var(--text)"></div>
+      </div>
+      <!-- الدفع (توصيل فقط) -->
+      <div id="odm-payment-wrap" style="background:var(--white);border:1px solid var(--border);border-radius:12px;padding:14px;margin-bottom:14px;display:none;justify-content:space-between;align-items:center">
+        <span style="font-size:.78rem;font-weight:700;color:var(--muted)">💳 الدفع</span>
+        <div id="odm-payment"></div>
+      </div>
+      <!-- الموظف المكلف (كشف) -->
+      <div id="odm-emp-wrap" style="background:var(--white);border:1px solid var(--border);border-radius:12px;padding:14px;margin-bottom:14px;display:none">
+        <div style="font-size:.68rem;font-weight:700;color:var(--muted);margin-bottom:4px;letter-spacing:1px">👤 الموظف المكلف</div>
+        <div id="odm-emp" style="font-size:.9rem;font-weight:700;color:var(--text)"></div>
+      </div>
+      <!-- أزرار الإجراءات -->
+      <div style="font-size:.72rem;font-weight:700;color:var(--muted);margin-bottom:8px;letter-spacing:1px">⚡ الإجراءات</div>
+      <div id="odm-actions" style="display:flex;flex-direction:column;gap:8px;padding-bottom:24px"></div>
+    </div>
+  </div>
+</div>
+<style>
+@keyframes slideUp{from{transform:translateY(60px);opacity:0}to{transform:translateY(0);opacity:1}}
+</style>
+
 <!-- Order Modal -->
 <div class="overlay" id="modal-order">
   <div class="modal">
@@ -1463,7 +1515,7 @@ window.renderOrders = function(){
       +'<td>'+courier+'</td>'
       +'<td><span class="status '+s.cl+'">'+(_lang==='ar'?s.ar:s.en)+'</span></td>'
       +'<td>'+payCol+'</td>'
-      +'<td><button class="btn-edit-sm" onclick="openOrderModal(\''+o.id+'\')">'+t('edit')+'</button> '
+      +'<td><button class="btn-edit-sm" onclick="openOrderDetail(\''+o.id+'\')" style="background:var(--gl);color:var(--green);border-color:var(--gm)">👁 تفاصيل</button> <button class="btn-edit-sm" onclick="openOrderModal(\''+o.id+'\')">'+t('edit')+'</button> '
       +(_role==='manager'?'<button class="btn-danger" onclick="delOrder(\''+o.id+'\')">✕</button>':'')+'</td></tr>';
   }).join('') || '<tr><td colspan="8" class="empty">'+ (_lang==='ar'?'لا توجد طلبات':'No orders') +'</td></tr>';
 };
@@ -1554,6 +1606,141 @@ function calcBonus(orders){
   });
   return total;
 }
+
+// ══════════════════════════════════════════════
+// ORDER DETAIL MODAL
+// ══════════════════════════════════════════════
+window.openOrderDetail = function(orderId){
+  var o = _orders.find(function(x){return x.id===orderId;});
+  if(!o){ toast('الطلب غير موجود'); return; }
+
+  var isInsp = o.orderType==='inspection' || o.orderType==='service';
+  var isAr   = _lang==='ar';
+
+  var ST_AR = {pending:'قيد الانتظار',assigned:'قيد الانتظار',received:'استلمت',delivering:'في الطريق',delivered:'تم التسليم',noreply:'لا يوجد رد',returned:'مرتجع',scheduled:'مجدول',inspected:'تم الكشف',closed:'مغلق'};
+  var ST_EN = {pending:'Pending',assigned:'Pending',received:'Received',delivering:'On the way',delivered:'Delivered',noreply:'No Reply',returned:'Returned',scheduled:'Scheduled',inspected:'Inspected',closed:'Closed'};
+  var ST_CL = {pending:'st-pending',assigned:'st-pending',received:'st-done',delivering:'st-active',delivered:'st-active',noreply:'st-pending',returned:'st-cancelled',scheduled:'st-done',inspected:'st-active',closed:'st-gray'};
+
+  // نوع الطلب
+  var typeBadge = document.getElementById('odm-type-badge');
+  typeBadge.innerHTML = isInsp
+    ? '<span style="background:#e8f0ff;color:#1a4a8a;padding:4px 12px;border-radius:8px;font-size:.8rem;font-weight:800">🔍 '+(o.inspTypeAr||'كشف')+'</span>'
+    : '<span style="background:var(--orangel);color:var(--orange);padding:4px 12px;border-radius:8px;font-size:.8rem;font-weight:800">🚚 توصيل'+(o.orderNum?' — '+o.orderNum:'')+'</span>';
+
+  // بيانات العميل
+  document.getElementById('odm-client-name').textContent = o.clientName || '—';
+  document.getElementById('odm-phone').textContent = o.phone || '—';
+  document.getElementById('odm-phone-link').href = o.phone ? 'tel:'+o.phone : '#';
+
+  // الحالة
+  var sb = document.getElementById('odm-status-badge');
+  sb.textContent = isAr ? (ST_AR[o.status]||o.status) : (ST_EN[o.status]||o.status);
+  sb.className = 'status '+(ST_CL[o.status]||'st-gray');
+
+  // الموقع
+  var locWrap = document.getElementById('odm-location-wrap');
+  var locBtn  = document.getElementById('odm-location-btn');
+  if(o.locationLink){ locWrap.style.display=''; locBtn.href=o.locationLink; }
+  else { locWrap.style.display='none'; }
+
+  // العنوان
+  var addrParts = [];
+  if(o.area)    addrParts.push('📍 '+(isAr?o.area:translateArea(o.area)));
+  if(o.block)   addrParts.push((isAr?'قطعة ':'Block ')+o.block);
+  if(o.street)  addrParts.push((isAr?'شارع ':'Street ')+o.street);
+  if(o.avenue)  addrParts.push((isAr?'جادة ':'Ave ')+o.avenue);
+  if(o.house)   addrParts.push((isAr?'منزل ':'House ')+o.house);
+  if(o.address && !addrParts.length) addrParts.push(o.address);
+  document.getElementById('odm-address').innerHTML = addrParts.length
+    ? addrParts.map(function(p){ return '<div style="padding:2px 0">'+p+'</div>'; }).join('')
+    : '<span style="color:var(--muted2)">—</span>';
+
+  // التفاصيل/الملاحظات
+  var notes = o.notes||o.desc||'';
+  var notesWrap = document.getElementById('odm-notes-wrap');
+  if(notes){ notesWrap.style.display=''; document.getElementById('odm-notes').textContent=notes; }
+  else { notesWrap.style.display='none'; }
+
+  // الدفع
+  var payWrap = document.getElementById('odm-payment-wrap');
+  if(!isInsp && o.paymentType){
+    payWrap.style.display='flex';
+    var payLabels = {cash:'💵 '+(isAr?'كاش':'Cash'), knet:'💳 Knet', paid:'✅ '+(isAr?'مدفوع':'Paid'), free:'—'};
+    var amtStr = (o.amount&&o.paymentType!=='knet') ? ' — '+parseFloat(o.amount).toFixed(3)+' KD' : '';
+    document.getElementById('odm-payment').innerHTML = '<b style="color:var(--text)">'+(payLabels[o.paymentType]||o.paymentType)+amtStr+'</b>';
+  } else { payWrap.style.display='none'; }
+
+  // الموظف المكلف (كشف)
+  var empWrap = document.getElementById('odm-emp-wrap');
+  if(isInsp && o.courierName){ empWrap.style.display=''; document.getElementById('odm-emp').textContent=o.courierName; }
+  else if(isInsp){ var inspRec = _inspections.find(function(x){return x.phone===o.phone&&x.client===o.clientName;}); empWrap.style.display=inspRec&&inspRec.empName?'':'none'; if(inspRec&&inspRec.empName) document.getElementById('odm-emp').textContent=inspRec.empName; }
+  else { empWrap.style.display='none'; }
+
+  // ── أزرار الإجراءات ──
+  var actions = [];
+  var btnStyle = function(bg,color,border){ return 'display:flex;align-items:center;justify-content:center;gap:8px;padding:14px;border-radius:12px;border:'+(border||'none')+';background:'+bg+';color:'+color+';font-family:\'Cairo\',sans-serif;font-size:.92rem;font-weight:700;cursor:pointer;width:100%'; };
+
+  if(!isInsp){
+    // ── توصيل ──
+    if(o.status==='pending'||o.status==='assigned'){
+      actions.push('<button style="'+btnStyle('#1a7a40','#fff')+'" onclick="odmAction(\''+orderId+'\',\'received\',false)">📦 استلمت الطلب</button>');
+    }
+    if(o.status==='received'){
+      actions.push('<button style="'+btnStyle('#1a4a8a','#fff')+'" onclick="odmAction(\''+orderId+'\',\'delivering\',false)">🚗 جاري التوصيل</button>');
+    }
+    if(o.status==='delivering'||o.status==='received'){
+      actions.push('<button style="'+btnStyle('#1a7a40','#fff')+'" onclick="odmAction(\''+orderId+'\',\'delivered\',false)">✅ تم التسليم</button>');
+      if(o.paymentType==='cash'){
+        actions.push('<button style="'+btnStyle('#e8f0ff','#1a4a8a','1.5px solid #c8d8f8')+'" onclick="odmAction(\''+orderId+'\',\'delivered\',true)">💳 تم التسليم — Knet</button>');
+      }
+      actions.push('<button style="'+btnStyle('#fff5e0','#b8720a','1px solid #f0d090')+'" onclick="odmAction(\''+orderId+'\',\'noreply\',false)">📵 لا يوجد رد</button>');
+      actions.push('<button style="'+btnStyle('var(--redl)','var(--red)','1px solid #f5b8b4')+'" onclick="odmAction(\''+orderId+'\',\'returned\',false)">↩️ مرتجع</button>');
+    }
+    if(o.status==='noreply'){
+      actions.push('<button style="'+btnStyle('#1a4a8a','#fff')+'" onclick="odmAction(\''+orderId+'\',\'delivering\',false)">🔄 استئناف التوصيل</button>');
+      actions.push('<button style="'+btnStyle('#1a7a40','#fff')+'" onclick="odmAction(\''+orderId+'\',\'delivered\',false)">✅ تم التسليم</button>');
+      if(o.paymentType==='cash'){
+        actions.push('<button style="'+btnStyle('#e8f0ff','#1a4a8a','1.5px solid #c8d8f8')+'" onclick="odmAction(\''+orderId+'\',\'delivered\',true)">💳 تم التسليم — Knet</button>');
+      }
+      actions.push('<button style="'+btnStyle('var(--redl)','var(--red)','1px solid #f5b8b4')+'" onclick="odmAction(\''+orderId+'\',\'returned\',false)">↩️ مرتجع</button>');
+    }
+  } else {
+    // ── كشف / خدمة ──
+    if(o.status==='pending'||o.status==='assigned'){
+      actions.push('<button style="'+btnStyle('#1a7a40','#fff')+'" onclick="odmInspAction(\''+orderId+'\',\'received\')">📋 استلمت الطلب</button>');
+    }
+    if(o.status==='received'||o.status==='scheduled'){
+      actions.push('<button style="'+btnStyle('#1a4a8a','#fff')+'" onclick="odmInspAction(\''+orderId+'\',\'delivering\')">🚗 في الطريق للموقع</button>');
+    }
+    if(o.status==='delivering'||o.status==='received'||o.status==='scheduled'){
+      actions.push('<button style="'+btnStyle('#1a7a40','#fff')+'" onclick="odmInspAction(\''+orderId+'\',\'inspected\')">✅ تم الكشف</button>');
+      actions.push('<button style="'+btnStyle('#fff5e0','#b8720a','1px solid #f0d090')+'" onclick="odmInspAction(\''+orderId+'\',\'noreply\')">📵 لا يوجد رد</button>');
+    }
+    if(o.status==='inspected'){
+      actions.push('<button style="'+btnStyle('var(--gl)','#1a7a40','1px solid var(--gm)')+'" onclick="odmInspAction(\''+orderId+'\',\'closed\')">🔒 إغلاق الطلب</button>');
+    }
+    if(o.status==='closed'||o.status==='delivered'||o.status==='inspected'){
+      actions.push('<div style="text-align:center;padding:8px;font-size:.82rem;color:var(--muted2)">✅ '+(isAr?'تم الانتهاء من هذا الطلب':'This order is complete')+'</div>');
+    }
+  }
+
+  if(!actions.length){
+    actions.push('<div style="text-align:center;padding:16px;font-size:.85rem;color:var(--muted2)">لا توجد إجراءات متاحة لهذا الطلب</div>');
+  }
+  document.getElementById('odm-actions').innerHTML = actions.join('');
+  openModal('modal-order-detail');
+};
+
+window.odmAction = async function(id, status, forceKnet){
+  await window.updateOrderStatus(id, status, forceKnet);
+  // أعد فتح لتحديث الحالة
+  setTimeout(function(){ openOrderDetail(id); }, 600);
+};
+
+window.odmInspAction = async function(id, status){
+  await window.updateInspStatus(id, status);
+  setTimeout(function(){ openOrderDetail(id); }, 600);
+};
 
 window.renderCourierView = function(){
   var myId = _u.id || _u.username;
@@ -1695,7 +1882,7 @@ window.renderCourierView = function(){
       o.house ? (_lang==='ar'?'م':'House ')+o.house : '',
     ].filter(Boolean).join(' · ') || o.address || '';
 
-    return '<div class="order-card" style="'+cardStyle+'">'
+    return '<div class="order-card" style="'+cardStyle+'cursor:pointer" onclick="openOrderDetail(\''+o.id+'\')">'
       // ── رأس البطاقة ──
       +'<div class="order-card-head">'
         +'<div style="flex:1">'
@@ -2294,6 +2481,36 @@ window.resetCourierBalance=async function(id,name,bal){
 // ══════════════════════════════════════════════
 // SERVICE REQUEST (طلب خدمة)
 // ══════════════════════════════════════════════
+window.openOrderDetailBySvc = function(inspId){
+  // ابحث عن الطلب المرتبط في del_orders
+  var insp = _inspections.find(function(x){return x.id===inspId;});
+  if(!insp){ toast('لم يُعثر على الكشف'); return; }
+  var related = _orders.find(function(o){
+    return o.orderType==='inspection' && o.phone===insp.phone && o.clientName===insp.client;
+  });
+  if(related){
+    openOrderDetail(related.id);
+  } else {
+    // أنشئ كائن مؤقت بيانات الكشف وافتح المودال مباشرة
+    var fake = Object.assign({id:inspId, orderType:'service', status:insp.status||'pending',
+      clientName:insp.client, phone:insp.phone, area:insp.area, block:insp.block||'',
+      street:insp.street||'', avenue:insp.avenue||'', house:insp.house||'',
+      locationLink:insp.locationLink||'', notes:insp.desc||'',
+      inspTypeAr:insp.inspTypeAr||(insp.inspType==='insp_ext'?'كشف تمديد شبكة':'كشف صيانة'),
+      courierName:insp.empName||''
+    }, {});
+    // أضفه مؤقتاً
+    _orders.push(fake);
+    openOrderDetail(inspId);
+    // احذفه بعد الإغلاق
+    setTimeout(function(){
+      var idx = _orders.findIndex(function(o){return o.id===inspId&&o.orderType==='service';});
+      if(idx>=0) _orders.splice(idx,1);
+    }, 10000);
+  }
+};
+
+
 window.openSvcRequestModal = function(id){
   var isAr = _lang==='ar';
   document.getElementById('svc-edit-id').value = id||'';
@@ -2421,7 +2638,9 @@ window.renderSvcRequests = function(){
       +'<td><span class="tag tag-blue" style="font-size:.7rem">'+typeLabel+'</span></td>'
       +'<td><span class="status '+s.cl+'">'+(_lang==='ar'?s.ar:s.en)+'</span></td>'
       +'<td>'+(r.empName||'—')+'</td>'
-      +'<td><button class="btn-edit-sm" onclick="openSvcRequestModal(\''+r.id+'\')">'+(_lang==='ar'?'تعديل':'Edit')+'</button>'
+      +'<td>'
+      +'<button class="btn-edit-sm" style="background:var(--gl);color:var(--green);border-color:var(--gm)" onclick="openOrderDetailBySvc(\''+r.id+'\')">👁 تفاصيل</button> '
+      +'<button class="btn-edit-sm" onclick="openSvcRequestModal(\''+r.id+'\')">'+(_lang==='ar'?'تعديل':'Edit')+'</button>'
       +(_role==='manager'?'<button class="btn-danger" onclick="delInsp(\''+r.id+'\')">✕</button>':'')
       +'</td></tr>';
   }).join('') : '<tr><td colspan="9" class="empty">'+(_lang==='ar'?'لا توجد طلبات خدمة':'No service requests')+'</td></tr>';
