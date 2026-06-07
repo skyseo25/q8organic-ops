@@ -1940,7 +1940,8 @@ window.renderCourierView = function(){
     var addr = [o.area?(_lang==='en'?translateArea(o.area):o.area):'', o.block?((_lang==='ar'?'ق':'B.')+o.block):'', o.street?((_lang==='ar'?'ش':'St.')+o.street):'', o.avenue?((_lang==='ar'?'ج':'Av.')+o.avenue):'', o.house?((_lang==='ar'?'م':'H.')+o.house):''].filter(Boolean).join(' \u2014 ') || o.address || '';
 
     var oid = o.id;
-    var _mapUrl = o.locationLink || (addr ? 'https://maps.google.com/maps?q='+encodeURIComponent(addr)+',Kuwait' : '');
+    var _q = addr ? encodeURIComponent(addr+', Kuwait') : '';
+    var _mapUrl = o.locationLink || (_q ? 'https://maps.apple.com/?q='+_q : '');
     var mapB = _mapUrl ? '<a href="'+_mapUrl+'" target="_blank" style="display:flex;align-items:center;justify-content:center;gap:6px;background:#1a7a40;color:#fff;border-radius:10px;padding:10px 16px;font-size:.85rem;font-weight:700;text-decoration:none;margin-top:8px">📍 فتح الموقع على الخريطة</a>' : '';
     var waB  = ''; // removed
     var trB  = (_role==='manager'||_role==='supervisor')&&!isInsp ? '<button class="oc-btn oc-btn-ghost" style="flex:0;padding:10px 14px" onclick="openOrderModal(\''+oid+'\')">🔄 تحويل</button>' : '';
