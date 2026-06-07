@@ -785,25 +785,37 @@ body, .content, table, input, select, textarea, .val, td, th, span, div {
     <!-- بيانات العميل -->
     <div class="form-row">
       <div class="field-m">
+        <label>اسم العميل</label>
+        <input id="svc-client" type="text">
+      </div>
+      <div class="field-m">
         <label>الهاتف</label>
         <div style="position:relative">
-          <input id="svc-phone" type="tel" oninput="lookupCustomerByPhone2(this.value,'svc')" autocomplete="off" placeholder="أدخل رقم الهاتف...">
+          <input id="svc-phone" type="tel" oninput="lookupCustomerByPhone2(this.value,'svc')" autocomplete="off" placeholder="ابحث بالهاتف أو الاسم...">
           <div id="svc-phone-suggestions" style="position:absolute;top:100%;right:0;left:0;background:#fff;border:1.5px solid var(--border);border-radius:9px;box-shadow:var(--sh);z-index:700;display:none;max-height:160px;overflow-y:auto;"></div>
         </div>
       </div>
-      <div class="field-m"><label>اسم العميل</label><input id="svc-client" type="text"></div>
     </div>
+    <!-- العنوان -->
     <div class="form-row">
       <div class="field-m"><label>المنطقة</label><input id="svc-area" type="text"></div>
-      <div class="field-m"><label>القطعة / الشارع</label><input id="svc-block" type="text"></div>
+      <div class="field-m"><label>القطعة</label><input id="svc-block" type="text"></div>
     </div>
-    <div class="field-m"><label>العنوان التفصيلي</label><textarea id="svc-address" rows="2"></textarea></div>
-    <div class="field-m"><label>📍 رابط الموقع</label><input id="svc-location" type="url" placeholder="https://maps.google.com/..."></div>
     <div class="form-row">
-      <div class="field-m"><label>التاريخ</label><input id="svc-date" type="date"></div>
+      <div class="field-m"><label>الشارع</label><input id="svc-street" type="text"></div>
+      <div class="field-m"><label>الجادة</label><input id="svc-avenue" type="text"></div>
+    </div>
+    <div class="field-m"><label>المنزل / رقم المبنى</label><input id="svc-house" type="text"></div>
+    <div class="field-m">
+      <label>📍 رابط الموقع</label>
+      <input id="svc-location" type="url" placeholder="https://maps.google.com/...">
+    </div>
+    <!-- الموعد والموظف -->
+    <div class="form-row">
+      <div class="field-m"><label>الموعد — التاريخ والساعة</label><input id="svc-date" type="datetime-local"></div>
       <div class="field-m"><label>الموظف المكلف</label><select id="svc-emp"><option value="">—</option></select></div>
     </div>
-    <div class="field-m"><label>تفاصيل المشكلة / الطلب</label><textarea id="svc-desc" rows="3"></textarea></div>
+    <div class="field-m"><label>تفاصيل الطلب</label><textarea id="svc-desc" rows="3" placeholder="اكتب تفاصيل المشكلة أو الطلب..."></textarea></div>
     <div class="field-m"><label>الحالة</label>
       <select id="svc-status">
         <option value="new">جديد</option>
@@ -2233,7 +2245,10 @@ window.openSvcRequestModal = function(id){
   var isAr = _lang==='ar';
   document.getElementById('svc-edit-id').value = id||'';
   document.getElementById('svc-modal-title').textContent = id ? (isAr?'تعديل طلب خدمة':'Edit Service Request') : (isAr?'طلب خدمة جديد':'New Service Request');
-  document.getElementById('svc-date').value = new Date().toISOString().substring(0,10);
+  // موعد افتراضي = الآن
+  var now = new Date();
+  now.setMinutes(0); now.setSeconds(0);
+  document.getElementById('svc-date').value = now.toISOString().substring(0,16);
   setSvcType('insp_ext');
   // fill emp select from ops_users
   var empSel = document.getElementById('svc-emp');
@@ -2248,16 +2263,18 @@ window.openSvcRequestModal = function(id){
       document.getElementById('svc-client').value  = rec.client||'';
       document.getElementById('svc-area').value    = rec.area||'';
       document.getElementById('svc-block').value   = rec.block||'';
-      document.getElementById('svc-address').value = rec.address||'';
+      document.getElementById('svc-street').value  = rec.street||'';
+      document.getElementById('svc-avenue').value  = rec.avenue||'';
+      document.getElementById('svc-house').value   = rec.house||'';
       document.getElementById('svc-location').value= rec.locationLink||'';
-      document.getElementById('svc-date').value    = rec.date||'';
+      document.getElementById('svc-date').value    = rec.datetime||(rec.date?rec.date+'T09:00':'');
       document.getElementById('svc-desc').value    = rec.desc||'';
       document.getElementById('svc-status').value  = rec.status||'new';
       document.getElementById('svc-emp').value     = rec.empId||'';
       setSvcType(rec.inspType||'insp_ext');
     }
   } else {
-    ['svc-phone','svc-client','svc-area','svc-block','svc-address','svc-location','svc-desc'].forEach(function(x){document.getElementById(x).value='';});
+    ['svc-phone','svc-client','svc-area','svc-block','svc-street','svc-avenue','svc-house','svc-location','svc-desc'].forEach(function(x){document.getElementById(x).value='';});
     document.getElementById('svc-status').value = 'new';
     document.getElementById('svc-emp').value = '';
   }
@@ -2288,9 +2305,19 @@ window.saveSvcRequest = async function(){
       phone:    document.getElementById('svc-phone').value.trim(),
       area:     document.getElementById('svc-area').value.trim(),
       block:    document.getElementById('svc-block').value.trim(),
-      address:  document.getElementById('svc-address').value.trim(),
+      street:   document.getElementById('svc-street').value.trim(),
+      avenue:   document.getElementById('svc-avenue').value.trim(),
+      house:    document.getElementById('svc-house').value.trim(),
+      address:  [
+        document.getElementById('svc-area').value.trim(),
+        'ق'+document.getElementById('svc-block').value.trim(),
+        'ش'+document.getElementById('svc-street').value.trim(),
+        'ج'+document.getElementById('svc-avenue').value.trim(),
+        'م'+document.getElementById('svc-house').value.trim()
+      ].filter(function(x){return x&&x.length>1;}).join(' · '),
       locationLink: document.getElementById('svc-location').value.trim(),
-      date:     document.getElementById('svc-date').value,
+      datetime: document.getElementById('svc-date').value,
+      date:     (document.getElementById('svc-date').value||'').substring(0,10),
       desc:     document.getElementById('svc-desc').value.trim(),
       status:   document.getElementById('svc-status').value,
       empId, empName: emp?emp.name:'',
@@ -2329,10 +2356,12 @@ window.renderSvcRequests = function(){
   tbody.innerHTML = data.length ? data.map(function(r,i){
     var s = ST[r.status]||{cl:'st-gray',ar:r.status,en:r.status};
     var typeLabel = r.inspType==='insp_ext'?(_lang==='ar'?'كشف تمديد':'Ext. Inspection'):(_lang==='ar'?'كشف صيانة':'Maint. Inspection');
-    var area = _lang==='en' ? translateArea(r.area||'') : (r.area||'—');
+      var dateStr = r.datetime ? new Date(r.datetime).toLocaleString(_lang==='ar'?'ar-KW':'en-GB',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'}) : (r.date||'—');
+      var addrParts = [r.area, r.block?'ق'+r.block:'', r.street?'ش'+r.street:''].filter(Boolean).join(' ');
+      var area = _lang==='en' ? translateArea(addrParts||r.area||'') : (addrParts||r.area||'—');
     return '<tr>'
       +'<td style="font-size:.72rem;color:var(--muted2)">'+(i+1)+'</td>'
-      +'<td>'+(r.date||'—')+'</td>'
+      +'<td style="font-size:.78rem">'+dateStr+'</td>'
       +'<td><b>'+(r.client||'—')+'</b></td>'
       +'<td>'+(r.phone||'—')+'</td>'
       +'<td>'+area+'</td>'
@@ -2368,7 +2397,9 @@ window.fillSvcFromCustomer = function(id){
   document.getElementById('svc-phone').value   = c.phone||'';
   document.getElementById('svc-area').value    = c.area||'';
   document.getElementById('svc-block').value   = c.block||'';
-  document.getElementById('svc-address').value = c.address||'';
+  document.getElementById('svc-street').value  = c.street||'';
+  document.getElementById('svc-avenue').value  = c.avenue||'';
+  document.getElementById('svc-house').value   = c.house||'';
   document.getElementById('svc-phone-suggestions').style.display='none';
 };
 // ══════════════════════════════════════════════
