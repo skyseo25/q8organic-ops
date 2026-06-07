@@ -3915,8 +3915,10 @@ window.printQuote = function(){
   w.document.close(); setTimeout(function(){w.print();},700);
 };
 
-window.printQuoteFromData = function(qid, asInvoice){
-  var q = _quotes.find(function(x){return x.id===qid;});
+window.printQuoteFromData = async function(qid, asInvoice){
+  // اقرأ أحدث نسخة من Firebase مباشرة
+  var snap = await window.FB.get(window.FB.doc(window.FB.db,'iri_invoices_v2',qid));
+  var q = snap.exists() ? Object.assign({id:qid}, snap.data()) : _quotes.find(function(x){return x.id===qid;});
   if(!q) return;
   var order    = _orders.find(function(o){return o.id===q.orderId;});
   var subtotal = parseFloat(q.subtotal||0);
