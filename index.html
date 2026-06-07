@@ -1321,7 +1321,7 @@ window.showPage = function(page){
   if(page==='dashboard') renderDashboard();
   if(page==='orders') renderOrders();
   if(page==='courier') renderCourierView();
-  if(page==='irrigation') renderInvoices();
+  if(page==='irrigation'){ showIrrTab('svc'); }
   if(page==='customers') renderCustomers();
   if(page==='employees') renderEmployees();
   if(page==='reports') renderReports();
@@ -1683,39 +1683,45 @@ window.renderCourierView = function(){
     }
 
     var locBtn = o.locationLink
-      ? '<a href="'+o.locationLink+'" target="_blank" style="display:inline-flex;align-items:center;gap:4px;background:#e8f5e9;color:#1a7a40;border:1px solid #b8dfc4;border-radius:7px;padding:5px 10px;font-size:.78rem;font-weight:700;text-decoration:none">📍 Map</a>'
+      ? '<a href="'+o.locationLink+'" target="_blank" style="display:flex;align-items:center;justify-content:center;gap:6px;background:#1a7a40;color:#fff;border-radius:10px;padding:10px;font-size:.85rem;font-weight:700;text-decoration:none;width:100%;margin-bottom:8px">📍 '+(_lang==='ar'?'فتح الموقع على الخريطة':'Open Location Map')+'</a>'
       : '';
 
-    // تمييز بطاقات الكشف بلون مختلف
-    var cardStyle = isInspection ? 'border-right:3px solid var(--blue);' : '';
+    // العنوان الكامل
+    var addrFull = [
+      o.area ? (_lang==='en'?translateArea(o.area):o.area) : '',
+      o.block ? (_lang==='ar'?'ق':'Block ')+o.block : '',
+      o.street ? (_lang==='ar'?'ش':'St ')+o.street : '',
+      o.avenue ? (_lang==='ar'?'ج':'Ave ')+o.avenue : '',
+      o.house ? (_lang==='ar'?'م':'House ')+o.house : '',
+    ].filter(Boolean).join(' · ') || o.address || '';
 
     return '<div class="order-card" style="'+cardStyle+'">'
+      // ── رأس البطاقة ──
       +'<div class="order-card-head">'
-        +'<div>'
-          +'<div class="order-card-num">'
-            +(isInspection?'<span style="background:#e8f0ff;color:#1a4a8a;padding:2px 8px;border-radius:6px;font-size:.7rem;font-weight:800;margin-left:4px">🔍 '+(o.inspTypeAr||(_lang==='ar'?'كشف':'Inspection'))+'</span>':'')
-            +(o.orderNum?'<span style="background:#e8f0ff;color:#1a4a8a;padding:1px 6px;border-radius:4px;font-size:.7rem;font-weight:800">📦 '+o.orderNum+'</span> ':'')
-            +' · '+(o.createdAt&&o.createdAt.toDate?o.createdAt.toDate().toLocaleDateString('en-GB'):'—')
-          +'</div>'
+        +'<div style="flex:1">'
+          +(isInspection
+            ?'<div style="margin-bottom:4px"><span style="background:#e8f0ff;color:#1a4a8a;padding:3px 10px;border-radius:6px;font-size:.75rem;font-weight:800">🔍 '+(o.inspTypeAr||(_lang==='ar'?'كشف':'Inspection'))+'</span></div>'
+            :(o.orderNum?'<div style="margin-bottom:4px"><span style="background:#e8f0ff;color:#1a4a8a;padding:2px 8px;border-radius:5px;font-size:.72rem;font-weight:800">📦 '+o.orderNum+'</span></div>':''))
           +'<div class="order-card-name">'+(o.clientName||'—')+'</div>'
-          +'<div class="order-card-phone">📞 '+(o.phone||'—')+'</div>'
+          +'<div class="order-card-phone" style="margin-top:2px"><a href="tel:'+(o.phone||'')+'">📞 '+(o.phone||'—')+'</a></div>'
         +'</div>'
-        +'<div style="text-align:left">'
+        +'<div style="text-align:left;display:flex;flex-direction:column;align-items:flex-end;gap:4px">'
           +'<span class="status '+statusCl+'">'+statusLabel+'</span>'
-          +(bonPerOrder>0?'<div style="margin-top:6px;font-size:.72rem;font-weight:800;color:var(--gold)">+'+bonPerOrder.toFixed(3)+' KD</div>':'')
+          +'<div style="font-size:.68rem;color:var(--muted2)">'+(o.createdAt&&o.createdAt.toDate?o.createdAt.toDate().toLocaleDateString('en-GB'):'—')+'</div>'
+          +(bonPerOrder>0?'<div style="font-size:.72rem;font-weight:800;color:var(--gold)">+'+bonPerOrder.toFixed(3)+' KD</div>':'')
         +'</div>'
       +'</div>'
+      // ── الموقع (بارز فوق كل شيء) ──
+      +(locBtn?'<div style="padding:0 0 4px">'+locBtn+'</div>':'')
+      // ── تفاصيل ──
       +'<div class="order-card-body">'
-        +(o.area?'<div class="order-card-row">📍 <b>'+(_lang==='en'?translateArea(o.area):o.area)+(o.block?' · '+o.block:'')+'</b></div>':'')
-        +(o.address?'<div class="order-card-row" style="font-size:.78rem;color:var(--muted)">'+o.address+'</div>':'')
-        +(o.notes?'<div class="order-card-row">📝 <span>'+o.notes+'</span></div>':'')
-        +(!isInspection?'<div class="order-card-row">'
-          +(o.amount&&o.paymentType!=='knet'?'<span class="order-amount-badge">'+parseFloat(o.amount||0).toFixed(3)+' KD</span>':'')+' '
-          +(o.paymentType?'<span style="font-size:.78rem;color:var(--muted)">'+(PAY_AR[o.paymentType]||o.paymentType)+'</span>':'')
-          +'</div>':'')
+        +(addrFull?'<div class="order-card-row">📍 <b>'+addrFull+'</b></div>':'')
+        +(o.notes||o.desc?'<div class="order-card-row" style="color:var(--muted);font-size:.82rem">📝 '+(o.notes||o.desc||'')+'</div>':'')
+        +(!isInspection&&o.amount?'<div class="order-card-row"><span class="order-amount-badge">'+parseFloat(o.amount||0).toFixed(3)+' KD</span> <span style="font-size:.78rem;color:var(--muted)">'+(PAY_AR[o.paymentType]||o.paymentType||'')+'</span></div>':'')
         +deliveredTimeStr
       +'</div>'
-      +(btns||locBtn ? '<div class="order-card-foot"><div style="display:flex;gap:6px;flex-wrap:wrap">'+btns+'</div>'+locBtn+'</div>' : '')
+      // ── أزرار الإجراءات ──
+      +(btns?'<div class="order-card-foot"><div style="display:flex;gap:6px;flex-wrap:wrap">'+btns+'</div></div>':'')
       +'</div>';
   }).join('');
 };
