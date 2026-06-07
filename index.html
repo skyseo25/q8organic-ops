@@ -3052,29 +3052,37 @@ window.saveItem = async function(){
   if(saveBtn){ saveBtn.textContent = '⏳ جاري الحفظ...'; saveBtn.disabled = true; }
   try{
     var eid = document.getElementById('item-edit-id').value;
-    // رفع الصورة لو اختار ملف جديد
-    var imageUrl = document.getElementById('item-image-url').value;
+    var category = document.getElementById('item-category').value;
+    var type = category==='أجور عمالة' ? 'labor' : 'material';
+
+    // الصورة — حاول الرفع لو فيه ملف، لو فشل تجاهل الصورة
+    var imageUrl = document.getElementById('item-image-url').value || '';
     var fileInput = document.getElementById('item-image-file');
     if(fileInput.files && fileInput.files[0]){
-      var file = fileInput.files[0];
-      var ext  = file.name.split('.').pop();
-      var path = 'items/'+(eid||Date.now())+'.'+ext;
-      imageUrl = await window.uploadFile(file, path);
+      try{
+        var file = fileInput.files[0];
+        var ext  = file.name.split('.').pop();
+        var path = 'items/'+(eid||('item_'+Date.now()))+'.'+ext;
+        imageUrl = await window.uploadFile(file, path);
+      }catch(imgErr){
+        console.warn('Image upload failed:', imgErr.message);
+        toast('⚠️ تعذّر رفع الصورة — سيتم الحفظ بدون صورة');
+        imageUrl = '';
+      }
     }
-    var category = document.getElementById('item-category').value;
-    // نوع الصنف مشتق من القسم تلقائياً
-    var type = category==='أجور عمالة' ? 'labor' : 'material';
+
     var data = {
       nameAr:   document.getElementById('item-name-ar').value.trim(),
       nameEn:   document.getElementById('item-name-en').value.trim(),
       price:    parseFloat(document.getElementById('item-price').value)||0,
       unit:     document.getElementById('item-unit').value,
-      type,
-      category,
+      type:     type,
+      category: category,
       image:    imageUrl,
       updatedAt:window.FB.ts()
     };
     if(!data.nameAr){ toast('أدخل اسم الصنف'); return; }
+
     if(eid){
       await window.FB.upd(window.FB.doc(window.FB.db,'iri_items',eid), data);
       toast('✅ تم التعديل');
@@ -3084,8 +3092,10 @@ window.saveItem = async function(){
       toast('✅ تم إضافة الصنف');
     }
     closeModal('modal-item');
-  }catch(e){ toast('خطأ: '+e.message); }
-  finally{
+  }catch(e){
+    console.error('saveItem error:', e);
+    toast('خطأ: '+e.message);
+  }finally{
     _savingItem=false;
     if(saveBtn){ saveBtn.textContent = 'حفظ'; saveBtn.disabled = false; }
   }
