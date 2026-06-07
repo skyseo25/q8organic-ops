@@ -1229,8 +1229,16 @@ tbody tr[onclick]:active { background: #d8f0e2 !important; }
       <div class="field-m"><label>المنطقة</label><input id="cust-area" type="text"></div>
       <div class="field-m"><label>القطعة</label><input id="cust-block" type="text"></div>
     </div>
-    <div class="field-m"><label>العنوان التفصيلي</label><textarea id="cust-address" rows="2"></textarea></div>
+    <div class="form-row">
+      <div class="field-m"><label>الشارع</label><input id="cust-street" type="text"></div>
+      <div class="field-m"><label>الجادة</label><input id="cust-avenue" type="text"></div>
+    </div>
+    <div class="form-row">
+      <div class="field-m"><label>المنزل</label><input id="cust-house" type="text"></div>
+      <div class="field-m"><label>رابط الموقع</label><input id="cust-location" type="text" placeholder="https://..."></div>
+    </div>
     <div class="field-m"><label>ملاحظات</label><textarea id="cust-notes" rows="2"></textarea></div>
+    <input type="hidden" id="cust-address">
     <div class="modal-actions">
       <button class="btn-cancel" onclick="closeModal('modal-customer')">إلغاء</button>
       <button class="btn-save" onclick="saveCustomer()">حفظ</button>
@@ -1893,7 +1901,7 @@ window.saveOrder = async function(){
       await window.FB.add(window.FB.col(window.FB.db,'del_orders'),data);
       toast(_lang==='ar'?'✅ تم إضافة الطلب':'✅ Order added');
     }
-    await autoSaveCustomer(data.clientName, data.phone, data.area, data.block, data.address, data.locationLink);
+    await autoSaveCustomer(data.clientName, data.phone, data.area, data.block, data.street||'', data.avenue||'', data.house||'', data.address, data.locationLink);
     closeModal('modal-order');
   }finally{_savingOrder=false;}
 };
@@ -2650,7 +2658,7 @@ window.saveInspection = async function(){
         createdAt:window.FB.ts(), createdBy:_u.id||_u.username
       };
       await window.FB.add(window.FB.col(window.FB.db,'del_orders'),orderData);
-      await autoSaveCustomer(data.client,data.phone,data.area,data.block,data.address,data.locationLink);
+      await autoSaveCustomer(data.client, data.phone, data.area, data.block, '', '', '', data.address, data.locationLink);
       toast('✅ '+(_lang==='ar'?'تم إضافة طلب الكشف وأُرسل لقسم التوصيل':'Inspection added & sent to delivery'));
     }
     closeModal('modal-inspection');
@@ -2663,34 +2671,151 @@ window.delInsp=async function(id){if(!confirm('حذف؟'))return;await window.FB
 // ══════════════════════════════════════════════
 window.renderCustomers = function(){
   var q=(document.getElementById('cust-search')||{}).value||'';
-  var list=_customers.filter(function(c){return !q||(c.name||'').includes(q)||(c.phone||'').includes(q);});
+  var list=_customers.filter(function(c){return !q||(c.name||'').includes(q)||(c.phone||'').includes(q)||(c.area||'').includes(q);});
   document.getElementById('customers-tbody').innerHTML=list.map(function(c){
-    return '<tr><td><b>'+(c.name||'—')+'</b></td><td>'+(c.phone||'—')+'</td><td>'+(c.area||'—')+'</td>'
-      +'<td>'+(c.address||'—').substring(0,30)+'</td>'
+    var addr = [c.area, c.block?'ق'+c.block:'', c.street?'ش'+c.street:'', c.avenue?'ج'+c.avenue:'', c.house?'م'+c.house:''].filter(Boolean).join(' · ') || c.address || '—';
+    return '<tr>'
+      +'<td><b>'+(c.name||'—')+'</b></td>'
+      +'<td><a href="tel:'+(c.phone||'')+'" style="color:var(--green);text-decoration:none">'+(c.phone||'—')+'</a></td>'
+      +'<td style="font-size:.8rem">'+(addr).substring(0,35)+'</td>'
       +'<td><span class="tag tag-gray" style="font-size:.7rem">'+(c.serviceCount||0)+' خدمة</span></td>'
-      +'<td><button class="btn-edit-sm" onclick="openCustomerModal(\''+c.id+'\')">'+t('edit')+'</button> '
-      +(_role==='manager'?'<button class="btn-danger" onclick="delCustomer(\''+c.id+'\')">✕</button>':'')+'</td></tr>';
-  }).join('')||'<tr><td colspan="6" class="empty">لا يوجد عملاء</td></tr>';
+      +'<td style="display:flex;gap:5px;flex-wrap:wrap">'
+        +'<button class="btn-green btn-sm" style="padding:4px 10px;font-size:.75rem" onclick="openQuickOrder(\''+c.id+'\')">+ طلب جديد</button>'
+        +'<button class="btn-edit-sm" onclick="openCustomerModal(\''+c.id+'\')">'+t('edit')+'</button>'
+        +(_role==='manager'?'<button class="btn-danger" onclick="delCustomer(\''+c.id+'\')">✕</button>':'')
+      +'</td>'
+    +'</tr>';
+  }).join('')||'<tr><td colspan="5" class="empty">لا يوجد عملاء</td></tr>';
+};
+
+window.openQuickOrder = function(custId){
+  var c = _customers.find(function(x){return x.id===custId;});
+  if(!c) return;
+  var old = document.getElementById('modal-quick-order'); if(old) old.remove();
+
+  // قائمة المناديب
+  var courierOpts = (_delUsers||[]).map(function(u){
+    return '<option value="'+u.id+'">'+u.name+'</option>';
+  }).join('');
+
+  var html = '<div class="overlay open" id="modal-quick-order" onclick="if(event.target===this)closeModal(\'modal-quick-order\')">'
+    +'<div class="modal" style="max-width:440px">'
+    +'<h3>+ طلب جديد</h3>'
+
+    // بيانات العميل (للعرض فقط)
+    +'<div style="background:var(--gl);border-radius:10px;padding:12px;margin-bottom:14px">'
+      +'<div style="font-weight:900;font-size:1rem">'+c.name+'</div>'
+      +'<div style="font-size:.82rem;color:var(--muted)">📞 '+c.phone+'</div>'
+      +'<div style="font-size:.8rem;color:var(--muted)">📍 '+([c.area,c.block?'ق'+c.block:'',c.street?'ش'+c.street:'',c.avenue?'ج'+c.avenue:'',c.house?'م'+c.house:''].filter(Boolean).join(' · ')||c.address||'—')+'</div>'
+    +'</div>'
+
+    // حقول الطلب
+    +'<div class="form-row">'
+      +'<div class="field-m"><label>رقم الطلب</label><input id="qo-num" type="text" placeholder="مثال: 001" style="width:100%;padding:9px;border:1.5px solid var(--border);border-radius:8px;font-family:Cairo,sans-serif"></div>'
+      +'<div class="field-m"><label>المبلغ (KD)</label><input id="qo-amount" type="number" step="0.001" min="0" placeholder="0.000" style="width:100%;padding:9px;border:1.5px solid var(--border);border-radius:8px;font-family:Cairo,sans-serif"></div>'
+    +'</div>'
+    +'<div class="form-row">'
+      +'<div class="field-m"><label>طريقة الدفع</label><select id="qo-payment" style="width:100%;padding:9px;border:1.5px solid var(--border);border-radius:8px;font-family:Cairo,sans-serif">'
+        +'<option value="cash">نقد / Cash</option>'
+        +'<option value="knet">Knet</option>'
+        +'<option value="free">مجاناً</option>'
+      +'</select></div>'
+      +'<div class="field-m"><label>المندوب</label><select id="qo-courier" style="width:100%;padding:9px;border:1.5px solid var(--border);border-radius:8px;font-family:Cairo,sans-serif">'
+        +'<option value="">بدون تحديد</option>'+courierOpts
+      +'</select></div>'
+    +'</div>'
+    +'<div class="field-m"><label>ملاحظات</label><input id="qo-notes" type="text" placeholder="اختياري" style="width:100%;padding:9px;border:1.5px solid var(--border);border-radius:8px;font-family:Cairo,sans-serif"></div>'
+
+    +'<div class="modal-actions" style="margin-top:14px">'
+      +'<button class="btn-cancel" onclick="closeModal(\'modal-quick-order\')">إلغاء</button>'
+      +'<button class="btn-save" onclick="saveQuickOrder(\''+custId+'\')">💾 حفظ وإرسال للطلبات</button>'
+    +'</div>'
+  +'</div></div>';
+
+  document.body.insertAdjacentHTML('beforeend', html);
+};
+
+var _savingQuickOrder = false;
+window.saveQuickOrder = async function(custId){
+  if(_savingQuickOrder) return; _savingQuickOrder = true;
+  try{
+    var c = _customers.find(function(x){return x.id===custId;});
+    if(!c) return;
+    var courierId = document.getElementById('qo-courier').value;
+    var courier   = _delUsers.find(function(u){return u.id===courierId;});
+    var addr = [c.area, c.block?'ق'+c.block:'', c.street?'ش'+c.street:'', c.avenue?'ج'+c.avenue:'', c.house?'م'+c.house:''].filter(Boolean).join(' · ') || c.address || '';
+    var data = {
+      clientName:  c.name,
+      phone:       c.phone,
+      area:        c.area||'',
+      block:       c.block||'',
+      street:      c.street||'',
+      avenue:      c.avenue||'',
+      house:       c.house||'',
+      address:     addr,
+      locationLink:c.locationLink||'',
+      orderNum:    document.getElementById('qo-num').value.trim(),
+      amount:      parseFloat(document.getElementById('qo-amount').value)||0,
+      paymentType: document.getElementById('qo-payment').value,
+      courierId:   courierId,
+      courierName: courier ? courier.name : '',
+      notes:       document.getElementById('qo-notes').value.trim(),
+      status:      'pending',
+      orderType:   'delivery',
+      createdAt:   window.FB.ts(),
+      createdBy:   _u.id||_u.username
+    };
+    await window.FB.add(window.FB.col(window.FB.db,'del_orders'), data);
+    // رفع عداد الخدمات
+    var newCount = (c.serviceCount||0)+1;
+    await window.FB.upd(window.FB.doc(window.FB.db,'ops_customers',custId),{serviceCount:newCount, updatedAt:window.FB.ts()});
+    toast('✅ تم إضافة الطلب وإرساله للطلبات');
+    closeModal('modal-quick-order');
+    // انتقل لصفحة الطلبات
+    showPage('orders');
+  }catch(e){ toast('خطأ: '+e.message); }
+  finally{ _savingQuickOrder = false; }
 };
 
 window.openCustomerModal=function(id){
   var c=id?_customers.find(function(x){return x.id===id;}):null;
   document.getElementById('cust-edit-id').value=id||'';
-  if(c){document.getElementById('cust-name').value=c.name||'';document.getElementById('cust-phone').value=c.phone||'';
-    document.getElementById('cust-area').value=c.area||'';document.getElementById('cust-block').value=c.block||'';
-    document.getElementById('cust-address').value=c.address||'';document.getElementById('cust-notes').value=c.notes||'';}
-  else{['cust-name','cust-phone','cust-area','cust-block','cust-address','cust-notes'].forEach(function(x){document.getElementById(x).value='';});}
+  if(c){
+    document.getElementById('cust-name').value=c.name||'';
+    document.getElementById('cust-phone').value=c.phone||'';
+    document.getElementById('cust-area').value=c.area||'';
+    document.getElementById('cust-block').value=c.block||'';
+    document.getElementById('cust-address').value=c.address||'';
+    document.getElementById('cust-notes').value=c.notes||'';
+    var sf=document.getElementById('cust-street'); if(sf) sf.value=c.street||'';
+    var af=document.getElementById('cust-avenue'); if(af) af.value=c.avenue||'';
+    var hf=document.getElementById('cust-house');  if(hf) hf.value=c.house||'';
+    var lf=document.getElementById('cust-location');if(lf) lf.value=c.locationLink||'';
+  } else {
+    ['cust-name','cust-phone','cust-area','cust-block','cust-address','cust-notes','cust-street','cust-avenue','cust-house','cust-location'].forEach(function(x){var el=document.getElementById(x);if(el)el.value='';});
+  }
   openModal('modal-customer');
 };
-
 var _savingCust=false;
 window.saveCustomer=async function(){
   if(_savingCust)return; _savingCust=true;
   try{
     var eid=document.getElementById('cust-edit-id').value;
-    var data={name:document.getElementById('cust-name').value.trim(),phone:document.getElementById('cust-phone').value.trim(),
-      area:document.getElementById('cust-area').value.trim(),block:document.getElementById('cust-block').value.trim(),
-      address:document.getElementById('cust-address').value.trim(),notes:document.getElementById('cust-notes').value.trim(),updatedAt:window.FB.ts()};
+    var area   = document.getElementById('cust-area').value.trim();
+    var block  = document.getElementById('cust-block').value.trim();
+    var street = document.getElementById('cust-street').value.trim();
+    var avenue = document.getElementById('cust-avenue').value.trim();
+    var house  = document.getElementById('cust-house').value.trim();
+    var autoAddr = [area, block?'ق'+block:'', street?'ش'+street:'', avenue?'ج'+avenue:'', house?'م'+house:''].filter(Boolean).join(' · ');
+    var data={
+      name:        document.getElementById('cust-name').value.trim(),
+      phone:       document.getElementById('cust-phone').value.trim(),
+      area, block, street, avenue, house,
+      address:     autoAddr,
+      locationLink:document.getElementById('cust-location').value.trim(),
+      notes:       document.getElementById('cust-notes').value.trim(),
+      updatedAt:   window.FB.ts()
+    };
     if(!data.name){toast('أدخل اسم العميل');return;}
     if(eid){await window.FB.upd(window.FB.doc(window.FB.db,'ops_customers',eid),data);toast('✅');}
     else{data.createdAt=window.FB.ts();await window.FB.add(window.FB.col(window.FB.db,'ops_customers'),data);toast('✅ تم إضافة العميل');}
@@ -2969,6 +3094,7 @@ window.openOrderDetailBySvc = function(inspId){
       +'<button onclick="openSvcRequestModal(\''+inspId+'\');closeModal(\'modal-svc-detail\')" style="flex:1;padding:10px;background:var(--gl);color:var(--green);border:1px solid var(--gm);border-radius:10px;font-family:Cairo,sans-serif;font-size:.82rem;font-weight:700;cursor:pointer">✏️ تعديل الكشف</button>'
       +(relatedOrder?'<button onclick="reassignInspByOrder(\''+relatedOrder.id+'\');closeModal(\'modal-svc-detail\')" style="flex:1;padding:10px;background:var(--orangel);color:var(--orange);border:1px solid #f0d090;border-radius:10px;font-family:Cairo,sans-serif;font-size:.82rem;font-weight:700;cursor:pointer">🔄 إعادة إسناد</button>':'')
     +'</div>'
+    +'<button onclick="openSvcQuickOrder(\''+inspId+'\');closeModal(\'modal-svc-detail\')" style="width:100%;padding:11px;background:var(--green);color:#fff;border:none;border-radius:10px;font-family:Cairo,sans-serif;font-size:.85rem;font-weight:800;cursor:pointer;margin-bottom:8px">+ طلب جديد لهذا العميل</button>'
     +'<button onclick="archiveInspection(\''+(relatedOrder?relatedOrder.id:'')+'\',\''+inspId+'\')" style="width:100%;padding:11px;background:#4a5568;color:#fff;border:none;border-radius:10px;font-family:Cairo,sans-serif;font-size:.85rem;font-weight:800;cursor:pointer;margin-bottom:8px">📦 حفظ في الأرشيف</button>'
     :'')
 
@@ -3013,6 +3139,97 @@ window.saveSvcQuotePrice = async function(qid, subtotal){
     adminNote, editedBy:_u.id||_u.username, editedAt:window.FB.ts()
   });
   toast('✅ تم حفظ تعديل السعر');
+};
+
+window.openSvcQuickOrder = function(inspId){
+  // جلب بيانات الكشف
+  var insp = _inspections.find(function(x){return x.id===inspId;});
+  if(!insp){ toast('لم يُعثر على بيانات الكشف'); return; }
+
+  // ابحث عن العميل في قاعدة العملاء
+  var cust = _customers.find(function(c){ return c.phone===insp.phone; });
+
+  // لو ما لقينا العميل، نبني كائناً مؤقتاً من بيانات الكشف
+  var c = cust || {
+    id: null,
+    name: insp.client||'',
+    phone: insp.phone||'',
+    area: insp.area||'',
+    block: insp.block||'',
+    street: insp.street||'',
+    avenue: insp.avenue||'',
+    house: insp.house||'',
+    locationLink: insp.locationLink||'',
+    address: insp.address||''
+  };
+
+  var old = document.getElementById('modal-quick-order-svc'); if(old) old.remove();
+  var courierOpts = (_delUsers||[]).map(function(u){
+    return '<option value="'+u.id+'">'+u.name+'</option>';
+  }).join('');
+  var addr = [c.area, c.block?'ق'+c.block:'', c.street?'ش'+c.street:'', c.avenue?'ج'+c.avenue:'', c.house?'م'+c.house:''].filter(Boolean).join(' · ') || c.address || '—';
+
+  var html = '<div class="overlay open" id="modal-quick-order-svc" onclick="if(event.target===this)closeModal(\'modal-quick-order-svc\')">'
+    +'<div class="modal" style="max-width:440px">'
+    +'<h3>+ طلب جديد</h3>'
+    +'<div style="background:var(--gl);border-radius:10px;padding:12px;margin-bottom:14px">'
+      +'<div style="font-weight:900;font-size:1rem">'+(c.name||'—')+'</div>'
+      +'<div style="font-size:.82rem;color:var(--muted)">📞 '+(c.phone||'—')+'</div>'
+      +'<div style="font-size:.8rem;color:var(--muted)">📍 '+addr+'</div>'
+    +'</div>'
+    +'<div class="form-row">'
+      +'<div class="field-m"><label>رقم الطلب</label><input id="sqo-num" type="text" placeholder="مثال: 001" style="width:100%;padding:9px;border:1.5px solid var(--border);border-radius:8px;font-family:Cairo,sans-serif"></div>'
+      +'<div class="field-m"><label>المبلغ (KD)</label><input id="sqo-amount" type="number" step="0.001" min="0" placeholder="0.000" style="width:100%;padding:9px;border:1.5px solid var(--border);border-radius:8px;font-family:Cairo,sans-serif"></div>'
+    +'</div>'
+    +'<div class="form-row">'
+      +'<div class="field-m"><label>طريقة الدفع</label><select id="sqo-payment" style="width:100%;padding:9px;border:1.5px solid var(--border);border-radius:8px;font-family:Cairo,sans-serif">'
+        +'<option value="cash">نقد / Cash</option><option value="knet">Knet</option><option value="free">مجاناً</option>'
+      +'</select></div>'
+      +'<div class="field-m"><label>المندوب</label><select id="sqo-courier" style="width:100%;padding:9px;border:1.5px solid var(--border);border-radius:8px;font-family:Cairo,sans-serif">'
+        +'<option value="">بدون تحديد</option>'+courierOpts
+      +'</select></div>'
+    +'</div>'
+    +'<div class="field-m"><label>ملاحظات</label><input id="sqo-notes" type="text" placeholder="اختياري" style="width:100%;padding:9px;border:1.5px solid var(--border);border-radius:8px;font-family:Cairo,sans-serif"></div>'
+    +'<div class="modal-actions" style="margin-top:14px">'
+      +'<button class="btn-cancel" onclick="closeModal(\'modal-quick-order-svc\')">إلغاء</button>'
+      +'<button class="btn-save" onclick="saveSvcQuickOrder(\''+inspId+'\',\''+( cust?cust.id:'')+'\')" >💾 حفظ وإرسال للطلبات</button>'
+    +'</div>'
+  +'</div></div>';
+
+  document.body.insertAdjacentHTML('beforeend', html);
+};
+
+var _savingSvcQO = false;
+window.saveSvcQuickOrder = async function(inspId, custId){
+  if(_savingSvcQO) return; _savingSvcQO = true;
+  try{
+    var insp = _inspections.find(function(x){return x.id===inspId;});
+    if(!insp) return;
+    var courierId = document.getElementById('sqo-courier').value;
+    var courier   = _delUsers.find(function(u){return u.id===courierId;});
+    var addr = [insp.area, insp.block?'ق'+insp.block:'', insp.street?'ش'+insp.street:'', insp.avenue?'ج'+insp.avenue:'', insp.house?'م'+insp.house:''].filter(Boolean).join(' · ') || insp.address || '';
+    var data = {
+      clientName:  insp.client||'',
+      phone:       insp.phone||'',
+      area:        insp.area||'', block: insp.block||'',
+      street:      insp.street||'', avenue: insp.avenue||'', house: insp.house||'',
+      address:     addr, locationLink: insp.locationLink||'',
+      orderNum:    document.getElementById('sqo-num').value.trim(),
+      amount:      parseFloat(document.getElementById('sqo-amount').value)||0,
+      paymentType: document.getElementById('sqo-payment').value,
+      courierId:   courierId, courierName: courier?courier.name:'',
+      notes:       document.getElementById('sqo-notes').value.trim(),
+      status:'pending', orderType:'delivery',
+      createdAt:window.FB.ts(), createdBy:_u.id||_u.username
+    };
+    await window.FB.add(window.FB.col(window.FB.db,'del_orders'), data);
+    // حفظ/تحديث العميل في قاعدة البيانات
+    await autoSaveCustomer(insp.client, insp.phone, insp.area, insp.block, insp.street||'', insp.avenue||'', insp.house||'', addr, insp.locationLink||'');
+    toast('✅ تم إضافة الطلب');
+    closeModal('modal-quick-order-svc');
+    showPage('orders');
+  }catch(e){ toast('خطأ: '+e.message); }
+  finally{ _savingSvcQO = false; }
 };
 
 window.reassignInspByOrder = async function(orderId){
@@ -3127,7 +3344,7 @@ window.saveSvcRequest = async function(){
         paymentType:'free', amount:0, status:'pending',
         createdAt:window.FB.ts(), createdBy:_u.id||_u.username
       });
-      await autoSaveCustomer(data.client,data.phone,data.area,data.block,data.address,data.locationLink);
+      await autoSaveCustomer(data.client, data.phone, data.area, data.block, data.street, data.avenue, data.house, data.address, data.locationLink);
       toast('✅ '+(_lang==='ar'?'تم إضافة طلب الخدمة':'Service request added'));
     }
     closeModal('modal-svc-request');
@@ -3265,17 +3482,21 @@ document.addEventListener('click', function(e){
 });
 
 // حفظ / تحديث بيانات العميل تلقائياً عند إضافة طلب
-async function autoSaveCustomer(name, phone, area, block, address, locationLink){
-  if(!name || !phone) return;
-  // ابحث بالهاتف
-  var existing = _customers.find(function(c){ return c.phone === phone; });
-  var custData = { name:name, phone:phone, area:area||'', block:block||'', address:address||'',
-    locationLink:locationLink||'', updatedAt:window.FB.ts() };
+async function autoSaveCustomer(name, phone, area, block, street, avenue, house, address, locationLink){
+  if(!name && !phone) return;
+  var existing = _customers.find(function(c){ return c.phone && c.phone===phone; });
+  var custData = {
+    name: name||'', phone: phone||'',
+    area: area||'', block: block||'',
+    street: street||'', avenue: avenue||'', house: house||'',
+    address: address||'', locationLink: locationLink||'',
+    updatedAt: window.FB.ts()
+  };
   try{
     if(existing){
       await window.FB.upd(window.FB.doc(window.FB.db,'ops_customers',existing.id), custData);
     } else {
-      custData.createdAt = window.FB.ts();
+      custData.createdAt  = window.FB.ts();
       custData.serviceCount = 1;
       await window.FB.add(window.FB.col(window.FB.db,'ops_customers'), custData);
     }
