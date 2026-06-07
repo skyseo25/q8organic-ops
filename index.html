@@ -3466,7 +3466,7 @@ window.saveInvoiceItems = async function(){
   var subtotal = _invoiceItems.reduce(function(s,x){return s+x.qty*parseFloat(x.item.price||0);},0);
   if(!confirm('حفظ الفاتورة الحالية؟ المجموع: '+subtotal.toFixed(3)+' KD')) return;
   var data = {
-    items: _invoiceItems.map(function(x){return {itemId:x.itemId,nameAr:x.item.nameAr,nameEn:x.item.nameEn,price:x.item.price,unit:x.item.unit,type:x.item.type,qty:x.qty,lineTotal:x.qty*parseFloat(x.item.price||0)};}),
+    items: _invoiceItems.map(function(x){return {itemId:x.itemId,nameAr:x.item.nameAr,nameEn:x.item.nameEn||'',image:x.item.image||'',price:x.item.price,unit:x.item.unit,type:x.item.type,qty:x.qty,lineTotal:x.qty*parseFloat(x.item.price||0)};}),
     subtotal, hasLabor, total: hasLabor?subtotal:0,
     createdBy: _u.id||_u.username, createdAt: window.FB.ts()
   };
@@ -3932,6 +3932,21 @@ window.printQuote = function(){
   w.document.close(); setTimeout(function(){w.print();},700);
 };
 
+// تحويل صورة إلى base64 لتجاوز مشكلة CORS عند الطباعة
+async function imgToBase64(url){
+  if(!url) return '';
+  try{
+    var resp = await fetch(url);
+    var blob = await resp.blob();
+    return await new Promise(function(res){
+      var r = new FileReader();
+      r.onload = function(){ res(r.result); };
+      r.onerror = function(){ res(''); };
+      r.readAsDataURL(blob);
+    });
+  }catch(e){ return ''; }
+}
+
 window.printQuoteFromData = async function(qid, asInvoice){
   // اقرأ أحدث نسخة من Firebase مباشرة
   var snap = await window.FB.get(window.FB.doc(window.FB.db,'iri_invoices_v2',qid));
@@ -3941,8 +3956,14 @@ window.printQuoteFromData = async function(qid, asInvoice){
   var subtotal = parseFloat(q.subtotal||0);
   var disc     = parseFloat(q.discount||0);
   var final    = (q.total !== undefined && q.total !== null) ? parseFloat(q.total) : subtotal;
-  var items    = (q.items||[]);
   var adminNote= q.adminNote||'';
+
+  // تحويل صور الأصناف إلى base64
+  var items = await Promise.all((q.items||[]).map(async function(it){
+    var b64 = it.image ? await imgToBase64(it.image) : '';
+    return Object.assign({}, it, {image: b64 || it.image || ''});
+  }));
+
   var w=window.open('','_blank');
   w.document.write(buildPrintDoc({
     docTitle: asInvoice?'فاتورة':'عرض سعر',
@@ -3951,7 +3972,7 @@ window.printQuoteFromData = async function(qid, asInvoice){
     isInvoiced: q.quoteStatus==='invoiced',
     adminNote: adminNote
   }));
-  w.document.close(); setTimeout(function(){w.print();},700);
+  w.document.close(); setTimeout(function(){w.print();},900);
 };
 
 
