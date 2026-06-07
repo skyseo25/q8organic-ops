@@ -4451,9 +4451,10 @@ window.renderArchive = function(){
              : o.deliveredAt&&o.deliveredAt.toDate ? o.deliveredAt.toDate().toLocaleDateString('ar-KW',{day:'numeric',month:'short'})
              : (o.createdAt&&o.createdAt.toDate?o.createdAt.toDate().toLocaleDateString('ar-KW',{day:'numeric',month:'short'}):'—');
       var actBtns = isManager ? '<div style="display:flex;flex-direction:column;gap:3px">'
-        +'<button onclick="restoreArchiveOrder(\''+o.id+'\')" style="padding:3px 7px;background:#e8f5e9;color:var(--green);border:none;border-radius:5px;font-size:.68rem;cursor:pointer;font-family:Cairo,sans-serif;font-weight:700">↩ استعادة</button>'
-        +'<button onclick="editArchiveOrder(\''+o.id+'\')" style="padding:3px 7px;background:#e8f0ff;color:#1a4a8a;border:none;border-radius:5px;font-size:.68rem;cursor:pointer;font-family:Cairo,sans-serif;font-weight:700">✏️ تعديل</button>'
-        +'<button onclick="deleteArchiveOrder(\''+o.id+'\')" style="padding:3px 7px;background:var(--redl);color:var(--red);border:none;border-radius:5px;font-size:.68rem;cursor:pointer;font-family:Cairo,sans-serif;font-weight:700">🗑 حذف</button>'
+        +'<button onclick="event.stopPropagation();viewArchiveOrder(\''+o.id+'\')" style="padding:3px 7px;background:#f0f4ff;color:#1a4a8a;border:none;border-radius:5px;font-size:.68rem;cursor:pointer;font-family:Cairo,sans-serif;font-weight:700">👁 عرض</button>'
+        +'<button onclick="event.stopPropagation();restoreArchiveOrder(\''+o.id+'\')" style="padding:3px 7px;background:#e8f5e9;color:var(--green);border:none;border-radius:5px;font-size:.68rem;cursor:pointer;font-family:Cairo,sans-serif;font-weight:700">↩ استعادة</button>'
+        +'<button onclick="event.stopPropagation();editArchiveOrder(\''+o.id+'\')" style="padding:3px 7px;background:#e8f0ff;color:#1a4a8a;border:none;border-radius:5px;font-size:.68rem;cursor:pointer;font-family:Cairo,sans-serif;font-weight:700">✏️ تعديل</button>'
+        +'<button onclick="event.stopPropagation();deleteArchiveOrder(\''+o.id+'\')" style="padding:3px 7px;background:var(--redl);color:var(--red);border:none;border-radius:5px;font-size:.68rem;cursor:pointer;font-family:Cairo,sans-serif;font-weight:700">🗑 حذف</button>'
       +'</div>' : '';
       return '<tr>'
         +'<td style="font-size:.75rem;color:var(--muted);text-align:center">'+(idx+1)+'</td>'
@@ -4498,9 +4499,10 @@ window.renderArchive = function(){
       var q2 = (_quotes||[]).find(function(x){ var o=(_orders||[]).find(function(y){return y.id===x.orderId;}); return o&&o.phone===r.phone&&o.clientName===r.client; });
       var total = q2 ? parseFloat((q2.total!==undefined&&q2.total!==null)?q2.total:q2.subtotal||0).toFixed(3)+' KD' : '—';
       var actBtns = isManager ? '<div style="display:flex;flex-direction:column;gap:3px">'
-        +'<button onclick="restoreArchiveInsp(\''+r.id+'\',\'insp\')" style="padding:3px 7px;background:#e8f5e9;color:var(--green);border:none;border-radius:5px;font-size:.68rem;cursor:pointer;font-family:Cairo,sans-serif;font-weight:700">↩ استعادة</button>'
-        +'<button onclick="editArchiveInsp(\''+r.id+'\',\'insp\')" style="padding:3px 7px;background:#e8f0ff;color:#1a4a8a;border:none;border-radius:5px;font-size:.68rem;cursor:pointer;font-family:Cairo,sans-serif;font-weight:700">✏️ تعديل</button>'
-        +'<button onclick="deleteArchiveInsp(\''+r.id+'\',\'insp\')" style="padding:3px 7px;background:var(--redl);color:var(--red);border:none;border-radius:5px;font-size:.68rem;cursor:pointer;font-family:Cairo,sans-serif;font-weight:700">🗑 حذف</button>'
+        +'<button onclick="event.stopPropagation();openOrderDetailBySvc(\''+r.id+'\')" style="padding:3px 7px;background:#f0f4ff;color:#1a4a8a;border:none;border-radius:5px;font-size:.68rem;cursor:pointer;font-family:Cairo,sans-serif;font-weight:700">👁 عرض</button>'
+        +'<button onclick="event.stopPropagation();restoreArchiveInsp(\''+r.id+'\',\'insp\')" style="padding:3px 7px;background:#e8f5e9;color:var(--green);border:none;border-radius:5px;font-size:.68rem;cursor:pointer;font-family:Cairo,sans-serif;font-weight:700">↩ استعادة</button>'
+        +'<button onclick="event.stopPropagation();openArchiveEditModal(\''+r.id+'\',\'insp\')" style="padding:3px 7px;background:#e8f0ff;color:#1a4a8a;border:none;border-radius:5px;font-size:.68rem;cursor:pointer;font-family:Cairo,sans-serif;font-weight:700">✏️ تعديل</button>'
+        +'<button onclick="event.stopPropagation();deleteArchiveInsp(\''+r.id+'\',\'insp\')" style="padding:3px 7px;background:var(--redl);color:var(--red);border:none;border-radius:5px;font-size:.68rem;cursor:pointer;font-family:Cairo,sans-serif;font-weight:700">🗑 حذف</button>'
       +'</div>' : '';
       rows += '<tr><td style="font-size:.75rem;color:var(--muted);text-align:center">'+svcIdx+'</td>'
         +'<td style="font-size:.8rem">'+dt+'</td><td><b>'+(r.client||'—')+'</b></td>'
@@ -4516,9 +4518,10 @@ window.renderArchive = function(){
       var q3 = (_quotes||[]).find(function(x){return x.orderId===o.id;});
       var total = q3 ? parseFloat((q3.total!==undefined&&q3.total!==null)?q3.total:q3.subtotal||0).toFixed(3)+' KD' : '—';
       var actBtns = isManager ? '<div style="display:flex;flex-direction:column;gap:3px">'
-        +'<button onclick="restoreArchiveInsp(\''+o.id+'\',\'order\')" style="padding:3px 7px;background:#e8f5e9;color:var(--green);border:none;border-radius:5px;font-size:.68rem;cursor:pointer;font-family:Cairo,sans-serif;font-weight:700">↩ استعادة</button>'
-        +'<button onclick="editArchiveInsp(\''+o.id+'\',\'order\')" style="padding:3px 7px;background:#e8f0ff;color:#1a4a8a;border:none;border-radius:5px;font-size:.68rem;cursor:pointer;font-family:Cairo,sans-serif;font-weight:700">✏️ تعديل</button>'
-        +'<button onclick="deleteArchiveInsp(\''+o.id+'\',\'order\')" style="padding:3px 7px;background:var(--redl);color:var(--red);border:none;border-radius:5px;font-size:.68rem;cursor:pointer;font-family:Cairo,sans-serif;font-weight:700">🗑 حذف</button>'
+        +'<button onclick="event.stopPropagation();openOrderDetail(\''+o.id+'\')" style="padding:3px 7px;background:#f0f4ff;color:#1a4a8a;border:none;border-radius:5px;font-size:.68rem;cursor:pointer;font-family:Cairo,sans-serif;font-weight:700">👁 عرض</button>'
+        +'<button onclick="event.stopPropagation();restoreArchiveInsp(\''+o.id+'\',\'order\')" style="padding:3px 7px;background:#e8f5e9;color:var(--green);border:none;border-radius:5px;font-size:.68rem;cursor:pointer;font-family:Cairo,sans-serif;font-weight:700">↩ استعادة</button>'
+        +'<button onclick="event.stopPropagation();openArchiveEditModal(\''+o.id+'\',\'order\')" style="padding:3px 7px;background:#e8f0ff;color:#1a4a8a;border:none;border-radius:5px;font-size:.68rem;cursor:pointer;font-family:Cairo,sans-serif;font-weight:700">✏️ تعديل</button>'
+        +'<button onclick="event.stopPropagation();deleteArchiveInsp(\''+o.id+'\',\'order\')" style="padding:3px 7px;background:var(--redl);color:var(--red);border:none;border-radius:5px;font-size:.68rem;cursor:pointer;font-family:Cairo,sans-serif;font-weight:700">🗑 حذف</button>'
       +'</div>' : '';
       rows += '<tr><td style="font-size:.75rem;color:var(--muted);text-align:center">'+svcIdx+'</td>'
         +'<td style="font-size:.8rem">'+dt+'</td><td><b>'+(o.clientName||'—')+'</b></td>'
@@ -4555,9 +4558,10 @@ window.renderArchive = function(){
           +'<div style="font-size:.67rem;color:var(--muted2)">'+(r.editedAt&&r.editedAt.toDate?r.editedAt.toDate().toLocaleDateString('ar-KW',{day:'numeric',month:'short'}):'')+'</div>'
         : '';
       var actBtns = isManager ? '<div style="display:flex;flex-direction:column;gap:3px">'
-        +'<button onclick="restoreReport(\''+r.id+'\')" style="padding:3px 7px;background:#e8f5e9;color:var(--green);border:none;border-radius:5px;font-size:.68rem;cursor:pointer;font-family:Cairo,sans-serif;font-weight:700">↩ استعادة</button>'
-        +'<button onclick="openArchiveDetail(\''+r.id+'\')" style="padding:3px 7px;background:#e8f0ff;color:#1a4a8a;border:none;border-radius:5px;font-size:.68rem;cursor:pointer;font-family:Cairo,sans-serif;font-weight:700">✏️ تعديل</button>'
-        +'<button onclick="deleteReport(\''+r.id+'\')" style="padding:3px 7px;background:var(--redl);color:var(--red);border:none;border-radius:5px;font-size:.68rem;cursor:pointer;font-family:Cairo,sans-serif;font-weight:700">🗑 حذف</button>'
+        +'<button onclick="event.stopPropagation();openArchiveDetail(\''+r.id+'\')" style="padding:3px 7px;background:#f0f4ff;color:#1a4a8a;border:none;border-radius:5px;font-size:.68rem;cursor:pointer;font-family:Cairo,sans-serif;font-weight:700">👁 عرض</button>'
+        +'<button onclick="event.stopPropagation();restoreReport(\''+r.id+'\')" style="padding:3px 7px;background:#e8f5e9;color:var(--green);border:none;border-radius:5px;font-size:.68rem;cursor:pointer;font-family:Cairo,sans-serif;font-weight:700">↩ استعادة</button>'
+        +'<button onclick="event.stopPropagation();openArchiveDetail(\''+r.id+'\')" style="padding:3px 7px;background:#e8f0ff;color:#1a4a8a;border:none;border-radius:5px;font-size:.68rem;cursor:pointer;font-family:Cairo,sans-serif;font-weight:700">✏️ تعديل</button>'
+        +'<button onclick="event.stopPropagation();deleteReport(\''+r.id+'\')" style="padding:3px 7px;background:var(--redl);color:var(--red);border:none;border-radius:5px;font-size:.68rem;cursor:pointer;font-family:Cairo,sans-serif;font-weight:700">🗑 حذف</button>'
       +'</div>' : '';
       return '<tr onclick="openArchiveDetail(\''+r.id+'\')" style="cursor:pointer" onmouseover="this.style.background=\'#f0f9f4\'" onmouseout="this.style.background=\'\'">'
         +'<td style="font-size:.75rem;color:var(--muted);text-align:center">'+(idx+1)+'</td>'
@@ -4590,14 +4594,53 @@ window.restoreArchiveOrder = async function(orderId){
   renderArchive();
 };
 
+window.viewArchiveOrder = function(orderId){
+  var o = (_orders||[]).find(function(x){return x.id===orderId;}) || (_archived||[]).find(function(x){return x.id===orderId;});
+  if(o) openOrderDetail(orderId);
+};
+
+window.openArchiveEditModal = function(id, type){
+  var col = type==='insp' ? 'iri_inspections' : 'del_orders';
+  var rec = type==='insp'
+    ? (_inspections||[]).find(function(x){return x.id===id;})
+    : (_orders||[]).find(function(x){return x.id===id;}) || (_archived||[]).find(function(x){return x.id===id;});
+  if(!rec) return;
+  var clientKey = type==='insp' ? 'client' : 'clientName';
+  var empKey    = type==='insp' ? 'empName' : 'courierName';
+  var client    = rec[clientKey]||'';
+  var emp       = rec[empKey]||'';
+
+  var old = document.getElementById('modal-arch-edit'); if(old) old.remove();
+  var html = '<div class="overlay open" id="modal-arch-edit" onclick="if(event.target===this)closeModal(\'modal-arch-edit\')">'
+    +'<div class="modal" style="max-width:420px">'
+    +'<h3>✏️ تعديل السجل</h3>'
+    +'<div class="field-m"><label>اسم العميل</label><input id="ae-client" value="'+client+'" style="width:100%;padding:9px;border:1.5px solid var(--border);border-radius:8px;font-family:Cairo,sans-serif"></div>'
+    +'<div class="field-m" style="margin-top:10px"><label>الموظف / المندوب</label><input id="ae-emp" value="'+emp+'" style="width:100%;padding:9px;border:1.5px solid var(--border);border-radius:8px;font-family:Cairo,sans-serif"></div>'
+    +'<div class="modal-actions" style="margin-top:16px">'
+      +'<button class="btn-cancel" onclick="closeModal(\'modal-arch-edit\')">إلغاء</button>'
+      +'<button class="btn-save" onclick="saveArchiveEdit(\''+id+'\',\''+type+'\',\''+col+'\',\''+clientKey+'\',\''+empKey+'\')">💾 حفظ</button>'
+    +'</div></div></div>';
+  document.body.insertAdjacentHTML('beforeend', html);
+};
+
+window.saveArchiveEdit = async function(id, type, col, clientKey, empKey){
+  var newClient = document.getElementById('ae-client').value.trim();
+  var newEmp    = document.getElementById('ae-emp').value.trim();
+  var d = {updatedAt:window.FB.ts()};
+  d[clientKey] = newClient;
+  d[empKey]    = newEmp;
+  await window.FB.upd(window.FB.doc(window.FB.db, col, id), d);
+  toast('✅ تم التعديل');
+  closeModal('modal-arch-edit');
+  renderArchive();
+};
+
 window.editArchiveOrder = function(orderId){
-  var o = _orders.find(function(x){return x.id===orderId;}) || _archived.find(function(x){return x.id===orderId;});
-  if(!o) return;
-  var newName = prompt('اسم العميل:', o.clientName||'');
-  if(newName===null) return;
-  var newCourier = prompt('المندوب المكلف:', o.courierName||'');
-  if(newCourier===null) return;
-  window.FB.upd(window.FB.doc(window.FB.db,'del_orders',orderId),{clientName:newName,courierName:newCourier,updatedAt:window.FB.ts()}).then(function(){ toast('✅ تم التعديل'); renderArchive(); });
+  openArchiveEditModal(orderId, 'order');
+};
+
+window.editArchiveInsp = function(id, type){
+  openArchiveEditModal(id, type);
 };
 
 window.deleteArchiveOrder = async function(orderId){
@@ -4619,20 +4662,6 @@ window.restoreArchiveInsp = async function(id, type){
   await window.FB.upd(window.FB.doc(window.FB.db,col,id), d);
   toast('↩ تمت الاستعادة');
   renderArchive();
-};
-
-window.editArchiveInsp = function(id, type){
-  var col = type==='insp' ? 'iri_inspections' : 'del_orders';
-  var rec = type==='insp' ? _inspections.find(function(x){return x.id===id;}) : _orders.find(function(x){return x.id===id;});
-  if(!rec) return;
-  var clientKey = type==='insp' ? 'client' : 'clientName';
-  var empKey    = type==='insp' ? 'empName' : 'courierName';
-  var newName   = prompt('اسم العميل:', rec[clientKey]||'');
-  if(newName===null) return;
-  var newEmp    = prompt('الموظف المكلف:', rec[empKey]||'');
-  if(newEmp===null) return;
-  var d = {updatedAt:window.FB.ts()}; d[clientKey]=newName; d[empKey]=newEmp;
-  window.FB.upd(window.FB.doc(window.FB.db,col,id),d).then(function(){ toast('✅ تم التعديل'); renderArchive(); });
 };
 
 window.deleteArchiveInsp = async function(id, type){
