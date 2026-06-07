@@ -1683,6 +1683,7 @@ function setupListeners(){
     if(_curPage==='dashboard') renderDashboard();
     if(_curPage==='orders') renderOrders();
     if(_curPage==='courier') renderCourierView();
+    if(_curPage==='archive') renderArchive();
   });
   FB.snap(FB.q(FB.col(d,'del_archived'),FB.ord('createdAt','desc')),function(sn){
     _archived=sn.docs.map(function(x){return Object.assign({id:x.id},x.data());});
@@ -1703,6 +1704,7 @@ function setupListeners(){
   FB.snap(FB.q(FB.col(d,'iri_inspections'),FB.ord('createdAt','desc')),function(sn){
     _inspections=sn.docs.map(function(x){return Object.assign({id:x.id},x.data());});
     if(_curPage==='irrigation') renderInvoices();
+    if(_curPage==='archive') renderArchive();
   });
   FB.snap(FB.q(FB.col(d,'iri_users'),FB.ord('createdAt','asc')),function(sn){
     _iriUsers=sn.docs.map(function(x){return Object.assign({id:x.id},x.data());});
@@ -4430,7 +4432,9 @@ window.renderArchive = function(){
     var tbody = document.getElementById('arch-delivery-tbody');
     if(!tbody) return;
     var orders = (_orders||[]).concat(_archived||[]).filter(function(o){
-      if(!o.archived && !o.settled && o.status!=='delivered' && o.status!=='returned' && o.status!=='closed') return false;
+      // يظهر في الأرشيف: مؤرشف صراحةً، أو منتهي الحساب، أو تم التسليم/الإغلاق/المرتجع
+      var inArch = o.archived || o.settled || o.status==='delivered' || o.status==='returned' || o.status==='closed';
+      if(!inArch) return false;
       if(o.orderType==='inspection') return false;
       if(isEmployee && o.courierId!==myId) return false;
       var dt = o.archivedAt||o.deliveredAt||o.updatedAt||o.createdAt;
@@ -4466,7 +4470,9 @@ window.renderArchive = function(){
     var tbody2 = document.getElementById('arch-svc-tbody');
     if(!tbody2) return;
     var insps = (_inspections||[]).filter(function(r){
-      if(!r.archived) return false;
+      // مؤرشف صراحةً، أو حالته closed/inspected
+      var inArch = r.archived || r.status==='closed' || r.status==='inspected';
+      if(!inArch) return false;
       if(isEmployee && r.empId!==myId && r.empName!==myName) return false;
       var dt = r.archivedAt||r.updatedAt||r.createdAt;
       if(!archDateFilter(dt)) return false;
@@ -4474,7 +4480,8 @@ window.renderArchive = function(){
       return true;
     });
     var inspOrds = (_orders||[]).filter(function(o){
-      if(!o.archived || o.orderType!=='inspection') return false;
+      var inArch = o.archived || o.status==='closed' || o.status==='inspected';
+      if(!inArch || o.orderType!=='inspection') return false;
       if(isEmployee && o.courierId!==myId) return false;
       var dt = o.archivedAt||o.updatedAt||o.createdAt;
       if(!archDateFilter(dt)) return false;
