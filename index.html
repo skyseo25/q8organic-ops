@@ -2794,11 +2794,31 @@ window.openOrderDetailBySvc = function(inspId){
         +'<span style="font-size:.8rem;font-weight:700;color:'+qColors[qStatus]+'">'+qLabels[qStatus]+'</span>'
       +'</div>'
       +itemRows
-      +'<div style="margin-top:10px;padding-top:8px;border-top:1px solid var(--border)">'
-        +(isManager?'<div style="display:flex;justify-content:space-between;font-size:.82rem;margin-bottom:4px"><span style="color:var(--muted)">المجموع</span><span>'+subtotal.toFixed(3)+' KD</span></div>':'')
-        +(disc>0?'<div style="display:flex;justify-content:space-between;font-size:.82rem;margin-bottom:4px;color:var(--orange)"><span>خصم</span><span>- '+disc.toFixed(3)+' KD ('+(subtotal>0?((disc/subtotal)*100).toFixed(0):0)+'%)</span></div>':'')
-        +'<div style="display:flex;justify-content:space-between;font-size:1rem;font-weight:900;color:var(--green);margin-top:4px"><span>الإجمالي النهائي</span><span>'+total.toFixed(3)+' KD</span></div>'
+      // ── الإجماليات ──
+      +'<div id="svc-quote-totals-'+relatedQuote.id+'" style="margin-top:10px;padding-top:8px;border-top:1px solid var(--border)">'
+        +'<div style="display:flex;justify-content:space-between;font-size:.82rem;margin-bottom:4px"><span style="color:var(--muted)">المجموع الأصلي</span><span id="svqt-sub-'+relatedQuote.id+'">'+subtotal.toFixed(3)+' KD</span></div>'
+        +'<div id="svqt-disc-row-'+relatedQuote.id+'" style="display:'+(disc>0?'flex':'none')+';justify-content:space-between;font-size:.82rem;margin-bottom:4px;color:var(--orange)"><span id="svqt-disc-label-'+relatedQuote.id+'">خصم</span><span id="svqt-disc-val-'+relatedQuote.id+'">- '+disc.toFixed(3)+' KD ('+(subtotal>0?((disc/subtotal)*100).toFixed(0):0)+'%)</span></div>'
+        +'<div style="display:flex;justify-content:space-between;font-size:1rem;font-weight:900;color:var(--green);margin-top:4px"><span>الإجمالي النهائي</span><span id="svqt-final-'+relatedQuote.id+'">'+total.toFixed(3)+' KD</span></div>'
+        // ملاحظة تعديل الأدمن (تظهر في الشاشة فقط)
+        +(relatedQuote.adminNote?'<div style="margin-top:6px;padding:6px 10px;background:#fff5e0;border-radius:8px;font-size:.75rem;color:var(--gold)">⚙️ '+relatedQuote.adminNote+'</div>':'')
       +'</div>'
+
+      // ── تعديل السعر للمدير فقط ──
+      +(isManager?
+        '<div style="margin-top:12px;padding:12px;background:#f8f9fa;border-radius:10px;border:1px dashed var(--border)">'
+          +'<div style="font-size:.72rem;font-weight:800;color:var(--muted);margin-bottom:10px;letter-spacing:1px">⚙️ تعديل السعر — للمدير فقط</div>'
+          +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">'
+            // خصم (0-100%)
+            +'<div><label style="font-size:.72rem;color:var(--muted);display:block;margin-bottom:4px">خصم % (0-100)</label>'
+            +'<input id="svq-disc-pct-'+relatedQuote.id+'" type="number" min="0" max="100" step="0.1" value="'+(subtotal>0?((disc/subtotal)*100).toFixed(1):0)+'" oninput="updateSvcQuotePrice(\''+relatedQuote.id+'\','+subtotal+',\'pct\')" style="width:100%;padding:8px;border:1.5px solid var(--border);border-radius:8px;font-family:Cairo,sans-serif;font-size:.88rem"></div>'
+            // أو مبلغ محدد
+            +'<div><label style="font-size:.72rem;color:var(--muted);display:block;margin-bottom:4px">مبلغ محدد KD</label>'
+            +'<input id="svq-disc-amt-'+relatedQuote.id+'" type="number" min="0" step="0.001" value="'+disc.toFixed(3)+'" oninput="updateSvcQuotePrice(\''+relatedQuote.id+'\','+subtotal+',\'amt\')" style="width:100%;padding:8px;border:1.5px solid var(--border);border-radius:8px;font-family:Cairo,sans-serif;font-size:.88rem"></div>'
+          +'</div>'
+          +'<button onclick="saveSvcQuotePrice(\''+relatedQuote.id+'\','+subtotal+')" style="width:100%;padding:9px;background:#1a4a8a;color:#fff;border:none;border-radius:8px;font-family:Cairo,sans-serif;font-size:.82rem;font-weight:700;cursor:pointer">💾 حفظ تعديل السعر</button>'
+        +'</div>'
+      :'')
+
       // أزرار الحالة للمدير
       +(isManager?'<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:10px">'
         +['pending','agreed','review','rejected'].map(function(s){
@@ -2872,6 +2892,43 @@ window.openOrderDetailBySvc = function(inspId){
     +'</div></div></div>';
 
   document.body.insertAdjacentHTML('beforeend', html);
+};
+
+window.updateSvcQuotePrice = function(qid, subtotal, source){
+  var pctEl = document.getElementById('svq-disc-pct-'+qid);
+  var amtEl = document.getElementById('svq-disc-amt-'+qid);
+  if(!pctEl||!amtEl) return;
+  var disc;
+  if(source==='pct'){
+    var pct = Math.min(100, Math.max(0, parseFloat(pctEl.value)||0));
+    disc = Math.round(subtotal * pct/100 * 1000)/1000;
+    amtEl.value = disc.toFixed(3);
+  } else {
+    disc = Math.max(0, parseFloat(amtEl.value)||0);
+    var pct2 = subtotal>0 ? (disc/subtotal*100) : 0;
+    pctEl.value = pct2.toFixed(1);
+  }
+  var final = subtotal - disc;
+  // تحديث العرض
+  var discRow = document.getElementById('svqt-disc-row-'+qid);
+  var discVal = document.getElementById('svqt-disc-val-'+qid);
+  var finalEl = document.getElementById('svqt-final-'+qid);
+  if(discRow) discRow.style.display = disc>0?'flex':'none';
+  if(discVal && subtotal>0) discVal.textContent = '- '+disc.toFixed(3)+' KD ('+(disc/subtotal*100).toFixed(0)+'%)';
+  if(finalEl) finalEl.textContent = final.toFixed(3)+' KD';
+};
+
+window.saveSvcQuotePrice = async function(qid, subtotal){
+  var amtEl = document.getElementById('svq-disc-amt-'+qid);
+  if(!amtEl) return;
+  var disc  = Math.max(0, parseFloat(amtEl.value)||0);
+  var final = subtotal - disc;
+  var adminNote = 'تعديل السعر من قبل الأدمن — '+new Date().toLocaleDateString('ar-KW');
+  await window.FB.upd(window.FB.doc(window.FB.db,'iri_invoices_v2',qid),{
+    discount:disc, total:final,
+    adminNote, editedBy:_u.id||_u.username, editedAt:window.FB.ts()
+  });
+  toast('✅ تم حفظ تعديل السعر');
 };
 
 window.reassignInspByOrder = async function(orderId){
@@ -3816,7 +3873,8 @@ function buildPrintDoc(opts){
     +'.hdr{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:3px solid #1a7a40;padding-bottom:12px;margin-bottom:16px}'
     +'table{width:100%;border-collapse:collapse}.itbl thead tr{background:#1a7a40;color:#fff}.itbl th{padding:8px 10px;font-weight:700;font-size:.82rem}'
     +'.sec{font-size:.68rem;font-weight:800;color:#1a7a40;letter-spacing:1.5px;margin:14px 0 6px}'
-    +'@media print{@page{margin:10mm}}</style></head><body>'
+    +'.admin-note{background:#fff5e0;border:1px solid #f0d080;border-radius:8px;padding:8px 12px;font-size:.78rem;color:#b8720a;margin-top:10px}'
+    +'@media print{@page{margin:10mm}.admin-note{display:none!important}}</style></head><body>'
     // هيدر
     +'<div class="hdr">'
       +'<div><div style="font-size:1.2rem;font-weight:900;color:#1a7a40">🌿 Kuwait Organic</div>'
@@ -3839,6 +3897,7 @@ function buildPrintDoc(opts){
     +'<table class="itbl" style="margin-bottom:12px"><thead><tr>'+thCols+'</tr></thead><tbody>'+rows+'</tbody></table>'
     // الإجماليات
     +totHtml
+    +(opts.adminNote?'<div class="admin-note">⚙️ '+opts.adminNote+'</div>':'')
     +'<p style="margin-top:20px;font-size:.68rem;color:#bbb;text-align:center">Kuwait Organic — q8organic.com'+(opts.asInvoice?' — فاتورة رسمية':' — عرض سعر صالح 30 يوماً')+'</p>'
     +'</body></html>';
 }
@@ -3863,12 +3922,14 @@ window.printQuoteFromData = function(qid, asInvoice){
   var disc     = parseFloat(q.discount||0);
   var final    = parseFloat(q.total||subtotal);
   var items    = (q.items||[]);
+  var adminNote= q.adminNote||'';
   var w=window.open('','_blank');
   w.document.write(buildPrintDoc({
     docTitle: asInvoice?'فاتورة':'عرض سعر',
     order, items, subtotal, disc, final,
     asInvoice: asInvoice,
-    isInvoiced: q.quoteStatus==='invoiced'
+    isInvoiced: q.quoteStatus==='invoiced',
+    adminNote: adminNote
   }));
   w.document.close(); setTimeout(function(){w.print();},700);
 };
