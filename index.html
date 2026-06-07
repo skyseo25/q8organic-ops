@@ -487,10 +487,6 @@ tbody tr[onclick]:active { background: #d8f0e2 !important; }
                   <option value="delivered">مسلّم</option>
                   <option value="returned">مرتجع</option>
                 </select>
-                <button class="btn btn-green" id="btn-add-order" onclick="openOrderModal()">
-                  <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-                  <span id="lbl-add-order">إضافة طلب</span>
-                </button>
               </div>
             </div>
             <div class="tbl-wrap">
@@ -532,19 +528,34 @@ tbody tr[onclick]:active { background: #d8f0e2 !important; }
       <!-- IRRIGATION / MAINTENANCE -->
       <div class="page" id="page-irrigation">
         <div class="module-header">
-          <div class="dash-card-icon green" style="width:36px;height:36px;font-size:1rem">🔧</div>
-          <h2 id="lbl-irr-title">الري والصيانة</h2>
+          <div class="dash-card-icon green" style="width:36px;height:36px;font-size:1rem">➕</div>
+          <h2 id="lbl-irr-title">إضافة توصيل وخدمة</h2>
         </div>
-        <!-- Sub-tabs -->
-        <div style="display:flex;gap:8px;margin-bottom:20px;flex-wrap:wrap;">
-          <button class="btn btn-green"  onclick="showIrrTab('svc')"   id="irr-tab-svc">📋 طلب خدمة</button>
+
+        <!-- زراّن رئيسيان -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:20px">
+          <button onclick="openOrderModal()" style="padding:20px 14px;border-radius:16px;border:none;background:var(--green);color:#fff;font-family:Cairo,sans-serif;font-size:1rem;font-weight:800;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:6px;box-shadow:0 4px 16px rgba(26,122,64,.2)">
+            <span style="font-size:1.6rem">🚚</span>
+            طلب توصيل
+            <span style="font-size:.75rem;font-weight:400;opacity:.85">توصيل طلبات ومنتجات</span>
+          </button>
+          <button onclick="openSvcRequestModal()" style="padding:20px 14px;border-radius:16px;border:none;background:#1a4a8a;color:#fff;font-family:Cairo,sans-serif;font-size:1rem;font-weight:800;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:6px;box-shadow:0 4px 16px rgba(26,74,138,.2)">
+            <span style="font-size:1.6rem">🔧</span>
+            طلب خدمة / كشف
+            <span style="font-size:.75rem;font-weight:400;opacity:.85">كشف · تمديد · صيانة</span>
+          </button>
+        </div>
+
+        <!-- تبويبات الباقي (فواتير / عروض / أرشيف) — للمدير فقط -->
+        <div id="irr-manager-tabs" style="display:flex;gap:8px;margin-bottom:20px;flex-wrap:wrap;">
+          <button class="btn btn-ghost"  onclick="showIrrTab('svc')"   id="irr-tab-svc">📋 طلبات الخدمة</button>
           <button class="btn btn-ghost"  onclick="showIrrTab('inv')"   id="irr-tab-inv">🧾 فواتير</button>
           <button class="btn btn-ghost"  onclick="showIrrTab('quote')" id="irr-tab-quote">💰 عروض الأسعار</button>
           <button class="btn btn-ghost"  onclick="showIrrTab('arch')"  id="irr-tab-arch">📦 أرشيف</button>
         </div>
 
         <!-- ── طلب خدمة ── -->
-        <div id="irr-svc" class="irr-tab-content">
+        <div id="irr-svc" class="irr-tab-content" style="display:none">
           <div class="sec-card">
             <div class="sec-header">
               <h3>طلبات الخدمة</h3>
@@ -1635,14 +1646,15 @@ function getNavItems(){
   // المندوب (del) له قائمة خاصة
   if(_u && _u._source === 'del'){
     return [
-      {id:'courier', icon:'🚚', ar:'طلباتي', en:'My Orders', roles:['employee']},
-      {id:'archive', icon:'📦', ar:'أرشيف تقاريري', en:'My Reports', roles:['employee']},
+      {id:'courier',    icon:'🚚', ar:'طلباتي',          en:'My Orders',      roles:['employee']},
+      {id:'irrigation', icon:'➕', ar:'إضافة طلب/خدمة',  en:'Add Order',      roles:['employee']},
+      {id:'archive',    icon:'📦', ar:'أرشيف تقاريري',   en:'My Reports',     roles:['employee']},
     ];
   }
   var all = [
     {id:'dashboard',  icon:'⊞',  ar:'لوحة التحكم',            en:'Dashboard',           roles:['manager','supervisor','employee']},
-    {id:'orders',     icon:'🚚', ar:'طلبات التوصيل والكشف',   en:'Delivery & Inspection',roles:['manager','supervisor'],           section_ar:'الأعمال',  section_en:'Operations'},
-    {id:'irrigation', icon:'🔧', ar:'الري والصيانة',           en:'Irrigation & Maint.', roles:['manager','supervisor','employee'], section_ar:'الأعمال',  section_en:'Operations'},
+    {id:'orders',     icon:'🚚', ar:'طلبات التوصيل والكشف',   en:'Active Orders',        roles:['manager','supervisor'],           section_ar:'الأعمال',  section_en:'Operations'},
+    {id:'irrigation', icon:'➕', ar:'إضافة توصيل وخدمة',      en:'Add Order / Service',  roles:['manager','supervisor','employee'], section_ar:'الأعمال',  section_en:'Operations'},
     {id:'items',      icon:'📋', ar:'الأصناف',                 en:'Items',               roles:['manager','supervisor','employee'], section_ar:'الأعمال',  section_en:'Operations'},
     {id:'reports',    icon:'📊', ar:'التقارير',                en:'Reports',             roles:['manager','supervisor'],           section_ar:'الإدارة',  section_en:'Management'},
     {id:'employees',  icon:'👤', ar:'الموظفون',                en:'Employees',           roles:['manager','supervisor'],           section_ar:'الإدارة',  section_en:'Management'},
@@ -1704,7 +1716,12 @@ window.showPage = function(page){
   if(page==='dashboard') renderDashboard();
   if(page==='orders'){ setOrdersTab(_ordersTab||'delivery'); }
   if(page==='courier') renderCourierView();
-  if(page==='irrigation'){ showIrrTab('svc'); }
+  if(page==='irrigation'){
+    // أخفي تبويبات المدير عن الموظف
+    var mgrTabs = document.getElementById('irr-manager-tabs');
+    if(mgrTabs) mgrTabs.style.display = (_role==='manager'||_role==='supervisor') ? 'flex' : 'none';
+    showIrrTab('svc');
+  }
   if(page==='customers') renderCustomers();
   if(page==='employees') renderEmployees();
   if(page==='items')    renderItems();
