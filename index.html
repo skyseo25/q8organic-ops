@@ -1990,7 +1990,11 @@ window.openOrderDetail = function(orderId){
     if(o.status==='closed'||o.status==='delivered'||o.status==='inspected'){
       actions.push('<div style="text-align:center;padding:8px;font-size:.82rem;color:var(--muted2)">✅ '+(isAr?'تم الانتهاء من هذا الطلب':'This order is complete')+'</div>');
     }
-  }
+    // زر الأرشيف للمدير والمشرف
+    if(_role==='manager'||_role==='supervisor'){
+      actions.push('<button style="'+btnStyle('#4a5568','#fff')+'" onclick="archiveInspection(\''+orderId+'\',\'\')">📦 حفظ في الأرشيف</button>');
+    }
+  } // end isInspection block
 
   if(!actions.length){
     actions.push('<div style="text-align:center;padding:16px;font-size:.85rem;color:var(--muted2)">لا توجد إجراءات متاحة لهذا الطلب</div>');
@@ -2178,6 +2182,29 @@ window.renderCourierView = function(){
       +((acts||trB)?'<div class="oc-footer">'+(trB?'<div class="oc-action-row">'+trB+'</div>':'')+(acts?'<div class="oc-action-row">'+acts+'</div>':'')+'</div>':'')
       +'</div>';
   }).join('');
+};
+
+window.archiveInspection = async function(orderId, inspId){
+  if(!confirm('حفظ هذا الطلب في الأرشيف؟')) return;
+  var order = _orders.find(function(o){return o.id===orderId;});
+  var insp  = inspId ? _inspections.find(function(x){return x.id===inspId;}) : null;
+  try{
+    if(order){
+      await window.FB.upd(window.FB.doc(window.FB.db,'del_orders',orderId),{
+        status:'closed', archived:true, archivedAt:window.FB.ts(),
+        archivedBy:_u.id||_u.username, updatedAt:window.FB.ts()
+      });
+    }
+    if(insp){
+      await window.FB.upd(window.FB.doc(window.FB.db,'iri_inspections',inspId),{
+        status:'closed', archived:true, archivedAt:window.FB.ts(),
+        archivedBy:_u.id||_u.username, updatedAt:window.FB.ts()
+      });
+    }
+    toast('📦 تم حفظ الطلب في الأرشيف');
+    closeModal('modal-order-detail');
+    closeModal('modal-svc-detail');
+  }catch(e){ toast('خطأ: '+e.message); }
 };
 
 window.updateInspStatus = async function(id, status){
@@ -2895,7 +2922,9 @@ window.openOrderDetailBySvc = function(inspId){
     +(isManager?'<div style="display:flex;gap:8px;margin-bottom:8px">'
       +'<button onclick="openSvcRequestModal(\''+inspId+'\');closeModal(\'modal-svc-detail\')" style="flex:1;padding:10px;background:var(--gl);color:var(--green);border:1px solid var(--gm);border-radius:10px;font-family:Cairo,sans-serif;font-size:.82rem;font-weight:700;cursor:pointer">✏️ تعديل الكشف</button>'
       +(relatedOrder?'<button onclick="reassignInspByOrder(\''+relatedOrder.id+'\');closeModal(\'modal-svc-detail\')" style="flex:1;padding:10px;background:var(--orangel);color:var(--orange);border:1px solid #f0d090;border-radius:10px;font-family:Cairo,sans-serif;font-size:.82rem;font-weight:700;cursor:pointer">🔄 إعادة إسناد</button>':'')
-    +'</div>':'')
+    +'</div>'
+    +'<button onclick="archiveInspection(\''+(relatedOrder?relatedOrder.id:'')+'\',\''+inspId+'\')" style="width:100%;padding:11px;background:#4a5568;color:#fff;border:none;border-radius:10px;font-family:Cairo,sans-serif;font-size:.85rem;font-weight:800;cursor:pointer;margin-bottom:8px">📦 حفظ في الأرشيف</button>'
+    :'')
 
     +'</div></div></div>';
 
@@ -3066,6 +3095,7 @@ window.renderSvcRequests = function(){
   var myName = _u ? (_u.name||_u.username||'') : '';
   var isEmployee = _role==='employee';
   var data = (_inspections||[]).filter(function(r){
+    if(r.archived) return false;
     if(isEmployee){
       // يرى فقط طلباته المحالة إليه
       return r.empId===myId || r.empName===myName || r.empId===myName;
