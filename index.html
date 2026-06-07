@@ -4434,6 +4434,10 @@ window.openQuoteDetail = function(qid){
   var qStatus  = q.quoteStatus||'pending'; // pending | agreed | review | rejected | invoiced
   var existPct = subtotal>0 ? (existDisc/subtotal*100) : 0;
   var maxPct   = isManager ? 100 : 10;
+  // قيم العرض محدودة حسب الدور (المندوب لا يتجاوز 10%)
+  var dispPct  = Math.min(existPct, maxPct);
+  var dispDisc = Math.round(subtotal*dispPct/100*1000)/1000;
+  var dispTotal= subtotal - dispDisc;
   var statusLabels = {pending:'🔄 في الانتظار', agreed:'✅ تم الاتفاق', review:'🔍 للمراجعة', rejected:'❌ مرفوض', invoiced:'🧾 تحول لفاتورة'};
   var statusColors = {pending:'var(--gold)',agreed:'var(--green)',review:'var(--blue)',rejected:'var(--red)',invoiced:'#555'};
 
@@ -4494,16 +4498,17 @@ window.openQuoteDetail = function(qid){
     // ── الإجماليات ──
     +'<div style="background:#fff;border:1px solid var(--border);border-radius:12px;padding:14px;margin-bottom:14px">'
       +'<div style="display:flex;justify-content:space-between;padding:5px 0;font-size:.88rem"><span style="color:var(--muted)">السعر قبل الخصم</span><span style="font-weight:700">'+subtotal.toFixed(3)+' KD</span></div>'
-      +'<div style="display:flex;justify-content:space-between;padding:5px 0;font-size:.88rem;color:var(--orange)"><span>الخصم</span><span id="qd-disc-amt">- '+existDisc.toFixed(3)+' KD</span></div>'
+      +'<div style="display:flex;justify-content:space-between;padding:5px 0;font-size:.88rem;color:var(--orange)"><span>الخصم</span><span id="qd-disc-amt">- '+dispDisc.toFixed(3)+' KD</span></div>'
       +'<div style="display:flex;justify-content:space-between;padding:8px 0 4px;border-top:2px solid var(--gm);margin-top:4px">'
         +'<span style="font-size:1rem;font-weight:900">السعر بعد الخصم</span>'
-        +'<span id="qd-final" style="font-size:1.2rem;font-weight:900;color:var(--green)">'+existTotal.toFixed(3)+' KD</span>'
+        +'<span id="qd-final" style="font-size:1.2rem;font-weight:900;color:var(--green)">'+dispTotal.toFixed(3)+' KD</span>'
       +'</div>'
       // تعديل نسبة الخصم — مدير حتى 100% / مندوب حتى 10%
       +'<div style="margin-top:12px;padding-top:10px;border-top:1px dashed var(--border)">'
         +'<label style="font-size:.75rem;font-weight:700;color:var(--muted);margin-bottom:6px;display:block">✏️ تعديل نسبة الخصم '+(isManager?'(حتى 100%)':'(حد أقصى 10%)')+'</label>'
-        +'<input id="qd-disc-pct" type="number" step="0.1" min="0" max="'+maxPct+'" value="'+existPct.toFixed(1)+'" oninput="updateDetailTotal('+subtotal+','+maxPct+')" style="width:100%;padding:9px;border:1.5px solid var(--border);border-radius:8px;font-family:Cairo,sans-serif;font-size:.9rem">'
+        +'<input id="qd-disc-pct" type="number" step="0.1" min="0" max="'+maxPct+'" value="'+dispPct.toFixed(1)+'" oninput="updateDetailTotal('+subtotal+','+maxPct+')" style="width:100%;padding:9px;border:1.5px solid var(--border);border-radius:8px;font-family:Cairo,sans-serif;font-size:.9rem">'
         +'<div id="qd-disc-warn" style="display:none;font-size:.72rem;color:var(--red);margin-top:4px">⚠️ الحد الأقصى للخصم '+maxPct+'%</div>'
+        +'<button onclick="saveQuoteEdit(\''+qid+'\','+subtotal+','+maxPct+')" style="width:100%;margin-top:10px;padding:11px;background:var(--green);color:#fff;border:none;border-radius:10px;font-family:Cairo,sans-serif;font-size:.85rem;font-weight:800;cursor:pointer">💾 حفظ الخصم</button>'
       +'</div>'
     +'</div>'
 
@@ -4523,8 +4528,6 @@ window.openQuoteDetail = function(qid){
     +'<div style="display:flex;flex-direction:column;gap:8px;padding-bottom:30px">'
       // مندوب: تعديل الأصناف (إضافة / حذف)
       +((!isManager&&order)?'<button onclick="editInspQuote(\''+order.id+'\',\''+qid+'\')" style="padding:12px;background:#1a4a8a;color:#fff;border:none;border-radius:12px;font-family:Cairo,sans-serif;font-size:.88rem;font-weight:800;cursor:pointer">📋 تعديل الأصناف (إضافة / حذف)</button>':'')
-      // حفظ تعديل الخصم
-      +'<button onclick="saveQuoteEdit(\''+qid+'\','+subtotal+','+maxPct+')" style="padding:12px;background:var(--green);color:#fff;border:none;border-radius:12px;font-family:Cairo,sans-serif;font-size:.88rem;font-weight:800;cursor:pointer">💾 حفظ التعديل</button>'
       // مدير: تحويل لفاتورة + إعادة إسناد
       +(isManager&&q.quoteStatus!=='invoiced'?'<button onclick="convertToInvoice(\''+qid+'\')" style="padding:13px;background:#1a7a40;color:#fff;border:none;border-radius:12px;font-family:Cairo,sans-serif;font-size:.9rem;font-weight:800;cursor:pointer">🧾 تحويل إلى فاتورة</button>':'')
       +(isManager?'<button onclick="reassignInspection(\''+qid+'\')" style="padding:12px;background:var(--orangel);color:var(--orange);border:1px solid #f0d090;border-radius:12px;font-family:Cairo,sans-serif;font-size:.88rem;font-weight:700;cursor:pointer">🔄 إعادة كشف + تغيير المكلف</button>':'')
@@ -4619,8 +4622,7 @@ window.saveQuoteEdit = async function(qid, subtotal, maxPct){
   maxPct = maxPct||100;
   var el = document.getElementById('qd-disc-pct');
   var raw = parseFloat(el?el.value:0)||0;
-  if(raw>maxPct){ toast(_lang==='ar'?('⚠️ الحد الأقصى للخصم '+maxPct+'%'):('⚠️ Max discount '+maxPct+'%')); return; }
-  var pct = Math.min(maxPct, Math.max(0, raw));
+  var pct = Math.min(maxPct, Math.max(0, raw)); // حد أقصى حسب الدور (مندوب 10% / مدير 100%)
   var disc = Math.round(subtotal*pct/100*1000)/1000;
   var total = subtotal - disc;
   var who = _u.name||_u.username||_u.id;
@@ -4629,7 +4631,7 @@ window.saveQuoteEdit = async function(qid, subtotal, maxPct){
     editedBy:_u.id||_u.username, editedAt:window.FB.ts(),
     lastEditBy:who, lastEditAt:window.FB.ts()
   });
-  toast('✅ تم حفظ التعديل');
+  toast(raw>maxPct ? ('✅ تم الحفظ — حُدّد الخصم بحد أقصى '+maxPct+'%') : '✅ تم حفظ الخصم');
   openQuoteDetail(qid);
 };
 
