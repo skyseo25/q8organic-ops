@@ -4427,6 +4427,7 @@ function archDateFilter(dateVal){
 window.renderArchive = function(){
   var q   = ((document.getElementById('arch-search')||{}).value||'').toLowerCase();
   var isEmployee = _role==='employee';
+  var isManager  = _role==='manager' || _role==='supervisor';
   var myId   = _u ? (_u.id||_u.username||_u.name||'') : '';
   var myName = _u ? (_u.name||_u.username||'') : '';
   console.log('[Archive] tab='+_archTab+' filter='+_archFilter+' orders='+(_orders||[]).length+' archived='+(_archived||[]).length+' insps='+(_inspections||[]).length+' reports='+(_delReports||[]).length);
