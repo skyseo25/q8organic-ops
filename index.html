@@ -3958,10 +3958,14 @@ window.printQuoteFromData = async function(qid, asInvoice){
   var final    = (q.total !== undefined && q.total !== null) ? parseFloat(q.total) : subtotal;
   var adminNote= q.adminNote||'';
 
-  // تحويل صور الأصناف إلى base64
+  // أضف بيانات الصورة من الكتالوج (_items) للعروض القديمة التي لا تحتوي على image
   var items = await Promise.all((q.items||[]).map(async function(it){
-    var b64 = it.image ? await imgToBase64(it.image) : '';
-    return Object.assign({}, it, {image: b64 || it.image || ''});
+    // جلب الصورة من الكتالوج لو لم تكن محفوظة في العرض
+    var catalogItem = _items.find(function(x){ return x.id===it.itemId; });
+    var imageUrl = it.image || (catalogItem ? catalogItem.image : '') || '';
+    var nameEn   = it.nameEn || (catalogItem ? catalogItem.nameEn : '') || '';
+    var b64 = imageUrl ? await imgToBase64(imageUrl) : '';
+    return Object.assign({}, it, {image: b64 || imageUrl, nameEn: nameEn});
   }));
 
   var w=window.open('','_blank');
