@@ -4292,7 +4292,7 @@ window.saveInvoiceItems = async function(){
     } else {
       await window.FB.add(window.FB.col(window.FB.db,'iri_invoices_v2'),{
         orderId:_currentInspOrderId||'', items, subtotal, discount:0, total:subtotal, type:'quote',
-        createdBy:_u.id||_u.username, createdAt:window.FB.ts(), lastEditBy:_who, lastEditAt:window.FB.ts()
+        createdBy:_u.id||_u.username, createdByName:_u.name||_u.username||'', createdAt:window.FB.ts(), lastEditBy:_who, lastEditAt:window.FB.ts()
       });
     }
     if(_currentInspOrderId){
@@ -4368,6 +4368,18 @@ function loadQuotes(){
   });
 }
 
+// اسم المندوب الذي كشف (يحل المعرّف إلى اسم صحيح)
+window.quoteCourierName = function(q){
+  if(q && q.createdByName) return q.createdByName;
+  var o = q ? _orders.find(function(x){return x.id===q.orderId;}) : null;
+  if(o && o.courierName) return o.courierName;
+  var id = q ? q.createdBy : '';
+  var u = (_delUsers||[]).find(function(x){return x.id===id||x.username===id;})
+       || (_sysUsers||[]).find(function(x){return x.id===id||x.username===id;});
+  if(u) return u.name||u.username||id;
+  return id||'—';
+};
+
 window.renderQuotes = function(){
   var listWrap = document.getElementById('quotes-list-wrap');
   var tbody = document.getElementById('quotes-tbody');
@@ -4404,7 +4416,7 @@ window.renderQuotes = function(){
       +'<td><b>'+(client||'—')+'</b> '+badge+'</td>'
       +'<td>'+itemCount+' صنف</td>'
       +'<td style="font-weight:700;color:var(--green)">'+total.toFixed(3)+' KD</td>'
-      +'<td style="font-size:.78rem;color:var(--muted)">'+(q.createdBy||'—')+'</td>'
+      +'<td style="font-size:.78rem;color:var(--muted)">'+quoteCourierName(q)+'</td>'
       +'<td><button class="btn-edit-sm" onclick="event.stopPropagation();openQuoteDetail(\''+q.id+'\')">تفاصيل</button>'
       +(_role==='manager'?'<button class="btn-danger" onclick="event.stopPropagation();delQuote(\''+q.id+'\')">✕</button>':'')
       +'</td></tr>';
@@ -4461,10 +4473,10 @@ window.openQuoteDetail = function(qid){
         +(order.notes?'<div style="font-size:.78rem;color:var(--muted2);margin-top:4px">📝 '+order.notes+'</div>':'')
         +'<div style="font-size:.75rem;color:var(--muted2);margin-top:6px;display:flex;gap:12px">'
           +'<span>🔧 '+(order.inspTypeAr||'كشف')+'</span>'
-          +'<span>👤 المندوب: '+(q.createdBy||'—')+'</span>'
+          +'<span>👤 المندوب: '+quoteCourierName(q)+'</span>'
         +'</div>'
       :'<div style="color:var(--muted2)">لا توجد بيانات عميل</div>'
-       +'<div style="font-size:.75rem;color:var(--muted2);margin-top:6px">👤 المندوب الذي كشف: '+(q.createdBy||'—')+'</div>')
+       +'<div style="font-size:.75rem;color:var(--muted2);margin-top:6px">👤 المندوب الذي كشف: '+quoteCourierName(q)+'</div>')
     +'</div>'
 
     // ── الأصناف ──
@@ -4560,9 +4572,19 @@ window.updateDetailTotal = function(subtotal, maxPct){
   var warn = document.getElementById('qd-disc-warn'); if(warn) warn.style.display = (raw>maxPct)?'block':'none';
 };
 
+window.updateQuoteTotal = function(subtotal, maxDiscount){
+  var el = document.getElementById('qt-discount'); if(!el) return;
+  var raw = parseFloat(el.value)||0;
+  var disc = Math.min(maxDiscount, Math.max(0, raw));
+  var warn = document.getElementById('qt-discount-warn'); if(warn) warn.style.display = (raw>maxDiscount)?'block':'none';
+  var finalEl = document.getElementById('qt-final'); if(finalEl) finalEl.textContent = (subtotal-disc).toFixed(3)+' KD';
+};
+
 window.saveQuote = async function(){
   var subtotal = _invoiceItems.reduce(function(s,x){return s+x.qty*parseFloat(x.item.price||0);},0);
   var disc = parseFloat((document.getElementById('qt-discount')||{}).value)||0;
+  var maxDisc = Math.round(subtotal*0.10*1000)/1000; // المندوب: حد أقصى خصم 10%
+  if(disc>maxDisc) disc = maxDisc;
   var final = subtotal - disc;
   var items = _invoiceItems.map(function(x){return {
       itemId:x.itemId, nameAr:x.item.nameAr, nameEn:x.item.nameEn||'',
@@ -4584,7 +4606,7 @@ window.saveQuote = async function(){
   } else {
     await window.FB.add(window.FB.col(window.FB.db,'iri_invoices_v2'), {
       orderId:_currentInspOrderId||'', items, subtotal, discount:disc, total:final, type:'quote',
-      createdBy:_u.id||_u.username, createdAt:window.FB.ts(), lastEditBy:_who, lastEditAt:window.FB.ts()
+      createdBy:_u.id||_u.username, createdByName:_u.name||_u.username||'', createdAt:window.FB.ts(), lastEditBy:_who, lastEditAt:window.FB.ts()
     });
     toast('✅ تم حفظ عرض السعر');
   }
