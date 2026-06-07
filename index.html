@@ -1860,23 +1860,19 @@ function renderDashboard(){
     // كارت 4 — كاش تحولت إلى Knet
     +'<div class="dash-card" style="cursor:default">'
       +'<div class="dash-card-icon gold">💳</div>'
-      +'<h3>طلبات تحولت كاش → Knet</h3>'
+      +'<h3>طلبات كاش تحولت Knet</h3>'
       +(knetConverted.length
         ? knetConverted.map(function(o){
-          return '<div style="display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid var(--border)">'
-            +'<div><div style="font-weight:700;font-size:.85rem">'+(o.clientName||'—')+'</div>'
-            +'<div style="font-size:.72rem;color:var(--muted)">'+(o.courierName||'')+'</div></div>'
-            +'<div style="text-align:left">'
-              +'<div style="font-size:.8rem;font-weight:700">'+parseFloat(o.amount||0).toFixed(3)+' KD</div>'
-              +((_role==='manager'||_role==='supervisor')
-                ?'<button onclick="markKnetSettled(\''+o.id+'\')" style="margin-top:3px;padding:3px 8px;background:var(--green);color:#fff;border:none;border-radius:6px;font-family:Cairo,sans-serif;font-size:.68rem;font-weight:700;cursor:pointer">✅ تم التسديد</button>'
-                :'<span style="font-size:.7rem;color:var(--gold)">بانتظار التسديد</span>')
+          return '<div style="display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid var(--border);gap:8px">'
+            +'<div style="flex:1">'
+              +'<div style="font-weight:800;font-size:.85rem">'+(o.clientName||'—')+'</div>'
+              +'<div style="font-size:.72rem;color:var(--muted)">'+(o.courierName||'')+(o.amount?'  •  '+parseFloat(o.amount).toFixed(3)+' KD':'')+'</div>'
             +'</div>'
+            +((_role==='manager'||_role==='supervisor')
+              ?'<button onclick="markKnetSettled(\''+o.id+'\')" style="padding:5px 10px;background:var(--green);color:#fff;border:none;border-radius:8px;font-family:Cairo,sans-serif;font-size:.72rem;font-weight:700;cursor:pointer;white-space:nowrap">✅ تم السداد</button>'
+              :'<span style="font-size:.7rem;color:var(--gold);white-space:nowrap">بانتظار السداد</span>')
           +'</div>';
         }).join('')
-        +'<div style="font-weight:900;font-size:.88rem;color:var(--gold);margin-top:8px;text-align:left">'
-          +'إجمالي: '+knetConverted.reduce(function(s,o){return s+parseFloat(o.amount||0);},0).toFixed(3)+' KD'
-        +'</div>'
         :'<div style="color:var(--muted2);font-size:.82rem;text-align:center;padding:12px">لا توجد تحويلات معلقة ✅</div>'
       )
     +'</div>';
