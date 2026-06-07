@@ -1941,7 +1941,7 @@ window.renderCourierView = function(){
 
     var oid = o.id;
     var _mapUrl = o.locationLink || (addr ? 'https://www.google.com/maps/search/'+encodeURIComponent(addr) : '');
-    var mapB = _mapUrl ? '<a href="'+_mapUrl+'" target="_blank" onclick="return false" style="display:flex;align-items:center;justify-content:center;gap:6px;background:#1a7a40;color:#fff;border-radius:10px;padding:10px 16px;font-size:.85rem;font-weight:700;text-decoration:none;margin-top:8px">📍 فتح الموقع على الخريطة</a>' : '';
+    var mapB = _mapUrl ? '<a href="'+_mapUrl+'" target="_blank" style="display:flex;align-items:center;justify-content:center;gap:6px;background:#1a7a40;color:#fff;border-radius:10px;padding:10px 16px;font-size:.85rem;font-weight:700;text-decoration:none;margin-top:8px">📍 فتح الموقع على الخريطة</a>' : '';
     var waB  = ''; // removed
     var trB  = (_role==='manager'||_role==='supervisor')&&!isInsp ? '<button class="oc-btn oc-btn-ghost" style="flex:0;padding:10px 14px" onclick="openOrderModal(\''+oid+'\')">🔄 تحويل</button>' : '';
 
