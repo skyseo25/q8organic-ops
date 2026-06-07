@@ -1178,14 +1178,14 @@ function getNavItems(){
     ];
   }
   var all = [
-    {id:'dashboard', icon:'⊞', ar:'لوحة التحكم', en:'Dashboard', roles:['manager','supervisor','employee']},
-    {id:'orders', icon:'🚚', ar:'طلبات التوصيل والكشف', en:'Delivery & Inspection', roles:['manager','supervisor'], section_ar:'التوصيل', section_en:'Delivery'},
-    {id:'irrigation', icon:'🔧', ar:'الري والصيانة', en:'Irrigation & Maint.', roles:['manager','supervisor','employee'], section_ar:'الصيانة', section_en:'Maintenance'},
-    {id:'customers', icon:'👥', ar:'قاعدة العملاء', en:'Customers', roles:['manager']},
-    {id:'employees', icon:'👤', ar:'الموظفون', en:'Employees', roles:['manager','supervisor'], section_ar:'الإدارة', section_en:'Management'},
-    {id:'reports', icon:'📊', ar:'التقارير', en:'Reports', roles:['manager','supervisor']},
-    {id:'archive', icon:'📦', ar:'الأرشيف', en:'Archive', roles:['manager','supervisor']},
-    {id:'settings', icon:'⚙️', ar:'الإعدادات', en:'Settings', roles:['manager']},
+    {id:'dashboard',  icon:'⊞',  ar:'لوحة التحكم',            en:'Dashboard',           roles:['manager','supervisor','employee']},
+    {id:'orders',     icon:'🚚', ar:'طلبات التوصيل والكشف',   en:'Delivery & Inspection',roles:['manager','supervisor'],           section_ar:'الأعمال',  section_en:'Operations'},
+    {id:'irrigation', icon:'🔧', ar:'الري والصيانة',           en:'Irrigation & Maint.', roles:['manager','supervisor','employee'], section_ar:'الأعمال',  section_en:'Operations'},
+    {id:'reports',    icon:'📊', ar:'التقارير',                en:'Reports',             roles:['manager','supervisor'],           section_ar:'الإدارة',  section_en:'Management'},
+    {id:'employees',  icon:'👤', ar:'الموظفون',                en:'Employees',           roles:['manager','supervisor'],           section_ar:'الإدارة',  section_en:'Management'},
+    {id:'customers',  icon:'👥', ar:'قاعدة العملاء',          en:'Customers',           roles:['manager'],                       section_ar:'الإدارة',  section_en:'Management'},
+    {id:'archive',    icon:'📦', ar:'الأرشيف',                en:'Archive',             roles:['manager','supervisor'],           section_ar:'الإدارة',  section_en:'Management'},
+    {id:'settings',   icon:'⚙️', ar:'الإعدادات',              en:'Settings',            roles:['manager'],                       section_ar:'الإدارة',  section_en:'Management'},
   ];
   return all.filter(function(x){ return x.roles.indexOf(_role)!==-1; });
 }
