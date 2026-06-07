@@ -464,28 +464,59 @@ tbody tr[onclick]:active { background: #d8f0e2 !important; }
           <h2 id="lbl-orders-title">طلبات التوصيل والكشف</h2>
           <span class="module-badge tag-orange" id="orders-count-badge">0</span>
         </div>
-        <div class="sec-card">
-          <div class="sec-header">
-            <h3 id="lbl-active-orders">الطلبات النشطة</h3>
-            <div class="sec-header-actions">
-              <select class="filter-input" id="orders-status-filter" onchange="renderOrders()" style="font-size:.78rem;padding:6px 10px;">
-                <option value="">كل الحالات / All</option>
-                <option value="pending">قيد الانتظار / Pending</option>
-                <option value="assigned">محال / Assigned</option>
-                <option value="delivered">مسلّم / Delivered</option>
-                <option value="returned">مرتجع / Returned</option>
-              </select>
-              <button class="btn btn-green" id="btn-add-order" onclick="openOrderModal()">
-                <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-                <span id="lbl-add-order">إضافة طلب</span>
-              </button>
+
+        <!-- تبويبات رئيسية -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px">
+          <button id="orders-tab-delivery" onclick="setOrdersTab('delivery')" style="padding:14px;border-radius:14px;border:2px solid var(--green);background:var(--green);color:#fff;font-family:Cairo,sans-serif;font-size:.95rem;font-weight:800;cursor:pointer">
+            🚚 التوصيل<br><span id="orders-tab-delivery-count" style="font-size:.75rem;font-weight:400;opacity:.85">0 طلب</span>
+          </button>
+          <button id="orders-tab-inspection" onclick="setOrdersTab('inspection')" style="padding:14px;border-radius:14px;border:2px solid var(--border);background:#fff;color:var(--muted);font-family:Cairo,sans-serif;font-size:.95rem;font-weight:800;cursor:pointer">
+            🔧 تمديدات وخدمات<br><span id="orders-tab-inspection-count" style="font-size:.75rem;font-weight:400;opacity:.85">0 طلب</span>
+          </button>
+        </div>
+
+        <!-- قسم التوصيل -->
+        <div id="orders-section-delivery">
+          <div class="sec-card">
+            <div class="sec-header">
+              <h3>طلبات التوصيل النشطة</h3>
+              <div class="sec-header-actions">
+                <select class="filter-input" id="orders-status-filter" onchange="renderOrders()" style="font-size:.78rem;padding:6px 10px;">
+                  <option value="">كل الحالات / All</option>
+                  <option value="pending">قيد الانتظار</option>
+                  <option value="delivered">مسلّم</option>
+                  <option value="returned">مرتجع</option>
+                </select>
+                <button class="btn btn-green" id="btn-add-order" onclick="openOrderModal()">
+                  <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                  <span id="lbl-add-order">إضافة طلب</span>
+                </button>
+              </div>
+            </div>
+            <div class="tbl-wrap">
+              <table><thead><tr>
+                <th id="th-ord-id">#</th><th id="th-ord-client">العميل</th><th id="th-ord-area">المنطقة</th>
+                <th id="th-ord-courier">المندوب</th><th id="th-ord-status">الحالة</th><th id="th-ord-pay">الدفع</th><th></th>
+              </tr></thead><tbody id="orders-tbody"></tbody></table>
             </div>
           </div>
-          <div class="tbl-wrap">
-            <table><thead><tr>
-              <th id="th-ord-id">#</th><th id="th-ord-client">العميل</th><th id="th-ord-area">المنطقة</th>
-              <th id="th-ord-courier">المندوب</th><th id="th-ord-status">الحالة</th><th id="th-ord-pay">الدفع</th><th></th>
-            </tr></thead><tbody id="orders-tbody"></tbody></table>
+        </div>
+
+        <!-- قسم التمديدات والخدمات -->
+        <div id="orders-section-inspection" style="display:none">
+          <div class="sec-card">
+            <div class="sec-header">
+              <h3>طلبات الكشف والتمديد والخدمات النشطة</h3>
+              <button class="btn btn-green" onclick="openSvcRequestModal()">
+                <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                + طلب جديد
+              </button>
+            </div>
+            <div class="tbl-wrap">
+              <table><thead><tr>
+                <th>#</th><th>التاريخ</th><th>العميل</th><th>الهاتف</th><th>المنطقة</th><th>نوع الخدمة</th><th>الحالة</th><th>الموظف</th><th></th>
+              </tr></thead><tbody id="orders-insp-tbody"></tbody></table>
+            </div>
           </div>
         </div>
       </div>
@@ -1671,7 +1702,7 @@ window.showPage = function(page){
   document.getElementById('page-title').textContent = found ? (_lang==='ar'?found.ar:found.en) : (_lang==='ar'?(titles[page]||page):(titlesEn[page]||page));
   // Render
   if(page==='dashboard') renderDashboard();
-  if(page==='orders') renderOrders();
+  if(page==='orders'){ setOrdersTab(_ordersTab||'delivery'); }
   if(page==='courier') renderCourierView();
   if(page==='irrigation'){ showIrrTab('svc'); }
   if(page==='customers') renderCustomers();
@@ -1776,56 +1807,123 @@ function renderDashboard(){
 // ══════════════════════════════════════════════
 // ORDERS
 // ══════════════════════════════════════════════
+var _ordersTab = 'delivery';
+
+window.setOrdersTab = function(tab){
+  _ordersTab = tab;
+  var isD = tab==='delivery';
+  var btnD=document.getElementById('orders-tab-delivery'), btnI=document.getElementById('orders-tab-inspection');
+  var secD=document.getElementById('orders-section-delivery'), secI=document.getElementById('orders-section-inspection');
+  if(btnD){btnD.style.background=isD?'var(--green)':'#fff';btnD.style.color=isD?'#fff':'var(--muted)';btnD.style.borderColor=isD?'var(--green)':'var(--border)';}
+  if(btnI){btnI.style.background=!isD?'var(--green)':'#fff';btnI.style.color=!isD?'#fff':'var(--muted)';btnI.style.borderColor=!isD?'var(--green)':'var(--border)';}
+  if(secD) secD.style.display=isD?'':'none';
+  if(secI) secI.style.display=!isD?'':'none';
+  renderOrders();
+};
+
 window.renderOrders = function(){
-  var filter = document.getElementById('orders-status-filter').value;
-  var list = _orders.filter(function(o){
-    if(filter && o.status !== filter) return false;
-    if(_role === 'employee'){
-      var myId = _u.id||_u.username;
-      return o.courierId === myId;
-    }
+  var filter = (document.getElementById('orders-status-filter')||{}).value||'';
+  var myId = _u ? (_u.id||_u.username) : '';
+  var isEmployee = _role==='employee';
+
+  // فصل الطلبات
+  var allActive = _orders.filter(function(o){
+    if(isEmployee && o.courierId!==myId) return false;
+    if(o.archived||o.settled) return false;
+    if(filter && o.status!==filter) return false;
     return true;
   });
-  var PAY = {cash:t('cash')||'💵 كاش',knet:'💳 Knet',paid:t('paid')||'✅ مدفوع',free:'—'};
-  var ST = {pending:{cl:'st-pending',ar:'قيد الانتظار',en:'Pending'},assigned:{cl:'st-pending',ar:'محال',en:'Assigned'},
-    delivered:{cl:'st-active',ar:'مسلّم',en:'Delivered'},returned:{cl:'st-cancelled',ar:'مرتجع',en:'Returned'}};
-  document.getElementById('orders-count-badge').textContent = list.length;
-  document.getElementById('orders-tbody').innerHTML = list.map(function(o,i){
-    var s = ST[o.status]||{cl:'st-gray',ar:o.status,en:o.status};
-    var typeTag = o.orderType==='inspection'
-      ? '<span class="tag tag-blue" style="font-size:.68rem">🔍 '+(o.inspTypeAr||o.inspTypeEn||'كشف')+'</span>'
-      : '<span class="tag tag-orange" style="font-size:.68rem">🚚 '+ (_lang==='ar'?'توصيل':'Delivery') +'</span>';
-    var courier = o.courierId
-      ? '<b>'+(o.courierName||'—')+'</b>'
-      : '<span style="color:var(--muted2);font-size:.75rem">'+(_lang==='ar'?'لم يُحدد':'Not assigned')+'</span>';
-    var locBtn = o.locationLink
-      ? '<a href="'+o.locationLink+'" target="_blank" style="display:inline-flex;align-items:center;gap:3px;background:#e8f5e9;color:#1a7a40;border:1px solid #b8dfc4;border-radius:6px;padding:2px 8px;font-size:.72rem;font-weight:700;text-decoration:none;margin-top:3px">📍 '+ (_lang==='ar'?'الموقع':'Map') +'</a>'
-      : '';
-    // عمود الدفع — Knet تظهر بشكل مميز
-    var payCol;
-    if(o.paymentType==='knet'){
-      payCol = '<span style="background:#e8f0ff;color:#1a4a8a;border:1.5px solid #c8d8f8;border-radius:20px;padding:3px 10px;font-size:.72rem;font-weight:800">💳 Knet</span>'
-        +(o.amount&&o.amount>0?'<div style="font-size:.7rem;color:#1a4a8a;margin-top:2px">'+parseFloat(o.amount).toFixed(3)+' KD</div>':'');
-    } else if(o.paymentType==='cash'){
-      payCol = '<span style="background:#fff0e0;color:#b8720a;border-radius:20px;padding:3px 10px;font-size:.72rem;font-weight:700;border:1px solid #f0d090">💵 '+(o.amount?parseFloat(o.amount).toFixed(3)+' KD':'كاش')+'</span>';
-    } else if(o.paymentType==='paid'){
-      payCol = '<span style="background:var(--gl);color:var(--green);border-radius:20px;padding:3px 10px;font-size:.72rem;font-weight:700">✅ مدفوع</span>';
-    } else {
-      payCol = '<span style="color:var(--muted2);font-size:.75rem">—</span>';
-    }
-    return '<tr onclick="openOrderDetail(\''+o.id+'\')" style="cursor:pointer" onmouseover="this.style.background=\'#f0f9f4\'" onmouseout="this.style.background=\'\'">'
-      +'<td>'+(i+1)+'</td>'
-      +'<td><b>'+(o.clientName||'—')+'</b><br><small style="color:var(--muted2)">'+(o.phone||'')+'</small>'+(o.orderNum?'<br><span style="background:#e8f0ff;color:#1a4a8a;padding:1px 6px;border-radius:4px;font-size:.68rem;font-weight:800">📦 '+o.orderNum+'</span>':'')+'</td>'
-      +'<td>'+(_lang==='en'?translateArea(o.area||''):o.area||'—')+'<br>'+(o.block?'<small style="color:var(--muted2)">'+o.block+'</small>':'')+'</td>'
-      +'<td>'+typeTag+'</td>'
-      +'<td>'+courier+'</td>'
-      +'<td><span class="status '+s.cl+'">'+(_lang==='ar'?s.ar:s.en)+'</span></td>'
-      +'<td>'+payCol+'</td>'
-      +'<td onclick="return false">'
-        +'<button class="btn-edit-sm" onclick="openOrderModal(\''+o.id+'\')" style="font-size:.7rem">'+t('edit')+'</button> '
-        +(_role==='manager'?'<button class="btn-danger" onclick="delOrder(\''+o.id+'\')">✕</button>':'')
-      +'</td></tr>';
-  }).join('') || '<tr><td colspan="8" class="empty">'+ (_lang==='ar'?'لا توجد طلبات':'No orders') +'</td></tr>';
+  var deliveryOrders    = allActive.filter(function(o){ return o.orderType!=='inspection'; });
+  var inspectionOrders  = allActive.filter(function(o){ return o.orderType==='inspection'; });
+
+  // تحديث العدادات في الأزرار
+  var cntD = document.getElementById('orders-tab-delivery-count');
+  var cntI = document.getElementById('orders-tab-inspection-count');
+  if(cntD) cntD.textContent = deliveryOrders.length+' طلب';
+  if(cntI) cntI.textContent = inspectionOrders.length+' طلب';
+
+  var badgeEl = document.getElementById('orders-count-badge');
+  if(badgeEl) badgeEl.textContent = allActive.length;
+
+  var PAY = {cash:'💵 كاش',knet:'💳 Knet',paid:'✅ مدفوع',free:'—'};
+  var ST  = {pending:{cl:'st-pending',ar:'قيد الانتظار'},assigned:{cl:'st-pending',ar:'محال'},
+             delivering:{cl:'st-active',ar:'في الطريق'},delivered:{cl:'st-active',ar:'مسلّم'},
+             returned:{cl:'st-cancelled',ar:'مرتجع'},inspected:{cl:'st-done',ar:'تم الكشف'},
+             closed:{cl:'st-gray',ar:'مغلق'},noreply:{cl:'st-cancelled',ar:'لا يوجد رد'}};
+
+  function payCol(o){
+    if(o.paymentType==='knet') return '<span style="background:#e8f0ff;color:#1a4a8a;border:1.5px solid #c8d8f8;border-radius:20px;padding:3px 10px;font-size:.72rem;font-weight:800">💳 Knet</span>'+(o.amount&&o.amount>0?'<div style="font-size:.7rem;color:#1a4a8a;margin-top:2px">'+parseFloat(o.amount).toFixed(3)+' KD</div>':'');
+    if(o.paymentType==='cash') return '<span style="background:#fff0e0;color:#b8720a;border-radius:20px;padding:3px 10px;font-size:.72rem;font-weight:700;border:1px solid #f0d090">💵 '+(o.amount?parseFloat(o.amount).toFixed(3)+' KD':'كاش')+'</span>';
+    if(o.paymentType==='paid') return '<span style="background:var(--gl);color:var(--green);border-radius:20px;padding:3px 10px;font-size:.72rem;font-weight:700">✅ مدفوع</span>';
+    return '<span style="color:var(--muted2);font-size:.75rem">—</span>';
+  }
+
+  // ── جدول التوصيل ──
+  var tbody = document.getElementById('orders-tbody');
+  if(tbody){
+    tbody.innerHTML = deliveryOrders.map(function(o,i){
+      var s = ST[o.status]||{cl:'st-gray',ar:o.status};
+      var courier = o.courierId?'<b>'+(o.courierName||'—')+'</b>':'<span style="color:var(--muted2);font-size:.75rem">لم يُحدد</span>';
+      return '<tr onclick="openOrderDetail(\''+o.id+'\')" style="cursor:pointer" onmouseover="this.style.background=\'#f0f9f4\'" onmouseout="this.style.background=\'\'">'
+        +'<td>'+(i+1)+'</td>'
+        +'<td><b>'+(o.clientName||'—')+'</b><br><small style="color:var(--muted2)">'+(o.phone||'')+'</small>'+(o.orderNum?'<br><span style="background:#e8f0ff;color:#1a4a8a;padding:1px 6px;border-radius:4px;font-size:.68rem;font-weight:800">📦 '+o.orderNum+'</span>':'')+'</td>'
+        +'<td>'+(o.area||'—')+(o.block?'<br><small style="color:var(--muted2)">ق'+o.block+'</small>':'')+'</td>'
+        +'<td>'+courier+'</td>'
+        +'<td><span class="status '+s.cl+'">'+s.ar+'</span></td>'
+        +'<td>'+payCol(o)+'</td>'
+        +'<td onclick="return false"><button class="btn-edit-sm" onclick="openOrderModal(\''+o.id+'\')" style="font-size:.7rem">تعديل</button> '+(_role==='manager'?'<button class="btn-danger" onclick="delOrder(\''+o.id+'\')">✕</button>':'')+'</td>'
+      +'</tr>';
+    }).join('') || '<tr><td colspan="7" class="empty">لا توجد طلبات توصيل نشطة</td></tr>';
+  }
+
+  // ── جدول التمديدات والخدمات ──
+  var inspTbody = document.getElementById('orders-insp-tbody');
+  if(inspTbody){
+    // دمج طلبات الكشف من del_orders + iri_inspections
+    var inspRows = inspectionOrders.map(function(o,i){
+      var s = ST[o.status]||{cl:'st-gray',ar:o.status};
+      var dt = o.createdAt&&o.createdAt.toDate?o.createdAt.toDate().toLocaleDateString('ar-KW',{day:'numeric',month:'short'}):'—';
+      return '<tr onclick="openOrderDetail(\''+o.id+'\')" style="cursor:pointer" onmouseover="this.style.background=\'#f0f9f4\'" onmouseout="this.style.background=\'\'">'
+        +'<td>'+(i+1)+'</td>'
+        +'<td style="font-size:.78rem">'+dt+'</td>'
+        +'<td><b>'+(o.clientName||'—')+'</b></td>'
+        +'<td style="font-size:.78rem">'+(o.phone||'—')+'</td>'
+        +'<td>'+(o.area||'—')+'</td>'
+        +'<td><span class="tag" style="background:#e8f0ff;color:#1a4a8a;font-size:.68rem">'+(o.inspTypeAr||'كشف')+'</span></td>'
+        +'<td><span class="status '+s.cl+'">'+s.ar+'</span></td>'
+        +'<td>'+(o.courierName||'<span style="color:var(--muted2);font-size:.75rem">لم يُحدد</span>')+'</td>'
+        +'<td onclick="return false"><button class="btn-edit-sm" onclick="openOrderModal(\''+o.id+'\')" style="font-size:.7rem">تعديل</button></td>'
+      +'</tr>';
+    });
+
+    // أضف أيضاً الكشوفات من iri_inspections التي ليس لها del_orders
+    var inspIds = new Set(inspectionOrders.map(function(o){ return o.phone+'|'+o.clientName; }));
+    var extraInsps = (_inspections||[]).filter(function(r){
+      if(r.archived||r.status==='closed') return false;
+      if(isEmployee && r.empId!==myId && r.empName!==(_u.name||'')) return false;
+      return !inspIds.has((r.phone||'')+'|'+(r.client||''));
+    });
+    extraInsps.forEach(function(r, i){
+      var s = ST[r.status]||{cl:'st-gray',ar:r.status};
+      var dt = r.createdAt&&r.createdAt.toDate?r.createdAt.toDate().toLocaleDateString('ar-KW',{day:'numeric',month:'short'}):(r.date||'—');
+      inspRows.push('<tr onclick="openOrderDetailBySvc(\''+r.id+'\')" style="cursor:pointer" onmouseover="this.style.background=\'#f0f9f4\'" onmouseout="this.style.background=\'\'">'
+        +'<td>'+(inspectionOrders.length+i+1)+'</td>'
+        +'<td style="font-size:.78rem">'+dt+'</td>'
+        +'<td><b>'+(r.client||'—')+'</b></td>'
+        +'<td style="font-size:.78rem">'+(r.phone||'—')+'</td>'
+        +'<td>'+(r.area||'—')+'</td>'
+        +'<td><span class="tag" style="background:#e8f0ff;color:#1a4a8a;font-size:.68rem">'+(r.inspTypeAr||'كشف')+'</span></td>'
+        +'<td><span class="status '+s.cl+'">'+s.ar+'</span></td>'
+        +'<td>'+(r.empName||'<span style="color:var(--muted2);font-size:.75rem">لم يُحدد</span>')+'</td>'
+        +'<td onclick="return false"><button class="btn-edit-sm" onclick="openSvcRequestModal(\''+r.id+'\')" style="font-size:.7rem">تعديل</button></td>'
+      +'</tr>');
+    });
+
+    // تحديث عداد التمديدات
+    var totalInsp = inspRows.length;
+    if(cntI) cntI.textContent = totalInsp+' طلب';
+    inspTbody.innerHTML = inspRows.join('') || '<tr><td colspan="9" class="empty">لا توجد طلبات كشف وخدمات نشطة</td></tr>';
+  }
 };
 
 function populateCourierSelect(){
