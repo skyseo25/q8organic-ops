@@ -902,21 +902,13 @@ tbody tr[onclick]:active { background: #d8f0e2 !important; }
         </select>
       </div>
     </div>
-    <div class="form-row">
-      <div class="field-m"><label>القسم</label>
-        <select id="item-category">
-          <option value="تمديدات">🔧 تمديدات</option>
-          <option value="خدمات">🛠 خدمات</option>
-          <option value="مواد">📦 مواد</option>
-        </select>
-      </div>
-      <div class="field-m"><label>نوع الصنف</label>
-        <select id="item-type">
-          <option value="material">مادة / Material</option>
-          <option value="labor">👷 أجور عمالة / Labor</option>
-          <option value="service">خدمة / Service</option>
-        </select>
-      </div>
+    <div class="field-m"><label>القسم</label>
+      <select id="item-category">
+        <option value="تمديدات">🔧 تمديدات فقط</option>
+        <option value="خدمات">🛠 خدمات فقط</option>
+        <option value="تمديدات وخدمات">🔧🛠 تمديدات وخدمات</option>
+        <option value="أجور عمالة">👷 أجور عمالة</option>
+      </select>
     </div>
     <!-- رفع صورة مباشرة -->
     <div class="field-m">
@@ -3037,7 +3029,6 @@ window.openItemModal = function(id){
       document.getElementById('item-name-en').value   = it.nameEn||'';
       document.getElementById('item-price').value     = it.price||'';
       document.getElementById('item-unit').value      = it.unit||'قطعة';
-      document.getElementById('item-type').value      = it.type||'material';
       document.getElementById('item-category').value  = it.category||'تمديدات';
       document.getElementById('item-image-url').value = it.image||'';
       if(it.image){
@@ -3049,7 +3040,6 @@ window.openItemModal = function(id){
   } else {
     ['item-name-ar','item-name-en','item-price','item-image-url'].forEach(function(x){document.getElementById(x).value='';});
     document.getElementById('item-unit').value     = 'قطعة';
-    document.getElementById('item-type').value     = 'material';
     document.getElementById('item-category').value = 'تمديدات';
   }
   openModal('modal-item');
@@ -3071,13 +3061,16 @@ window.saveItem = async function(){
       var path = 'items/'+(eid||Date.now())+'.'+ext;
       imageUrl = await window.uploadFile(file, path);
     }
+    var category = document.getElementById('item-category').value;
+    // نوع الصنف مشتق من القسم تلقائياً
+    var type = category==='أجور عمالة' ? 'labor' : 'material';
     var data = {
       nameAr:   document.getElementById('item-name-ar').value.trim(),
       nameEn:   document.getElementById('item-name-en').value.trim(),
       price:    parseFloat(document.getElementById('item-price').value)||0,
       unit:     document.getElementById('item-unit').value,
-      type:     document.getElementById('item-type').value,
-      category: document.getElementById('item-category').value,
+      type,
+      category,
       image:    imageUrl,
       updatedAt:window.FB.ts()
     };
@@ -3119,15 +3112,14 @@ window.renderItemsCatalog = function(){
     if(!cats[cat]) cats[cat] = [];
     cats[cat].push(it);
   });
-  var catIcons = {'تمديدات':'🔧','خدمات':'🛠','مواد':'📦','أخرى':'📋'};
+  var catIcons = {'تمديدات':'🔧','خدمات':'🛠','تمديدات وخدمات':'🔧🛠','أجور عمالة':'👷','أخرى':'📋'};
 
   var html = '';
   Object.keys(cats).forEach(function(cat){
     html += '<div style="grid-column:1/-1;font-size:.88rem;font-weight:800;color:var(--green);padding:6px 0 4px;border-bottom:2px solid var(--gm);margin-bottom:4px">'+(catIcons[cat]||'📋')+' '+cat+'</div>';
     cats[cat].forEach(function(it){
-      var isLabor = it.type==='labor';
-      var typeColor = isLabor ? 'var(--green)' : it.type==='service' ? 'var(--blue)' : 'var(--gold)';
-      var typeLabel = isLabor ? '👷 عمالة' : it.type==='service' ? '🔧 خدمة' : '📦 مادة';
+      var isLabor = it.type==='labor' || it.category==='أجور عمالة';
+      var catColor = isLabor ? 'var(--green)' : it.category==='تمديدات وخدمات' ? 'var(--blue)' : 'var(--gold)';
       html += '<div style="background:#fff;border:1.5px solid '+(isLabor?'var(--gm)':'var(--border)')+';border-radius:12px;padding:12px;position:relative">'
         +(_role==='manager'?'<div style="position:absolute;top:6px;left:6px;display:flex;gap:4px">'
           +'<button onclick="openItemModal(\''+it.id+'\')" style="background:var(--gl);border:none;border-radius:6px;padding:2px 6px;font-size:.65rem;cursor:pointer;color:var(--green)">✏️</button>'
@@ -3136,7 +3128,6 @@ window.renderItemsCatalog = function(){
         +(it.image
           ?'<img src="'+it.image+'" style="width:100%;height:80px;object-fit:cover;border-radius:8px;margin-bottom:8px">'
           :'<div style="width:100%;height:60px;background:var(--gl);border-radius:8px;margin-bottom:8px;display:flex;align-items:center;justify-content:center;font-size:1.8rem">'+(isLabor?'👷':'📦')+'</div>')
-        +'<div style="font-size:.65rem;font-weight:700;color:'+typeColor+';margin-bottom:4px">'+typeLabel+'</div>'
         +'<div style="font-size:.85rem;font-weight:800;color:var(--text);margin-bottom:2px">'+it.nameAr+'</div>'
         +'<div style="font-size:.72rem;color:var(--muted);margin-bottom:6px">'+it.nameEn+'</div>'
         +'<div style="display:flex;justify-content:space-between;align-items:center">'
@@ -3198,7 +3189,7 @@ window.renderInvoiceItems = function(){
   list.innerHTML = _invoiceItems.map(function(row){
     var lineTotal = row.qty * parseFloat(row.item.price||0);
     subtotal += lineTotal;
-    if(row.item.type==='labor'){ laborTotal += lineTotal; hasLabor = true; }
+    if(row.item.type==='labor'||row.item.category==='أجور عمالة'){ laborTotal += lineTotal; hasLabor = true; }
     return '<div style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:#fff;border:1px solid var(--border);border-radius:10px;margin-bottom:8px">'
       +'<div style="flex:1">'
         +'<div style="font-size:.88rem;font-weight:800">'+row.item.nameAr+'</div>'
