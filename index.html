@@ -420,46 +420,62 @@ body, .content, table, input, select, textarea, .val, td, th, span, div {
         </div>
         <!-- Sub-tabs -->
         <div style="display:flex;gap:8px;margin-bottom:20px;flex-wrap:wrap;">
-          <button class="btn btn-green" onclick="showIrrTab('ext')" id="irr-tab-ext">تمديد شبكة الري</button>
-          <button class="btn btn-ghost" onclick="showIrrTab('mnt')" id="irr-tab-mnt">الصيانة</button>
-          <button class="btn btn-ghost" onclick="showIrrTab('insp')" id="irr-tab-insp">طلبات الكشف</button>
-          <button class="btn btn-ghost" onclick="showIrrTab('saved')" id="irr-tab-saved">الفواتير المحفوظة</button>
+          <button class="btn btn-green"  onclick="showIrrTab('svc')"   id="irr-tab-svc">📋 طلب خدمة</button>
+          <button class="btn btn-ghost"  onclick="showIrrTab('inv')"   id="irr-tab-inv">🧾 فواتير</button>
+          <button class="btn btn-ghost"  onclick="showIrrTab('quote')" id="irr-tab-quote">💰 عروض الأسعار</button>
+          <button class="btn btn-ghost"  onclick="showIrrTab('arch')"  id="irr-tab-arch">📦 أرشيف</button>
         </div>
-        <div id="irr-ext" class="irr-tab-content">
+
+        <!-- ── طلب خدمة ── -->
+        <div id="irr-svc" class="irr-tab-content">
           <div class="sec-card">
             <div class="sec-header">
-              <h3 id="lbl-new-ext">فاتورة تمديد جديدة</h3>
-              <button class="btn btn-green" onclick="openInvModal('ext')" id="btn-new-ext">
+              <h3>طلبات الخدمة</h3>
+              <button class="btn btn-green" onclick="openSvcRequestModal()">
                 <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-                <span>إنشاء فاتورة</span>
+                + طلب خدمة جديد
+              </button>
+            </div>
+            <div class="tbl-wrap"><table><thead><tr>
+              <th>#</th><th>التاريخ</th><th>العميل</th><th>الهاتف</th><th>المنطقة</th><th>نوع الخدمة</th><th>الحالة</th><th>الموظف</th><th></th>
+            </tr></thead><tbody id="svc-tbody"></tbody></table></div>
+          </div>
+        </div>
+
+        <!-- ── فواتير ── -->
+        <div id="irr-inv" class="irr-tab-content" style="display:none">
+          <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap">
+            <button class="btn btn-green"  onclick="showInvType('ext')"  id="invtype-ext">تمديد شبكة الري</button>
+            <button class="btn btn-ghost"  onclick="showInvType('mnt')"  id="invtype-mnt">الصيانة</button>
+          </div>
+          <div class="sec-card">
+            <div class="sec-header">
+              <h3 id="inv-sub-title">فاتورة تمديد جديدة</h3>
+              <button class="btn btn-green" onclick="openInvModal(window._invType||'ext')" id="btn-new-ext">
+                <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                <span id="lbl-new-ext">إنشاء فاتورة</span>
               </button>
             </div>
             <div class="tbl-wrap"><table><thead><tr>
               <th id="th-inv-date1">التاريخ</th><th id="th-inv-client1">العميل</th><th id="th-inv-desc1">الوصف</th><th id="th-inv-amount1">المبلغ</th><th id="th-inv-status1">الحالة</th><th></th>
             </tr></thead><tbody id="ext-tbody"></tbody></table></div>
-          </div>
-        </div>
-        <div id="irr-mnt" class="irr-tab-content" style="display:none">
-          <div class="sec-card">
-            <div class="sec-header">
-              <h3>فاتورة صيانة جديدة</h3>
-              <button class="btn btn-green" onclick="openInvModal('mnt')">
-                <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-                إنشاء فاتورة
-              </button>
+            <!-- mnt table hidden inside same tab -->
+            <div id="mnt-table-wrap" style="display:none">
+              <div class="tbl-wrap" style="margin-top:0"><table><thead><tr>
+                <th id="th-inv-date2">التاريخ</th><th id="th-inv-client2">العميل</th><th id="th-inv-desc2">الوصف</th><th id="th-inv-amount2">المبلغ</th><th id="th-inv-status2">الحالة</th><th></th>
+              </tr></thead><tbody id="mnt-tbody"></tbody></table></div>
             </div>
-            <div class="tbl-wrap"><table><thead><tr>
-              <th id="th-inv-date2">التاريخ</th><th id="th-inv-client2">العميل</th><th id="th-inv-desc2">الوصف</th><th id="th-inv-amount2">المبلغ</th><th id="th-inv-status2">الحالة</th><th></th>
-            </tr></thead><tbody id="mnt-tbody"></tbody></table></div>
           </div>
         </div>
-        <div id="irr-insp" class="irr-tab-content" style="display:none">
+
+        <!-- ── عروض الأسعار ── -->
+        <div id="irr-quote" class="irr-tab-content" style="display:none">
           <div class="sec-card">
             <div class="sec-header">
-              <h3>طلبات الكشف</h3>
+              <h3>عروض الأسعار</h3>
               <button class="btn btn-green" onclick="openInspModal()">
                 <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-                طلب كشف جديد
+                + عرض سعر جديد
               </button>
             </div>
             <div class="tbl-wrap"><table><thead><tr>
@@ -467,9 +483,12 @@ body, .content, table, input, select, textarea, .val, td, th, span, div {
             </tr></thead><tbody id="insp-tbody"></tbody></table></div>
           </div>
         </div>
-        <div id="irr-saved" class="irr-tab-content" style="display:none">
+
+        <!-- ── أرشيف ── -->
+        <div id="irr-arch" class="irr-tab-content" style="display:none">
           <div class="sec-card">
-            <div class="sec-header"><h3>الفواتير المحفوظة</h3>
+            <div class="sec-header">
+              <h3>الفواتير المحفوظة</h3>
               <input class="filter-input" id="inv-search" oninput="renderInvoices()" placeholder="بحث..." style="width:180px;">
             </div>
             <div class="tbl-wrap"><table><thead><tr>
@@ -749,7 +768,56 @@ body, .content, table, input, select, textarea, .val, td, th, span, div {
   </div>
 </div>
 
-<!-- Inspection Modal -->
+<!-- Service Request Modal -->
+<div class="overlay" id="modal-svc-request">
+  <div class="modal" style="max-width:560px">
+    <h3 id="svc-modal-title">طلب خدمة جديد</h3>
+    <input type="hidden" id="svc-edit-id">
+    <!-- نوع الخدمة -->
+    <div class="field-m" style="margin-bottom:16px">
+      <label style="font-size:.8rem;font-weight:700;color:var(--muted);margin-bottom:8px;display:block">نوع الخدمة</label>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-green" id="svc-type-btn-insp_ext" onclick="setSvcType('insp_ext')" style="flex:1">🔍 كشف تمديد شبكة</button>
+        <button class="btn btn-ghost" id="svc-type-btn-insp_mnt" onclick="setSvcType('insp_mnt')" style="flex:1">🔧 كشف صيانة</button>
+      </div>
+      <input type="hidden" id="svc-type" value="insp_ext">
+    </div>
+    <!-- بيانات العميل -->
+    <div class="form-row">
+      <div class="field-m">
+        <label>الهاتف</label>
+        <div style="position:relative">
+          <input id="svc-phone" type="tel" oninput="lookupCustomerByPhone2(this.value,'svc')" autocomplete="off" placeholder="أدخل رقم الهاتف...">
+          <div id="svc-phone-suggestions" style="position:absolute;top:100%;right:0;left:0;background:#fff;border:1.5px solid var(--border);border-radius:9px;box-shadow:var(--sh);z-index:700;display:none;max-height:160px;overflow-y:auto;"></div>
+        </div>
+      </div>
+      <div class="field-m"><label>اسم العميل</label><input id="svc-client" type="text"></div>
+    </div>
+    <div class="form-row">
+      <div class="field-m"><label>المنطقة</label><input id="svc-area" type="text"></div>
+      <div class="field-m"><label>القطعة / الشارع</label><input id="svc-block" type="text"></div>
+    </div>
+    <div class="field-m"><label>العنوان التفصيلي</label><textarea id="svc-address" rows="2"></textarea></div>
+    <div class="field-m"><label>📍 رابط الموقع</label><input id="svc-location" type="url" placeholder="https://maps.google.com/..."></div>
+    <div class="form-row">
+      <div class="field-m"><label>التاريخ</label><input id="svc-date" type="date"></div>
+      <div class="field-m"><label>الموظف المكلف</label><select id="svc-emp"><option value="">—</option></select></div>
+    </div>
+    <div class="field-m"><label>تفاصيل المشكلة / الطلب</label><textarea id="svc-desc" rows="3"></textarea></div>
+    <div class="field-m"><label>الحالة</label>
+      <select id="svc-status">
+        <option value="new">جديد</option>
+        <option value="scheduled">مجدول</option>
+        <option value="inspected">تم الكشف</option>
+        <option value="closed">مغلق</option>
+      </select>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeModal('modal-svc-request')">إلغاء</button>
+      <button class="btn-save" onclick="saveSvcRequest()">حفظ</button>
+    </div>
+  </div>
+</div>
 <div class="overlay" id="modal-inspection">
   <div class="modal" style="max-width:580px">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:8px">
@@ -1717,34 +1785,53 @@ async function autoSaveDailyReport(courierId){
   }catch(e){ console.warn('autoSaveDailyReport:', e); }
 }
 var _irrTab = 'ext';
-window.showIrrTab = function(tab){
-  _irrTab = tab;
-  ['ext','mnt','insp','saved'].forEach(function(t){
-    document.getElementById('irr-'+t).style.display = t===tab?'block':'none';
-    var btn = document.getElementById('irr-tab-'+t);
-    if(btn){ btn.className = t===tab?'btn btn-green':'btn btn-ghost'; }
+window.showIrrTab = function(t){
+  ['svc','inv','quote','arch'].forEach(function(x){
+    var c = document.getElementById('irr-'+x);
+    var b = document.getElementById('irr-tab-'+x);
+    if(c) c.style.display = x===t ? '' : 'none';
+    if(b){ b.className = x===t ? 'btn btn-green' : 'btn btn-ghost'; }
   });
-  if(tab==='saved'||tab==='ext'||tab==='mnt') renderInvoices();
-  if(tab==='insp') renderInspections();
+  if(t==='arch'||t==='inv') renderInvoices();
+  if(t==='quote') renderInspections();
+  if(t==='svc') renderSvcRequests();
+};
+
+window._invType = 'ext';
+window.showInvType = function(type){
+  window._invType = type;
+  ['ext','mnt'].forEach(function(x){
+    var b = document.getElementById('invtype-'+x);
+    if(b) b.className = x===type ? 'btn btn-green' : 'btn btn-ghost';
+  });
+  var extWrap = document.getElementById('ext-tbody') ? document.getElementById('ext-tbody').closest('.tbl-wrap') : null;
+  var mntWrap = document.getElementById('mnt-table-wrap');
+  var titleEl = document.getElementById('inv-sub-title');
+  if(extWrap) extWrap.style.display = type==='ext' ? '' : 'none';
+  if(mntWrap) mntWrap.style.display = type==='mnt' ? '' : 'none';
+  if(titleEl) titleEl.textContent = type==='ext' ? 'فاتورة تمديد جديدة' : 'فاتورة صيانة جديدة';
+  var btn = document.getElementById('btn-new-ext');
+  if(btn) btn.onclick = function(){ openInvModal(type); };
+  renderInvoices();
 };
 
 window.renderInvoices = function(){
-  var type = _irrTab==='ext'?'ext':_irrTab==='mnt'?'mnt':null;
+  var type = window._invType||'ext';
   var search = (document.getElementById('inv-search')||{}).value||'';
-  var ST={draft:{cl:'st-pending',ar:'مسودة',en:'Draft'},sent:{cl:'st-done',ar:'مرسلة',en:'Sent'},paid:{cl:'st-active',ar:'مدفوعة',en:'Paid'}};  // status labels already bilingual
+  var ST={draft:{cl:'st-pending',ar:'مسودة',en:'Draft'},sent:{cl:'st-done',ar:'مرسلة',en:'Sent'},paid:{cl:'st-active',ar:'مدفوعة',en:'Paid'}};
   ['ext','mnt','saved'].forEach(function(tab){
     var tbody = document.getElementById(tab+'-tbody');
-    if(!tbody)return;
+    if(!tbody) return;
     var list = _invoices.filter(function(i){
-      if(tab==='ext')return i.type==='ext';
-      if(tab==='mnt')return i.type==='mnt';
+      if(tab==='ext') return i.type==='ext';
+      if(tab==='mnt') return i.type==='mnt';
       if(tab==='saved') return !search||((i.client||'').includes(search));
       return true;
     });
     tbody.innerHTML = list.map(function(inv){
       var dt = inv.createdAt&&inv.createdAt.toDate?inv.createdAt.toDate().toLocaleDateString(_lang==='ar'?'ar-KW':'en-GB'):'—';
       var s=ST[inv.status]||{cl:'st-gray',ar:inv.status,en:inv.status};
-      return '<tr><td>'+dt+'</td><td>'+( inv.client||'—')+'</td>'
+      return '<tr><td>'+dt+'</td><td>'+(inv.client||'—')+'</td>'
         +(tab==='saved'?'<td><span class="tag '+(inv.type==='ext'?'tag-green':'tag-blue')+'">'+(inv.type==='ext'?(_lang==='ar'?'تمديد':'Extension'):(_lang==='ar'?'صيانة':'Maintenance'))+'</span></td>':'<td>'+(inv.desc||'—').substring(0,30)+'</td>')
         +'<td><b>'+(inv.total||0).toFixed(3)+' د.ك</b></td>'
         +'<td><span class="status '+s.cl+'">'+(_lang==='ar'?s.ar:s.en)+'</span></td>'
@@ -2140,7 +2227,150 @@ window.resetCourierBalance=async function(id,name,bal){
 };
 
 // ══════════════════════════════════════════════
-// CUSTOMER PHONE LOOKUP
+// SERVICE REQUEST (طلب خدمة)
+// ══════════════════════════════════════════════
+window.openSvcRequestModal = function(id){
+  var isAr = _lang==='ar';
+  document.getElementById('svc-edit-id').value = id||'';
+  document.getElementById('svc-modal-title').textContent = id ? (isAr?'تعديل طلب خدمة':'Edit Service Request') : (isAr?'طلب خدمة جديد':'New Service Request');
+  document.getElementById('svc-date').value = new Date().toISOString().substring(0,10);
+  setSvcType('insp_ext');
+  // fill emp select from ops_users
+  var empSel = document.getElementById('svc-emp');
+  empSel.innerHTML = '<option value="">—</option>' + _sysUsers.filter(function(u){return !u.suspended;}).map(function(u){
+    return '<option value="'+u.id+'">'+u.name+'</option>';
+  }).join('');
+  if(id){
+    var rec = (_inspections||[]).find(function(x){return x.id===id;});
+    if(rec){
+      document.getElementById('svc-type').value    = rec.inspType||'insp_ext';
+      document.getElementById('svc-phone').value   = rec.phone||'';
+      document.getElementById('svc-client').value  = rec.client||'';
+      document.getElementById('svc-area').value    = rec.area||'';
+      document.getElementById('svc-block').value   = rec.block||'';
+      document.getElementById('svc-address').value = rec.address||'';
+      document.getElementById('svc-location').value= rec.locationLink||'';
+      document.getElementById('svc-date').value    = rec.date||'';
+      document.getElementById('svc-desc').value    = rec.desc||'';
+      document.getElementById('svc-status').value  = rec.status||'new';
+      document.getElementById('svc-emp').value     = rec.empId||'';
+      setSvcType(rec.inspType||'insp_ext');
+    }
+  } else {
+    ['svc-phone','svc-client','svc-area','svc-block','svc-address','svc-location','svc-desc'].forEach(function(x){document.getElementById(x).value='';});
+    document.getElementById('svc-status').value = 'new';
+    document.getElementById('svc-emp').value = '';
+  }
+  openModal('modal-svc-request');
+};
+
+window.setSvcType = function(type){
+  document.getElementById('svc-type').value = type;
+  ['insp_ext','insp_mnt'].forEach(function(t){
+    var b = document.getElementById('svc-type-btn-'+t);
+    if(b) b.className = t===type ? 'btn btn-green' : 'btn btn-ghost';
+  });
+};
+
+var _savingSvc = false;
+window.saveSvcRequest = async function(){
+  if(_savingSvc) return; _savingSvc = true;
+  try{
+    var eid = document.getElementById('svc-edit-id').value;
+    var empId = document.getElementById('svc-emp').value;
+    var emp = _sysUsers.find(function(x){return x.id===empId;});
+    var inspType = document.getElementById('svc-type').value;
+    var data = {
+      inspType,
+      inspTypeAr: inspType==='insp_ext'?'كشف تمديد شبكة':'كشف صيانة',
+      inspTypeEn: inspType==='insp_ext'?'Irrigation Extension Inspection':'Maintenance Inspection',
+      client:   document.getElementById('svc-client').value.trim(),
+      phone:    document.getElementById('svc-phone').value.trim(),
+      area:     document.getElementById('svc-area').value.trim(),
+      block:    document.getElementById('svc-block').value.trim(),
+      address:  document.getElementById('svc-address').value.trim(),
+      locationLink: document.getElementById('svc-location').value.trim(),
+      date:     document.getElementById('svc-date').value,
+      desc:     document.getElementById('svc-desc').value.trim(),
+      status:   document.getElementById('svc-status').value,
+      empId, empName: emp?emp.name:'',
+      updatedAt: window.FB.ts()
+    };
+    if(!data.client){ toast(_lang==='ar'?'أدخل اسم العميل':'Enter client name'); return; }
+    if(eid){
+      await window.FB.upd(window.FB.doc(window.FB.db,'iri_inspections',eid), data);
+      toast('✅ '+(_lang==='ar'?'تم التعديل':'Updated'));
+    } else {
+      data.createdAt = window.FB.ts();
+      data.createdBy = _u.id||_u.username;
+      await window.FB.add(window.FB.col(window.FB.db,'iri_inspections'), data);
+      // إضافة تلقائية في del_orders بدون مندوب
+      await window.FB.add(window.FB.col(window.FB.db,'del_orders'),{
+        clientName:data.client, phone:data.phone, area:data.area,
+        block:data.block, address:data.address, locationLink:data.locationLink,
+        orderType:'inspection', inspType, inspTypeAr:data.inspTypeAr, inspTypeEn:data.inspTypeEn,
+        notes:data.desc, courierId:'', courierName:'',
+        paymentType:'free', amount:0, status:'pending',
+        createdAt:window.FB.ts(), createdBy:_u.id||_u.username
+      });
+      await autoSaveCustomer(data.client,data.phone,data.area,data.block,data.address,data.locationLink);
+      toast('✅ '+(_lang==='ar'?'تم إضافة طلب الخدمة':'Service request added'));
+    }
+    closeModal('modal-svc-request');
+  }finally{_savingSvc=false;}
+};
+
+window.renderSvcRequests = function(){
+  var tbody = document.getElementById('svc-tbody');
+  if(!tbody) return;
+  var data = (_inspections||[]).slice().sort(function(a,b){return (b.date||'').localeCompare(a.date||'');});
+  var ST = {new:{cl:'st-pending',ar:'جديد',en:'New'},scheduled:{cl:'st-done',ar:'مجدول',en:'Scheduled'},
+    inspected:{cl:'st-active',ar:'تم الكشف',en:'Inspected'},closed:{cl:'st-gray',ar:'مغلق',en:'Closed'}};
+  tbody.innerHTML = data.length ? data.map(function(r,i){
+    var s = ST[r.status]||{cl:'st-gray',ar:r.status,en:r.status};
+    var typeLabel = r.inspType==='insp_ext'?(_lang==='ar'?'كشف تمديد':'Ext. Inspection'):(_lang==='ar'?'كشف صيانة':'Maint. Inspection');
+    var area = _lang==='en' ? translateArea(r.area||'') : (r.area||'—');
+    return '<tr>'
+      +'<td style="font-size:.72rem;color:var(--muted2)">'+(i+1)+'</td>'
+      +'<td>'+(r.date||'—')+'</td>'
+      +'<td><b>'+(r.client||'—')+'</b></td>'
+      +'<td>'+(r.phone||'—')+'</td>'
+      +'<td>'+area+'</td>'
+      +'<td><span class="tag tag-blue" style="font-size:.7rem">'+typeLabel+'</span></td>'
+      +'<td><span class="status '+s.cl+'">'+(_lang==='ar'?s.ar:s.en)+'</span></td>'
+      +'<td>'+(r.empName||'—')+'</td>'
+      +'<td><button class="btn-edit-sm" onclick="openSvcRequestModal(\''+r.id+'\')">'+(_lang==='ar'?'تعديل':'Edit')+'</button>'
+      +(_role==='manager'?'<button class="btn-danger" onclick="delInsp(\''+r.id+'\')">✕</button>':'')
+      +'</td></tr>';
+  }).join('') : '<tr><td colspan="9" class="empty">'+(_lang==='ar'?'لا توجد طلبات خدمة':'No service requests')+'</td></tr>';
+};
+
+// lookup for svc modal
+window.lookupCustomerByPhone2 = function(val, prefix){
+  var sug = document.getElementById(prefix+'-phone-suggestions');
+  if(!sug) return;
+  if(!val||val.length<3){ sug.style.display='none'; return; }
+  var matches = _customers.filter(function(c){return (c.phone||'').includes(val)||(c.name||'').includes(val);}).slice(0,5);
+  if(!matches.length){ sug.style.display='none'; return; }
+  sug.innerHTML = matches.map(function(c){
+    return '<div style="padding:9px 14px;cursor:pointer;border-bottom:1px solid #edf4f0;font-size:.83rem" '
+      +'onmousedown="fillSvcFromCustomer(\''+c.id+'\')">'
+      +'<b>'+c.name+'</b> <span style="color:var(--muted2)">'+c.phone+'</span>'
+      +(c.area?' · '+c.area:'')+'</div>';
+  }).join('');
+  sug.style.display='block';
+};
+
+window.fillSvcFromCustomer = function(id){
+  var c = _customers.find(function(x){return x.id===id;});
+  if(!c) return;
+  document.getElementById('svc-client').value  = c.name||'';
+  document.getElementById('svc-phone').value   = c.phone||'';
+  document.getElementById('svc-area').value    = c.area||'';
+  document.getElementById('svc-block').value   = c.block||'';
+  document.getElementById('svc-address').value = c.address||'';
+  document.getElementById('svc-phone-suggestions').style.display='none';
+};
 // ══════════════════════════════════════════════
 window.lookupCustomerByPhone = function(val){
   var sug = document.getElementById('phone-suggestions');
