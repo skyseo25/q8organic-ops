@@ -1412,6 +1412,7 @@ function getNavItems(){
   if(_u && _u._source === 'del'){
     return [
       {id:'courier', icon:'🚚', ar:'طلباتي', en:'My Orders', roles:['employee']},
+      {id:'archive', icon:'📦', ar:'أرشيف تقاريري', en:'My Reports', roles:['employee']},
     ];
   }
   var all = [
@@ -3186,43 +3187,134 @@ window.printAllReport = function(){
 // ══════════════════════════════════════════════
 window.renderArchive=function(){
   var q=(document.getElementById('arch-search')||{}).value||'';
+  var isCourier = _u && _u._source==='del';
+  var myId = _u ? (_u.id||_u.username) : '';
+  var canEdit = _role==='manager' || _role==='supervisor';
 
-  // ── قسم 1: تقارير إنهاء الحساب من del_reports ──
-  var settlements = _delReports ? _delReports.filter(function(r){
-    return r.type==='settlement' && (!q||(r.courierName||'').includes(q));
-  }) : [];
-
-  // ── قسم 2: الطلبات المؤرشفة العادية ──
-  var orders = _archived.filter(function(o){
-    return !q||(o.clientName||'').includes(q)||(o.area||'').includes(q);
+  // فلترة التقارير حسب الصلاحية
+  var settlements = (_delReports||[]).filter(function(r){
+    if(r.type!=='settlement') return false;
+    if(isCourier && r.courierId!==myId && r.courierName!==(_u.name||'')) return false;
+    if(q && !(r.courierName||'').includes(q)) return false;
+    return true;
   });
 
-  var settlHtml = settlements.length ? settlements.map(function(r){
-    var dt = r.settledAt&&r.settledAt.toDate ? r.settledAt.toDate().toLocaleDateString(_lang==='ar'?'ar-KW':'en-GB') : (r.dateFrom||'—');
-    return '<tr style="background:#f0f9f4">'
-      +'<td>'+dt+'</td>'
+  if(!settlements.length){
+    document.getElementById('archive-tbody').innerHTML =
+      '<tr><td colspan="7" class="empty">'+(isCourier?'لا توجد تقارير مؤرشفة':'الأرشيف فارغ')+'</td></tr>';
+    return;
+  }
+
+  document.getElementById('archive-tbody').innerHTML = settlements.map(function(r){
+    var dt = r.settledAt&&r.settledAt.toDate
+      ? r.settledAt.toDate().toLocaleDateString(_lang==='ar'?'ar-KW':'en-GB',{year:'numeric',month:'short',day:'numeric'})
+      : (r.dateFrom||'—');
+    var settledTime = r.settledAt&&r.settledAt.toDate
+      ? r.settledAt.toDate().toLocaleTimeString(_lang==='ar'?'ar-KW':'en-GB',{hour:'2-digit',minute:'2-digit'})
+      : '';
+    var period = r.dateFrom===r.dateTo ? r.dateFrom : (r.dateFrom||'')+'→'+(r.dateTo||'');
+
+    // عمود النوع: إنهاء حساب + بواسطة + تاريخ ووقت
+    var typeCol = '<span class="tag tag-green">إنهاء حساب</span>'
+      +'<div style="font-size:.7rem;color:var(--muted);margin-top:3px">بواسطة <b>'+(r.settledBy||'—')+'</b></div>'
+      +'<div style="font-size:.68rem;color:var(--muted2)">'+dt+(settledTime?' — '+settledTime:'')+'</div>';
+
+    // عمود الملاحظات: إذا تم تعديل يظهر من عدّل ومتى
+    var notesCol = '';
+    if(r.editedBy){
+      var editDt = r.editedAt&&r.editedAt.toDate
+        ? r.editedAt.toDate().toLocaleDateString(_lang==='ar'?'ar-KW':'en-GB',{day:'numeric',month:'short'})
+          +' '+r.editedAt.toDate().toLocaleTimeString(_lang==='ar'?'ar-KW':'en-GB',{hour:'2-digit',minute:'2-digit'})
+        : '—';
+      notesCol = '<span style="font-size:.7rem;color:var(--blue)">تم التعديل بواسطة <b>'+r.editedBy+'</b></span>'
+        +'<div style="font-size:.67rem;color:var(--muted2)">'+editDt+'</div>';
+    }
+
+    return '<tr onclick="openArchiveDetail(\''+r.id+'\')" style="cursor:pointer" onmouseover="this.style.background=\'#f0f9f4\'" onmouseout="this.style.background=\'\'">'
+      +'<td style="font-size:.8rem">'+period+'</td>'
       +'<td><b>'+r.courierName+'</b></td>'
-      +'<td><span class="tag tag-green">إنهاء حساب</span></td>'
-      +'<td>'+r.delivered+'/'+r.totalOrders+'</td>'
-      +'<td style="color:var(--gold);font-weight:700">'+parseFloat(r.bonus||0).toFixed(3)+' KD</td>'
-      +'<td>'+parseFloat(r.cash||0).toFixed(3)+' KD</td>'
-      +'<td style="font-size:.75rem;color:var(--muted)">'+(_lang==='ar'?'بواسطة ':'By ')+(r.settledBy||'—')+'</td>'
+      +'<td>'+typeCol+'</td>'
+      +'<td style="text-align:center">'+r.delivered+'/'+r.totalOrders+'</td>'
+      +'<td style="color:var(--gold);font-weight:800">'+parseFloat(r.bonus||0).toFixed(3)+' KD</td>'
+      +'<td style="font-weight:700">'+parseFloat(r.cash||0).toFixed(3)+' KD</td>'
+      +'<td>'+notesCol+'</td>'
       +'</tr>';
-  }).join('') : '';
-
-  var ordersHtml = orders.length ? orders.map(function(o){
-    var dt=o.createdAt&&o.createdAt.toDate?o.createdAt.toDate().toLocaleDateString(_lang==='ar'?'ar-KW':'en-GB'):'—';
-    return '<tr><td>'+dt+'</td><td>'+(o.clientName||'—')+'</td><td><span class="tag tag-blue">طلب</span></td>'
-      +'<td colspan="2">'+(o.area||'—')+'</td>'
-      +'<td>'+(o.courierName||'—')+'</td>'
-      +'<td><span class="tag '+(o.status==='delivered'?'tag-green':'tag-red')+'">'+(o.status||'—')+'</span></td>'
-      +'</tr>';
-  }).join('') : '';
-
-  var combined = settlHtml + ordersHtml;
-  document.getElementById('archive-tbody').innerHTML = combined ||
-    '<tr><td colspan="7" class="empty">الأرشيف فارغ</td></tr>';
+  }).join('');
 };
+
+window.openArchiveDetail = function(rptId){
+  var r = (_delReports||[]).find(function(x){return x.id===rptId;});
+  if(!r) return;
+  var isCourier = _u && _u._source==='del';
+  var canEdit   = _role==='manager' || _role==='supervisor';
+  var dt = r.settledAt&&r.settledAt.toDate ? r.settledAt.toDate().toLocaleString(_lang==='ar'?'ar-KW':'en-GB') : (r.dateFrom||'—');
+
+  var html = '<div class="overlay open" id="modal-arch-detail" onclick="if(event.target===this)closeModal(\'modal-arch-detail\')">'
+    +'<div class="modal" style="max-width:480px">'
+    +'<h3>📦 تقرير إنهاء الحساب</h3>'
+    +'<div style="background:var(--gl);border-radius:10px;padding:14px;margin-bottom:14px">'
+      +'<div style="font-size:1.1rem;font-weight:900;color:var(--text);margin-bottom:4px">'+r.courierName+'</div>'
+      +'<div style="font-size:.8rem;color:var(--muted)">'+dt+'</div>'
+      +'<div style="font-size:.78rem;color:var(--muted);margin-top:2px">الفترة: '+(r.dateFrom||'—')+' ← '+(r.dateTo||'—')+'</div>'
+    +'</div>'
+    +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px">'
+      +'<div style="background:#fff;border:1px solid var(--border);border-radius:10px;padding:12px;text-align:center">'
+        +'<div style="font-size:1.4rem;font-weight:900">'+r.totalOrders+'</div><div style="font-size:.72rem;color:var(--muted)">إجمالي الطلبات</div>'
+      +'</div>'
+      +'<div style="background:#fff;border:1px solid var(--border);border-radius:10px;padding:12px;text-align:center">'
+        +'<div style="font-size:1.4rem;font-weight:900;color:var(--green)">'+r.delivered+'</div><div style="font-size:.72rem;color:var(--muted)">تم التسليم</div>'
+      +'</div>'
+      +'<div style="background:var(--goldl);border-radius:10px;padding:12px;text-align:center">'
+        +'<div style="font-size:1.3rem;font-weight:900;color:var(--gold)">'+parseFloat(r.bonus||0).toFixed(3)+' KD</div><div style="font-size:.72rem;color:var(--gold)">المكافأة</div>'
+      +'</div>'
+      +'<div style="background:#fff;border:1px solid var(--border);border-radius:10px;padding:12px;text-align:center">'
+        +'<div style="font-size:1.3rem;font-weight:900">'+parseFloat(r.cash||0).toFixed(3)+' KD</div><div style="font-size:.72rem;color:var(--muted)">الكاش</div>'
+      +'</div>'
+    +'</div>'
+    +'<div style="font-size:.8rem;color:var(--muted);text-align:center;margin-bottom:16px">تم الإنهاء بواسطة: <b>'+( r.settledBy||'—')+'</b></div>';
+
+  if(canEdit){
+    html += '<div style="border-top:1px solid var(--border);padding-top:14px">'
+      +'<div style="font-size:.78rem;font-weight:700;color:var(--muted);margin-bottom:8px">تعديل التقرير</div>'
+      +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">'
+        +'<div class="field-m"><label style="font-size:.72rem">المكافأة (KD)</label><input id="arch-edit-bonus" type="number" step="0.001" value="'+parseFloat(r.bonus||0).toFixed(3)+'" style="padding:8px;border:1.5px solid var(--border);border-radius:8px;width:100%;font-family:Cairo,sans-serif"></div>'
+        +'<div class="field-m"><label style="font-size:.72rem">الكاش (KD)</label><input id="arch-edit-cash" type="number" step="0.001" value="'+parseFloat(r.cash||0).toFixed(3)+'" style="padding:8px;border:1.5px solid var(--border);border-radius:8px;width:100%;font-family:Cairo,sans-serif"></div>'
+        +'<div class="field-m"><label style="font-size:.72rem">عدد التسليم</label><input id="arch-edit-delivered" type="number" value="'+(r.delivered||0)+'" style="padding:8px;border:1.5px solid var(--border);border-radius:8px;width:100%;font-family:Cairo,sans-serif"></div>'
+        +'<div class="field-m"><label style="font-size:.72rem">إجمالي الطلبات</label><input id="arch-edit-total" type="number" value="'+(r.totalOrders||0)+'" style="padding:8px;border:1.5px solid var(--border);border-radius:8px;width:100%;font-family:Cairo,sans-serif"></div>'
+      +'</div>'
+      +'<div class="modal-actions">'
+        +'<button class="btn-cancel" onclick="closeModal(\'modal-arch-detail\')">إغلاق</button>'
+        +'<button class="btn-save" onclick="saveArchiveEdit(\''+rptId+'\')">💾 حفظ التعديل</button>'
+      +'</div>'
+    +'</div>';
+  } else {
+    html += '<div class="modal-actions"><button class="btn-cancel" style="width:100%" onclick="closeModal(\'modal-arch-detail\')">إغلاق</button></div>';
+  }
+
+  html += '</div></div>';
+
+  // أزل المودال القديم لو موجود
+  var old = document.getElementById('modal-arch-detail');
+  if(old) old.remove();
+  document.body.insertAdjacentHTML('beforeend', html);
+};
+
+window.saveArchiveEdit = async function(rptId){
+  var bonus     = parseFloat(document.getElementById('arch-edit-bonus').value)||0;
+  var cash      = parseFloat(document.getElementById('arch-edit-cash').value)||0;
+  var delivered = parseInt(document.getElementById('arch-edit-delivered').value)||0;
+  var totalOrders = parseInt(document.getElementById('arch-edit-total').value)||0;
+  try{
+    await window.FB.upd(window.FB.doc(window.FB.db,'del_reports',rptId),{
+      bonus, cash, delivered, totalOrders,
+      editedBy: _u.name||_u.username,
+      editedAt: window.FB.ts()
+    });
+    toast('✅ تم حفظ التعديل');
+    closeModal('modal-arch-detail');
+  }catch(e){ toast('خطأ: '+e.message); }
+};
+
 
 // ══════════════════════════════════════════════
 // SETTINGS / USERS
