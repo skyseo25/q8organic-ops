@@ -203,7 +203,8 @@ tr:hover td{background:#fafcfb;}
   .dash-welcome{padding:14px 12px;border-radius:10px;margin-bottom:12px;}
   .dash-welcome h2{font-size:.95rem;}
   .dash-welcome p{font-size:.75rem;}
-  .dash-grid{grid-template-columns:1fr 1fr!important;gap:8px;margin-bottom:12px;}
+  .dash-grid{grid-template-columns:1fr!important;gap:8px;margin-bottom:12px;}
+  #recent-activity-card{display:none!important;}
   .dash-card{padding:10px 8px;border-radius:10px;}
   .dash-card .val{font-size:1.1rem;}
   .dash-card-icon{width:28px;height:28px;border-radius:8px;font-size:.85rem;margin-bottom:6px;}
@@ -219,7 +220,7 @@ tr:hover td{background:#fafcfb;}
   .filters{padding:10px 14px;}
 }
 @media(max-width:390px){
-  .dash-grid{grid-template-columns:1fr 1fr!important;gap:8px;}
+  .dash-grid{grid-template-columns:1fr!important;gap:8px;}
   .dash-card{padding:12px 10px;}
   .dash-card .val{font-size:1.2rem;}
 }
@@ -449,7 +450,7 @@ tbody tr[onclick]:active { background: #d8f0e2 !important; }
           <p id="dash-sub">لوحة التحكم الرئيسية</p>
         </div>
         <div class="dash-grid" id="dash-grid"></div>
-        <div class="sec-card">
+        <div class="sec-card" id="recent-activity-card">
           <div class="sec-header"><h3 id="lbl-recent-activity">آخر النشاطات</h3></div>
           <div class="tbl-wrap"><table><thead><tr>
             <th id="th-date">التاريخ</th><th id="th-type">النوع</th><th id="th-desc">الوصف</th><th id="th-status">الحالة</th>
