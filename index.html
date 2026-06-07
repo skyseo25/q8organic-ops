@@ -3391,31 +3391,90 @@ window.printQuote = function(){
   var subtotal = _invoiceItems.reduce(function(s,x){return s+x.qty*parseFloat(x.item.price||0);},0);
   var disc = parseFloat((document.getElementById('qt-discount')||{}).value)||0;
   var final = subtotal - disc;
+  var discPct = subtotal>0 ? ((disc/subtotal)*100).toFixed(1) : 0;
   var order = _orders.find(function(o){return o.id===_currentInspOrderId;});
+
+  // بيانات العميل
+  var clientHtml = '';
+  if(order){
+    var addr = [
+      order.area ? 'منطقة: '+order.area : '',
+      order.block ? 'ق'+order.block : '',
+      order.street ? 'ش'+order.street : '',
+      order.avenue ? 'ج'+order.avenue : '',
+      order.house ? 'م'+order.house : ''
+    ].filter(Boolean).join(' · ');
+    clientHtml = '<table style="width:100%;border-collapse:collapse;margin-bottom:16px;font-size:.88rem">'
+      +'<tr><td style="padding:5px 8px;color:#555;width:130px">رقم الطلب</td><td style="padding:5px 8px;font-weight:700">'+(order.orderNum||order.id.substring(0,8))+'</td></tr>'
+      +'<tr style="background:#f5fdf7"><td style="padding:5px 8px;color:#555">الاسم / Name</td><td style="padding:5px 8px;font-weight:700">'+(order.clientName||'—')+'</td><td style="padding:5px 8px;color:#555;width:80px">الهاتف</td><td style="padding:5px 8px;font-weight:700">'+(order.phone||'—')+'</td></tr>'
+      +'<tr><td style="padding:5px 8px;color:#555">العنوان</td><td style="padding:5px 8px;font-weight:700" colspan="3">'+(addr||'—')+'</td></tr>'
+      +(order.notes?'<tr style="background:#f5fdf7"><td style="padding:5px 8px;color:#555">ملاحظات</td><td style="padding:5px 8px" colspan="3">'+order.notes+'</td></tr>':'')
+    +'</table>';
+  }
+
+  // صفوف الأصناف مع صورة + اسم ثنائي اللغة
   var rows = _invoiceItems.map(function(r){
-    return '<tr><td>'+r.item.nameAr+'</td><td style="text-align:center">'+r.qty+' '+r.item.unit+'</td>'
-      +'<td style="text-align:center">'+parseFloat(r.item.price).toFixed(3)+' KD</td>'
-      +'<td style="text-align:center;font-weight:700">'+(r.qty*parseFloat(r.item.price)).toFixed(3)+' KD</td></tr>';
+    var lineTotal = r.qty * parseFloat(r.item.price||0);
+    var imgHtml = r.item.image
+      ? '<img src="'+r.item.image+'" style="width:48px;height:48px;object-fit:cover;border-radius:6px;border:1px solid #ddd;vertical-align:middle;margin-left:8px">'
+      : '<div style="width:48px;height:48px;background:#e8f5e9;border-radius:6px;display:inline-flex;align-items:center;justify-content:center;font-size:1.4rem;vertical-align:middle;margin-left:8px">📦</div>';
+    return '<tr>'
+      +'<td style="padding:10px 10px;border-bottom:1px solid #eee">'
+        +'<div style="display:flex;align-items:center">'+imgHtml
+          +'<div><div style="font-weight:800;font-size:.88rem">'+r.item.nameAr+'</div>'
+          +'<div style="font-size:.75rem;color:#888">'+r.item.nameEn+'</div></div>'
+        +'</div>'
+      +'</td>'
+      +'<td style="padding:10px;border-bottom:1px solid #eee;text-align:center;white-space:nowrap">'+r.qty+' '+r.item.unit+'</td>'
+      +'<td style="padding:10px;border-bottom:1px solid #eee;text-align:center;white-space:nowrap">'+parseFloat(r.item.price).toFixed(3)+' KD</td>'
+      +'<td style="padding:10px;border-bottom:1px solid #eee;text-align:center;font-weight:700;color:#1a7a40;white-space:nowrap">'+lineTotal.toFixed(3)+' KD</td>'
+    +'</tr>';
   }).join('');
+
   var w = window.open('','_blank');
-  w.document.write('<!DOCTYPE html><html dir="rtl"><head><meta charset="UTF-8">'
-    +'<title>عرض سعر</title>'
-    +'<style>body{font-family:Cairo,sans-serif;padding:24px;color:#111}h2{color:#1a7a40}table{width:100%;border-collapse:collapse;margin:12px 0}th,td{border:1px solid #ddd;padding:8px 12px;font-size:.88rem}th{background:#e8f5e9}tfoot td{font-weight:900;background:#f5fdf7}.total-row{font-size:1.1rem;color:#1a7a40}</style>'
-    +'</head><body>'
-    +'<h2>Kuwait Organic — عرض سعر</h2>'
-    +(order?'<p><b>العميل:</b> '+order.clientName+' | <b>هاتف:</b> '+order.phone+'</p>':'')
-    +'<p><b>التاريخ:</b> '+new Date().toLocaleDateString('ar-KW')+'</p>'
-    +'<table><thead><tr><th>الصنف</th><th>الكمية</th><th>السعر</th><th>الإجمالي</th></tr></thead>'
-    +'<tbody>'+rows+'</tbody>'
-    +'<tfoot>'
-      +'<tr><td colspan="3">المجموع</td><td>'+subtotal.toFixed(3)+' KD</td></tr>'
-      +(disc>0?'<tr><td colspan="3">خصم</td><td>- '+disc.toFixed(3)+' KD</td></tr>':'')
-      +'<tr class="total-row"><td colspan="3"><b>الإجمالي النهائي</b></td><td><b>'+final.toFixed(3)+' KD</b></td></tr>'
-    +'</tfoot></table>'
-    +'<p style="margin-top:20px;font-size:.8rem;color:#888">Kuwait Organic — q8organic.com</p>'
+  w.document.write('<!DOCTYPE html><html dir="rtl" lang="ar">'
+    +'<head><meta charset="UTF-8"><title>عرض سعر — Kuwait Organic</title>'
+    +'<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap" rel="stylesheet">'
+    +'<style>'
+      +'*{margin:0;padding:0;box-sizing:border-box}'
+      +'body{font-family:Cairo,sans-serif;color:#111;background:#fff;padding:24px;max-width:680px;margin:0 auto}'
+      +'.header{display:flex;align-items:center;justify-content:space-between;border-bottom:3px solid #1a7a40;padding-bottom:14px;margin-bottom:18px}'
+      +'.logo{font-size:1.3rem;font-weight:900;color:#1a7a40}' 
+      +'.doc-title{font-size:1.1rem;font-weight:700;color:#333}'
+      +'.date{font-size:.8rem;color:#888;margin-top:3px}'
+      +'.section-title{font-size:.75rem;font-weight:800;color:#1a7a40;letter-spacing:1px;margin:14px 0 8px;text-transform:uppercase}'
+      +'table{width:100%;border-collapse:collapse}'
+      +'.items-table thead tr{background:#1a7a40;color:#fff}'
+      +'.items-table th{padding:10px 12px;font-weight:700;font-size:.82rem}'
+      +'.totals{margin-top:12px;border:2px solid #e8f5e9;border-radius:10px;padding:12px 14px}'
+      +'.total-row{display:flex;justify-content:space-between;padding:5px 0;font-size:.88rem}'
+      +'.total-final{display:flex;justify-content:space-between;padding:10px 0 4px;font-size:1.1rem;font-weight:900;color:#1a7a40;border-top:2px solid #1a7a40;margin-top:6px}'
+      +'@media print{@page{margin:15mm}body{padding:0}button{display:none}}'
+    +'</style></head><body>'
+    // هيدر
+    +'<div class="header">'
+      +'<div><div class="logo">🌿 Kuwait Organic</div><div class="doc-title">عرض سعر / Quotation</div><div class="date">التاريخ: '+new Date().toLocaleDateString('ar-KW',{year:'numeric',month:'long',day:'numeric'})+'</div></div>'
+      +'<div style="text-align:left;font-size:.78rem;color:#666">q8organic.com<br>'+new Date().toLocaleTimeString('ar-KW',{hour:'2-digit',minute:'2-digit'})+'</div>'
+    +'</div>'
+    // بيانات العميل
+    +'<div class="section-title">بيانات العميل</div>'
+    +'<div style="border:1px solid #dde;border-radius:8px;overflow:hidden;margin-bottom:16px">'+clientHtml+'</div>'
+    // الأصناف
+    +'<div class="section-title">الأصناف</div>'
+    +'<table class="items-table" style="margin-bottom:14px">'
+      +'<thead><tr><th style="text-align:right;padding:10px 12px">الصنف / Item</th><th>الكمية</th><th>السعر</th><th>الإجمالي</th></tr></thead>'
+      +'<tbody>'+rows+'</tbody>'
+    +'</table>'
+    // الإجماليات
+    +'<div class="totals">'
+      +'<div class="total-row"><span>المجموع الفرعي</span><span style="font-weight:700">'+subtotal.toFixed(3)+' KD</span></div>'
+      +(disc>0?'<div class="total-row" style="color:#c05a10"><span>خصم ('+discPct+'%)</span><span>- '+disc.toFixed(3)+' KD</span></div>':'')
+      +'<div class="total-final"><span>الإجمالي النهائي</span><span>'+final.toFixed(3)+' KD</span></div>'
+    +'</div>'
+    +'<p style="margin-top:24px;font-size:.72rem;color:#aaa;text-align:center">Kuwait Organic — q8organic.com — عرض سعر صالح لمدة 30 يوماً</p>'
     +'</body></html>');
   w.document.close();
-  w.print();
+  setTimeout(function(){ w.print(); }, 800);
 };
 
 
