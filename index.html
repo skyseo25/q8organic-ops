@@ -2777,7 +2777,7 @@ window.openOrderDetailBySvc = function(inspId){
     var qColors = {pending:'var(--gold)',agreed:'var(--green)',review:'var(--blue)',rejected:'var(--red)',invoiced:'#555'};
     var subtotal = parseFloat(relatedQuote.subtotal||0);
     var disc = parseFloat(relatedQuote.discount||0);
-    var total = parseFloat(relatedQuote.total||subtotal);
+    var total = (relatedQuote.total !== undefined && relatedQuote.total !== null) ? parseFloat(relatedQuote.total) : subtotal;
 
     var itemRows = (relatedQuote.items||[]).map(function(it){
       return '<div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--border)">'
@@ -3538,7 +3538,7 @@ window.renderQuotes = function(){
     var order = _orders.find(function(o){return o.id===q.orderId;});
     var client = order ? order.clientName : (q.items&&q.items[0]?q.items[0].nameAr:'—');
     var itemCount = q.items ? q.items.length : 0;
-    var total = parseFloat(q.total||q.subtotal||0);
+    var total = (q.total !== undefined && q.total !== null) ? parseFloat(q.total) : parseFloat(q.subtotal||0);
     return '<tr onclick="openQuoteDetail(\''+q.id+'\')" style="cursor:pointer" onmouseover="this.style.background=\'#f0f9f4\'" onmouseout="this.style.background=\'\'">'
       +'<td>'+dt+'</td>'
       +'<td><b>'+(client||'—')+'</b></td>'
@@ -3558,7 +3558,7 @@ window.openQuoteDetail = function(qid){
   var isManager= _role==='manager'||_role==='supervisor';
   var subtotal = parseFloat(q.subtotal||0);
   var existDisc= parseFloat(q.discount||0);
-  var existTotal= parseFloat(q.total||subtotal);
+  var existTotal= (q.total !== undefined && q.total !== null) ? parseFloat(q.total) : subtotal;
   var qStatus  = q.quoteStatus||'pending'; // pending | agreed | review | rejected | invoiced
   var statusLabels = {pending:'🔄 في الانتظار', agreed:'✅ تم الاتفاق', review:'🔍 للمراجعة', rejected:'❌ مرفوض', invoiced:'🧾 تحول لفاتورة'};
   var statusColors = {pending:'var(--gold)',agreed:'var(--green)',review:'var(--blue)',rejected:'var(--red)',invoiced:'#555'};
@@ -3807,9 +3807,9 @@ window.printQuoteFromData = function(qid, asInvoice){
 // ══ دالة الطباعة الموحدة ══
 function buildPrintDoc(opts){
   // opts: {docTitle, order, items, subtotal, disc, final, asInvoice, isInvoiced}
-  var disc = opts.disc||0;
-  var subtotal = opts.subtotal||0;
-  var final = opts.final||subtotal;
+  var disc = parseFloat(opts.disc)||0;
+  var subtotal = parseFloat(opts.subtotal)||0;
+  var final = (opts.final !== undefined && opts.final !== null) ? parseFloat(opts.final) : subtotal;
   var discPct = subtotal>0 ? ((disc/subtotal)*100).toFixed(1) : 0;
   var hasDisc = disc > 0;
   var o = opts.order;
@@ -3923,7 +3923,7 @@ window.printQuoteFromData = async function(qid, asInvoice){
   var order    = _orders.find(function(o){return o.id===q.orderId;});
   var subtotal = parseFloat(q.subtotal||0);
   var disc     = parseFloat(q.discount||0);
-  var final    = parseFloat(q.total||subtotal);
+  var final    = (q.total !== undefined && q.total !== null) ? parseFloat(q.total) : subtotal;
   var items    = (q.items||[]);
   var adminNote= q.adminNote||'';
   var w=window.open('','_blank');
