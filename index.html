@@ -268,6 +268,11 @@ body, .content, table, input, select, textarea, .val, td, th, span, div {
 :lang(ar) { -webkit-locale: "en"; }
 .num { font-family: 'DM Sans', sans-serif !important; unicode-bidi: embed; direction: ltr; display: inline-block; }
 
+/* ── CLICKABLE TABLE ROWS ── */
+tbody tr[onclick] { cursor: pointer; transition: background .12s; }
+tbody tr[onclick]:hover { background: #f0f9f4 !important; }
+tbody tr[onclick]:active { background: #d8f0e2 !important; }
+
 /* ── PRINT ── */
 @media print{#sidebar,#mob-bar,.topbar,.no-print,.overlay{display:none!important;}#main{margin:0!important;}.content{padding:8px!important;}}
 
@@ -1508,15 +1513,18 @@ window.renderOrders = function(){
     } else {
       payCol = '<span style="color:var(--muted2);font-size:.75rem">—</span>';
     }
-    return '<tr><td>'+(i+1)+'</td>'
+    return '<tr onclick="openOrderDetail(\''+o.id+'\')" style="cursor:pointer" onmouseover="this.style.background=\'#f0f9f4\'" onmouseout="this.style.background=\'\'">'
+      +'<td>'+(i+1)+'</td>'
       +'<td><b>'+(o.clientName||'—')+'</b><br><small style="color:var(--muted2)">'+(o.phone||'')+'</small>'+(o.orderNum?'<br><span style="background:#e8f0ff;color:#1a4a8a;padding:1px 6px;border-radius:4px;font-size:.68rem;font-weight:800">📦 '+o.orderNum+'</span>':'')+'</td>'
-      +'<td>'+(_lang==='en'?translateArea(o.area||''):o.area||'—')+'<br>'+(o.block?'<small style="color:var(--muted2)">'+o.block+'</small>':'')+(locBtn?'<br>'+locBtn:'')+'</td>'
+      +'<td>'+(_lang==='en'?translateArea(o.area||''):o.area||'—')+'<br>'+(o.block?'<small style="color:var(--muted2)">'+o.block+'</small>':'')+'</td>'
       +'<td>'+typeTag+'</td>'
       +'<td>'+courier+'</td>'
       +'<td><span class="status '+s.cl+'">'+(_lang==='ar'?s.ar:s.en)+'</span></td>'
       +'<td>'+payCol+'</td>'
-      +'<td><button class="btn-edit-sm" onclick="openOrderDetail(\''+o.id+'\')" style="background:var(--gl);color:var(--green);border-color:var(--gm)">👁 تفاصيل</button> <button class="btn-edit-sm" onclick="openOrderModal(\''+o.id+'\')">'+t('edit')+'</button> '
-      +(_role==='manager'?'<button class="btn-danger" onclick="delOrder(\''+o.id+'\')">✕</button>':'')+'</td></tr>';
+      +'<td onclick="event.stopPropagation()">'
+        +'<button class="btn-edit-sm" onclick="openOrderModal(\''+o.id+'\')" style="font-size:.7rem">'+t('edit')+'</button> '
+        +(_role==='manager'?'<button class="btn-danger" onclick="delOrder(\''+o.id+'\')">✕</button>':'')
+      +'</td></tr>';
   }).join('') || '<tr><td colspan="8" class="empty">'+ (_lang==='ar'?'لا توجد طلبات':'No orders') +'</td></tr>';
 };
 
@@ -2629,7 +2637,7 @@ window.renderSvcRequests = function(){
       var dateStr = r.datetime ? new Date(r.datetime).toLocaleString(_lang==='ar'?'ar-KW':'en-GB',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'}) : (r.date||'—');
       var addrParts = [r.area, r.block?'ق'+r.block:'', r.street?'ش'+r.street:''].filter(Boolean).join(' ');
       var area = _lang==='en' ? translateArea(addrParts||r.area||'') : (addrParts||r.area||'—');
-    return '<tr>'
+    return '<tr onclick="openOrderDetailBySvc(\''+r.id+'\')" style="cursor:pointer" onmouseover="this.style.background=\'#f0f9f4\'" onmouseout="this.style.background=\'\'">'
       +'<td style="font-size:.72rem;color:var(--muted2)">'+(i+1)+'</td>'
       +'<td style="font-size:.78rem">'+dateStr+'</td>'
       +'<td><b>'+(r.client||'—')+'</b></td>'
@@ -2638,8 +2646,7 @@ window.renderSvcRequests = function(){
       +'<td><span class="tag tag-blue" style="font-size:.7rem">'+typeLabel+'</span></td>'
       +'<td><span class="status '+s.cl+'">'+(_lang==='ar'?s.ar:s.en)+'</span></td>'
       +'<td>'+(r.empName||'—')+'</td>'
-      +'<td>'
-      +'<button class="btn-edit-sm" style="background:var(--gl);color:var(--green);border-color:var(--gm)" onclick="openOrderDetailBySvc(\''+r.id+'\')">👁 تفاصيل</button> '
+      +'<td onclick="event.stopPropagation()">'
       +'<button class="btn-edit-sm" onclick="openSvcRequestModal(\''+r.id+'\')">'+(_lang==='ar'?'تعديل':'Edit')+'</button>'
       +(_role==='manager'?'<button class="btn-danger" onclick="delInsp(\''+r.id+'\')">✕</button>':'')
       +'</td></tr>';
