@@ -1621,7 +1621,7 @@ window.renderOrders = function(){
       +'<td>'+courier+'</td>'
       +'<td><span class="status '+s.cl+'">'+(_lang==='ar'?s.ar:s.en)+'</span></td>'
       +'<td>'+payCol+'</td>'
-      +'<td onclick="event.stopPropagation()">'
+      +'<td onclick="return false">'
         +'<button class="btn-edit-sm" onclick="openOrderModal(\''+o.id+'\')" style="font-size:.7rem">'+t('edit')+'</button> '
         +(_role==='manager'?'<button class="btn-danger" onclick="delOrder(\''+o.id+'\')">✕</button>':'')
       +'</td></tr>';
@@ -1855,13 +1855,10 @@ window.openOrderDetail = function(orderId){
 
 window.odmAction = async function(id, status, forceKnet){
   await window.updateOrderStatus(id, status, forceKnet);
-  // أعد فتح لتحديث الحالة
-  setTimeout(function(){ openOrderDetail(id); }, 600);
 };
 
 window.odmInspAction = async function(id, status){
   await window.updateInspStatus(id, status);
-  setTimeout(function(){ openOrderDetail(id); }, 600);
 };
 
 window.renderCourierView = function(){
@@ -1943,35 +1940,36 @@ window.renderCourierView = function(){
     var addr = [o.area?(_lang==='en'?translateArea(o.area):o.area):'', o.block?((_lang==='ar'?'ق':'B.')+o.block):'', o.street?((_lang==='ar'?'ش':'St.')+o.street):'', o.avenue?((_lang==='ar'?'ج':'Av.')+o.avenue):'', o.house?((_lang==='ar'?'م':'H.')+o.house):''].filter(Boolean).join(' \u2014 ') || o.address || '';
 
     var oid = o.id;
-    var mapB = o.locationLink ? '<a href="'+o.locationLink+'" target="_blank" onclick="event.stopPropagation()" style="display:inline-flex;align-items:center;gap:6px;background:#1a7a40;color:#fff;border-radius:10px;padding:9px 16px;font-size:.82rem;font-weight:700;text-decoration:none;margin-top:6px;width:100%;justify-content:center">📍 فتح الموقع على الخريطة</a>' : '';
+    var _mapUrl = o.locationLink || (addr ? 'https://www.google.com/maps/search/'+encodeURIComponent(addr) : '');
+    var mapB = _mapUrl ? '<a href="'+_mapUrl+'" target="_blank" onclick="return false" style="display:flex;align-items:center;justify-content:center;gap:6px;background:#1a7a40;color:#fff;border-radius:10px;padding:10px 16px;font-size:.85rem;font-weight:700;text-decoration:none;margin-top:8px">📍 فتح الموقع على الخريطة</a>' : '';
     var waB  = ''; // removed
-    var trB  = (_role==='manager'||_role==='supervisor')&&!isInsp ? '<button class="oc-btn oc-btn-ghost" style="flex:0;padding:10px 14px" onclick="event.stopPropagation();openOrderModal(\''+oid+'\')">🔄 تحويل</button>' : '';
+    var trB  = (_role==='manager'||_role==='supervisor')&&!isInsp ? '<button class="oc-btn oc-btn-ghost" style="flex:0;padding:10px 14px" onclick="openOrderModal(\''+oid+'\')">🔄 تحويل</button>' : '';
 
     var acts = '';
     if(!isDone){
       if(!isInsp){
-        if(o.status==='pending'||o.status==='assigned') acts+='<button class="oc-btn oc-btn-ghost" onclick="event.stopPropagation();odmAction(\''+oid+'\',\'received\',false)">📦 استلمت الطلب</button>';
-        if(o.status==='received') acts+='<button class="oc-btn oc-btn-blue" onclick="event.stopPropagation();odmAction(\''+oid+'\',\'delivering\',false)">🚗 جاري التوصيل</button>';
+        if(o.status==='pending'||o.status==='assigned') acts+='<button class="oc-btn oc-btn-ghost" onclick="odmAction(\''+oid+'\',\'received\',false)">📦 استلمت الطلب</button>';
+        if(o.status==='received') acts+='<button class="oc-btn oc-btn-blue" onclick="odmAction(\''+oid+'\',\'delivering\',false)">🚗 جاري التوصيل</button>';
         if(o.status==='delivering'||o.status==='received'){
-          acts+='<button class="oc-btn oc-btn-primary" onclick="event.stopPropagation();odmAction(\''+oid+'\',\'delivered\',false)">✅ تم التسليم</button>';
-          if(o.paymentType==='cash') acts+='<button class="oc-btn oc-btn-knet" onclick="event.stopPropagation();odmAction(\''+oid+'\',\'delivered\',true)">💳 Knet</button>';
-          acts+='<button class="oc-btn oc-btn-gold" onclick="event.stopPropagation();odmAction(\''+oid+'\',\'noreply\',false)">📵 لا رد</button>';
-          acts+='<button class="oc-btn oc-btn-red" onclick="event.stopPropagation();odmAction(\''+oid+'\',\'returned\',false)">↩️ مرتجع</button>';
+          acts+='<button class="oc-btn oc-btn-primary" onclick="odmAction(\''+oid+'\',\'delivered\',false)">✅ تم التسليم</button>';
+          if(o.paymentType==='cash') acts+='<button class="oc-btn oc-btn-knet" onclick="odmAction(\''+oid+'\',\'delivered\',true)">💳 Knet</button>';
+          acts+='<button class="oc-btn oc-btn-gold" onclick="odmAction(\''+oid+'\',\'noreply\',false)">📵 لا رد</button>';
+          acts+='<button class="oc-btn oc-btn-red" onclick="odmAction(\''+oid+'\',\'returned\',false)">↩️ مرتجع</button>';
         }
         if(o.status==='noreply'){
-          acts+='<button class="oc-btn oc-btn-blue" onclick="event.stopPropagation();odmAction(\''+oid+'\',\'delivering\',false)">🔄 استئناف</button>';
-          acts+='<button class="oc-btn oc-btn-primary" onclick="event.stopPropagation();odmAction(\''+oid+'\',\'delivered\',false)">✅ تم التسليم</button>';
-          if(o.paymentType==='cash') acts+='<button class="oc-btn oc-btn-knet" onclick="event.stopPropagation();odmAction(\''+oid+'\',\'delivered\',true)">💳 Knet</button>';
-          acts+='<button class="oc-btn oc-btn-red" onclick="event.stopPropagation();odmAction(\''+oid+'\',\'returned\',false)">↩️ مرتجع</button>';
+          acts+='<button class="oc-btn oc-btn-blue" onclick="odmAction(\''+oid+'\',\'delivering\',false)">🔄 استئناف</button>';
+          acts+='<button class="oc-btn oc-btn-primary" onclick="odmAction(\''+oid+'\',\'delivered\',false)">✅ تم التسليم</button>';
+          if(o.paymentType==='cash') acts+='<button class="oc-btn oc-btn-knet" onclick="odmAction(\''+oid+'\',\'delivered\',true)">💳 Knet</button>';
+          acts+='<button class="oc-btn oc-btn-red" onclick="odmAction(\''+oid+'\',\'returned\',false)">↩️ مرتجع</button>';
         }
       } else {
-        if(o.status==='pending'||o.status==='assigned') acts+='<button class="oc-btn oc-btn-ghost" onclick="event.stopPropagation();odmInspAction(\''+oid+'\',\'received\')">📋 استلمت الطلب</button>';
-        if(o.status==='received'||o.status==='scheduled') acts+='<button class="oc-btn oc-btn-blue" onclick="event.stopPropagation();odmInspAction(\''+oid+'\',\'delivering\')">🚗 في الطريق</button>';
+        if(o.status==='pending'||o.status==='assigned') acts+='<button class="oc-btn oc-btn-ghost" onclick="odmInspAction(\''+oid+'\',\'received\')">📋 استلمت الطلب</button>';
+        if(o.status==='received'||o.status==='scheduled') acts+='<button class="oc-btn oc-btn-blue" onclick="odmInspAction(\''+oid+'\',\'delivering\')">🚗 في الطريق</button>';
         if(o.status==='delivering'||o.status==='received'||o.status==='scheduled'){
-          acts+='<button class="oc-btn oc-btn-primary" onclick="event.stopPropagation();odmInspAction(\''+oid+'\',\'inspected\')">✅ تم الكشف</button>';
-          acts+='<button class="oc-btn oc-btn-gold" onclick="event.stopPropagation();odmInspAction(\''+oid+'\',\'noreply\')">📵 لا رد</button>';
+          acts+='<button class="oc-btn oc-btn-primary" onclick="odmInspAction(\''+oid+'\',\'inspected\')">✅ تم الكشف</button>';
+          acts+='<button class="oc-btn oc-btn-gold" onclick="odmInspAction(\''+oid+'\',\'noreply\')">📵 لا رد</button>';
         }
-        if(o.status==='inspected') acts+='<button class="oc-btn oc-btn-ghost" onclick="event.stopPropagation();odmInspAction(\''+oid+'\',\'closed\')">🔒 إغلاق</button>';
+        if(o.status==='inspected') acts+='<button class="oc-btn oc-btn-ghost" onclick="odmInspAction(\''+oid+'\',\'closed\')">🔒 إغلاق</button>';
       }
     }
 
@@ -1989,7 +1987,7 @@ window.renderCourierView = function(){
       +'</div>'
       +'<div class="oc-body">'
         +'<div class="oc-name">'+(o.clientName||'—')+'</div>'
-        +(o.phone?'<div class="oc-phone" style="margin-bottom:8px"><a href="tel:'+o.phone+'" onclick="event.stopPropagation()">📞 '+o.phone+'</a></div>':'')
+        +(o.phone?'<div class="oc-phone" style="margin-bottom:8px"><a href="tel:'+o.phone+'" onclick="return false">📞 '+o.phone+'</a></div>':'')
         +(!isInsp&&o.amount&&parseFloat(o.amount)>0?'<div class="oc-amount"><span class="oc-amount-val">KWD '+parseFloat(o.amount).toFixed(3)+'</span><span class="oc-amount-type">'+(o.paymentType==='knet'?'💳 Knet — لا كاش':o.paymentType==='cash'?'💵 كاش':'✅ مدفوع')+'</span></div>':(!isInsp&&o.paymentType==='knet'?'<div class="oc-knet">💳 Knet — لا كاش</div>':''))
         +(addr?'<div class="oc-address">📍 '+addr+'</div>':'')
         +mapB
@@ -2727,7 +2725,7 @@ window.renderSvcRequests = function(){
       +'<td><span class="tag tag-blue" style="font-size:.7rem">'+typeLabel+'</span></td>'
       +'<td><span class="status '+s.cl+'">'+(_lang==='ar'?s.ar:s.en)+'</span></td>'
       +'<td>'+(r.empName||'—')+'</td>'
-      +'<td onclick="event.stopPropagation()">'
+      +'<td onclick="return false">'
       +'<button class="btn-edit-sm" onclick="openSvcRequestModal(\''+r.id+'\')">'+(_lang==='ar'?'تعديل':'Edit')+'</button>'
       +(_role==='manager'?'<button class="btn-danger" onclick="delInsp(\''+r.id+'\')">✕</button>':'')
       +'</td></tr>';
