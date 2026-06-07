@@ -794,7 +794,7 @@ tbody tr[onclick]:active { background: #d8f0e2 !important; }
         <div id="arch-section-delivery">
           <div class="sec-card">
             <div class="tbl-wrap"><table><thead><tr>
-              <th>التاريخ</th><th>العميل</th><th>المنطقة</th><th>المندوب</th><th>الحالة</th><th>المبلغ</th><th>بواسطة</th>
+              <th>#</th><th>التاريخ</th><th>العميل</th><th>المنطقة</th><th>المندوب</th><th>الحالة</th><th>المبلغ</th><th>بواسطة</th><th></th>
             </tr></thead><tbody id="arch-delivery-tbody"></tbody></table></div>
           </div>
         </div>
@@ -803,7 +803,7 @@ tbody tr[onclick]:active { background: #d8f0e2 !important; }
         <div id="arch-section-svc" style="display:none">
           <div class="sec-card">
             <div class="tbl-wrap"><table><thead><tr>
-              <th>التاريخ</th><th>العميل</th><th>النوع</th><th>المنطقة</th><th>الموظف</th><th>الإجمالي</th><th>بواسطة</th>
+              <th>#</th><th>التاريخ</th><th>العميل</th><th>النوع</th><th>المنطقة</th><th>الموظف</th><th>الإجمالي</th><th>بواسطة</th><th></th>
             </tr></thead><tbody id="arch-svc-tbody"></tbody></table></div>
           </div>
         </div>
@@ -812,7 +812,7 @@ tbody tr[onclick]:active { background: #d8f0e2 !important; }
         <div id="arch-section-reports" style="display:none">
           <div class="sec-card">
             <div class="tbl-wrap"><table><thead><tr>
-              <th>التاريخ</th><th>المندوب / العميل</th><th>النوع</th><th>تم تسليم</th><th>المكافأة</th><th>الكاش</th><th>ملاحظات</th>
+              <th>#</th><th>التاريخ</th><th>المندوب / العميل</th><th>النوع</th><th>تم تسليم</th><th>المكافأة</th><th>الكاش</th><th>ملاحظات</th><th></th>
             </tr></thead><tbody id="archive-tbody"></tbody></table></div>
           </div>
         </div>
@@ -4429,7 +4429,7 @@ window.renderArchive = function(){
   if(_archTab==='delivery'){
     var tbody = document.getElementById('arch-delivery-tbody');
     if(!tbody) return;
-    var orders = (_orders||[]).concat(_archived||[]).filter(function(o,i,arr){
+    var orders = (_orders||[]).concat(_archived||[]).filter(function(o){
       if(!o.archived && !o.settled && o.status!=='delivered' && o.status!=='returned' && o.status!=='closed') return false;
       if(o.orderType==='inspection') return false;
       if(isEmployee && o.courierId!==myId) return false;
@@ -4438,24 +4438,33 @@ window.renderArchive = function(){
       if(q && !(o.clientName||'').toLowerCase().includes(q) && !(o.area||'').toLowerCase().includes(q) && !(o.courierName||'').toLowerCase().includes(q)) return false;
       return true;
     });
-    // إزالة المكررات
     var seen = {}; orders = orders.filter(function(o){ if(seen[o.id]) return false; seen[o.id]=1; return true; });
-    tbody.innerHTML = orders.length ? orders.map(function(o){
+    tbody.innerHTML = orders.length ? orders.map(function(o, idx){
       var dt = o.archivedAt&&o.archivedAt.toDate ? o.archivedAt.toDate().toLocaleDateString('ar-KW',{day:'numeric',month:'short'})
              : o.deliveredAt&&o.deliveredAt.toDate ? o.deliveredAt.toDate().toLocaleDateString('ar-KW',{day:'numeric',month:'short'})
              : (o.createdAt&&o.createdAt.toDate?o.createdAt.toDate().toLocaleDateString('ar-KW',{day:'numeric',month:'short'}):'—');
-      return '<tr><td>'+dt+'</td><td><b>'+(o.clientName||'—')+'</b></td><td>'+(o.area||'—')+'</td>'
+      var actBtns = isManager ? '<div style="display:flex;flex-direction:column;gap:3px">'
+        +'<button onclick="restoreArchiveOrder(\''+o.id+'\')" style="padding:3px 7px;background:#e8f5e9;color:var(--green);border:none;border-radius:5px;font-size:.68rem;cursor:pointer;font-family:Cairo,sans-serif;font-weight:700">↩ استعادة</button>'
+        +'<button onclick="editArchiveOrder(\''+o.id+'\')" style="padding:3px 7px;background:#e8f0ff;color:#1a4a8a;border:none;border-radius:5px;font-size:.68rem;cursor:pointer;font-family:Cairo,sans-serif;font-weight:700">✏️ تعديل</button>'
+        +'<button onclick="deleteArchiveOrder(\''+o.id+'\')" style="padding:3px 7px;background:var(--redl);color:var(--red);border:none;border-radius:5px;font-size:.68rem;cursor:pointer;font-family:Cairo,sans-serif;font-weight:700">🗑 حذف</button>'
+      +'</div>' : '';
+      return '<tr>'
+        +'<td style="font-size:.75rem;color:var(--muted);text-align:center">'+(idx+1)+'</td>'
+        +'<td style="font-size:.8rem">'+dt+'</td>'
+        +'<td><b>'+(o.clientName||'—')+'</b></td>'
+        +'<td>'+(o.area||'—')+'</td>'
         +'<td>'+(o.courierName||'—')+'</td>'
         +'<td><span class="tag '+(o.status==='delivered'?'tag-green':'tag-red')+'">'+(o.status||'—')+'</span></td>'
         +'<td style="font-weight:700">'+(o.amount?parseFloat(o.amount).toFixed(3)+' KD':'—')+'</td>'
-        +'<td style="font-size:.75rem;color:var(--muted)">'+(o.archivedBy||'—')+'</td></tr>';
-    }).join('') : '<tr><td colspan="7" class="empty">لا توجد طلبات مؤرشفة</td></tr>';
+        +'<td style="font-size:.75rem;color:var(--muted)">'+(o.archivedBy||'—')+'</td>'
+        +'<td>'+actBtns+'</td>'
+      +'</tr>';
+    }).join('') : '<tr><td colspan="9" class="empty">لا توجد طلبات مؤرشفة</td></tr>';
   }
 
   else if(_archTab==='svc'){
     var tbody2 = document.getElementById('arch-svc-tbody');
     if(!tbody2) return;
-    // الكشوفات المؤرشفة من iri_inspections
     var insps = (_inspections||[]).filter(function(r){
       if(!r.archived) return false;
       if(isEmployee && r.empId!==myId && r.empName!==myName) return false;
@@ -4464,7 +4473,6 @@ window.renderArchive = function(){
       if(q && !(r.client||'').toLowerCase().includes(q) && !(r.area||'').toLowerCase().includes(q)) return false;
       return true;
     });
-    // طلبات الكشف من del_orders المؤرشفة
     var inspOrds = (_orders||[]).filter(function(o){
       if(!o.archived || o.orderType!=='inspection') return false;
       if(isEmployee && o.courierId!==myId) return false;
@@ -4473,25 +4481,44 @@ window.renderArchive = function(){
       if(q && !(o.clientName||'').toLowerCase().includes(q)) return false;
       return true;
     });
-    var rows = '';
+    var rows = ''; var svcIdx = 0;
     insps.forEach(function(r){
+      svcIdx++;
       var dt = r.archivedAt&&r.archivedAt.toDate ? r.archivedAt.toDate().toLocaleDateString('ar-KW',{day:'numeric',month:'short'}) : (r.date||'—');
-      // ابحث عن عرض السعر
       var q2 = (_quotes||[]).find(function(x){ var o=(_orders||[]).find(function(y){return y.id===x.orderId;}); return o&&o.phone===r.phone&&o.clientName===r.client; });
-      var total = q2 ? parseFloat(q2.total||q2.subtotal||0).toFixed(3)+' KD' : '—';
-      rows += '<tr><td>'+dt+'</td><td><b>'+(r.client||'—')+'</b></td><td><span class="tag" style="background:#e8f0ff;color:#1a4a8a">'+(r.inspTypeAr||'كشف')+'</span></td>'
-        +'<td>'+(r.area||'—')+'</td><td>'+(r.empName||'—')+'</td><td style="font-weight:700">'+total+'</td>'
-        +'<td style="font-size:.75rem;color:var(--muted)">'+(r.archivedBy||'—')+'</td></tr>';
+      var total = q2 ? parseFloat((q2.total!==undefined&&q2.total!==null)?q2.total:q2.subtotal||0).toFixed(3)+' KD' : '—';
+      var actBtns = isManager ? '<div style="display:flex;flex-direction:column;gap:3px">'
+        +'<button onclick="restoreArchiveInsp(\''+r.id+'\',\'insp\')" style="padding:3px 7px;background:#e8f5e9;color:var(--green);border:none;border-radius:5px;font-size:.68rem;cursor:pointer;font-family:Cairo,sans-serif;font-weight:700">↩ استعادة</button>'
+        +'<button onclick="editArchiveInsp(\''+r.id+'\',\'insp\')" style="padding:3px 7px;background:#e8f0ff;color:#1a4a8a;border:none;border-radius:5px;font-size:.68rem;cursor:pointer;font-family:Cairo,sans-serif;font-weight:700">✏️ تعديل</button>'
+        +'<button onclick="deleteArchiveInsp(\''+r.id+'\',\'insp\')" style="padding:3px 7px;background:var(--redl);color:var(--red);border:none;border-radius:5px;font-size:.68rem;cursor:pointer;font-family:Cairo,sans-serif;font-weight:700">🗑 حذف</button>'
+      +'</div>' : '';
+      rows += '<tr><td style="font-size:.75rem;color:var(--muted);text-align:center">'+svcIdx+'</td>'
+        +'<td style="font-size:.8rem">'+dt+'</td><td><b>'+(r.client||'—')+'</b></td>'
+        +'<td><span class="tag" style="background:#e8f0ff;color:#1a4a8a">'+(r.inspTypeAr||'كشف')+'</span></td>'
+        +'<td>'+(r.area||'—')+'</td><td>'+(r.empName||'—')+'</td>'
+        +'<td style="font-weight:700">'+total+'</td>'
+        +'<td style="font-size:.75rem;color:var(--muted)">'+(r.archivedBy||'—')+'</td>'
+        +'<td>'+actBtns+'</td></tr>';
     });
     inspOrds.forEach(function(o){
+      svcIdx++;
       var dt = o.archivedAt&&o.archivedAt.toDate?o.archivedAt.toDate().toLocaleDateString('ar-KW',{day:'numeric',month:'short'}):(o.createdAt&&o.createdAt.toDate?o.createdAt.toDate().toLocaleDateString('ar-KW',{day:'numeric',month:'short'}):'—');
       var q3 = (_quotes||[]).find(function(x){return x.orderId===o.id;});
-      var total = q3 ? parseFloat(q3.total||q3.subtotal||0).toFixed(3)+' KD' : '—';
-      rows += '<tr><td>'+dt+'</td><td><b>'+(o.clientName||'—')+'</b></td><td><span class="tag" style="background:#e8f0ff;color:#1a4a8a">'+(o.inspTypeAr||'كشف')+'</span></td>'
-        +'<td>'+(o.area||'—')+'</td><td>'+(o.courierName||'—')+'</td><td style="font-weight:700">'+total+'</td>'
-        +'<td style="font-size:.75rem;color:var(--muted)">'+(o.archivedBy||'—')+'</td></tr>';
+      var total = q3 ? parseFloat((q3.total!==undefined&&q3.total!==null)?q3.total:q3.subtotal||0).toFixed(3)+' KD' : '—';
+      var actBtns = isManager ? '<div style="display:flex;flex-direction:column;gap:3px">'
+        +'<button onclick="restoreArchiveInsp(\''+o.id+'\',\'order\')" style="padding:3px 7px;background:#e8f5e9;color:var(--green);border:none;border-radius:5px;font-size:.68rem;cursor:pointer;font-family:Cairo,sans-serif;font-weight:700">↩ استعادة</button>'
+        +'<button onclick="editArchiveInsp(\''+o.id+'\',\'order\')" style="padding:3px 7px;background:#e8f0ff;color:#1a4a8a;border:none;border-radius:5px;font-size:.68rem;cursor:pointer;font-family:Cairo,sans-serif;font-weight:700">✏️ تعديل</button>'
+        +'<button onclick="deleteArchiveInsp(\''+o.id+'\',\'order\')" style="padding:3px 7px;background:var(--redl);color:var(--red);border:none;border-radius:5px;font-size:.68rem;cursor:pointer;font-family:Cairo,sans-serif;font-weight:700">🗑 حذف</button>'
+      +'</div>' : '';
+      rows += '<tr><td style="font-size:.75rem;color:var(--muted);text-align:center">'+svcIdx+'</td>'
+        +'<td style="font-size:.8rem">'+dt+'</td><td><b>'+(o.clientName||'—')+'</b></td>'
+        +'<td><span class="tag" style="background:#e8f0ff;color:#1a4a8a">'+(o.inspTypeAr||'كشف')+'</span></td>'
+        +'<td>'+(o.area||'—')+'</td><td>'+(o.courierName||'—')+'</td>'
+        +'<td style="font-weight:700">'+total+'</td>'
+        +'<td style="font-size:.75rem;color:var(--muted)">'+(o.archivedBy||'—')+'</td>'
+        +'<td>'+actBtns+'</td></tr>';
     });
-    tbody2.innerHTML = rows || '<tr><td colspan="7" class="empty">لا توجد كشوفات مؤرشفة</td></tr>';
+    tbody2.innerHTML = rows || '<tr><td colspan="9" class="empty">لا توجد كشوفات مؤرشفة</td></tr>';
   }
 
   else if(_archTab==='reports'){
@@ -4505,10 +4532,9 @@ window.renderArchive = function(){
       if(q && !(r.courierName||'').toLowerCase().includes(q)) return false;
       return true;
     });
-    tbody3.innerHTML = settlements.length ? settlements.map(function(r){
+    tbody3.innerHTML = settlements.length ? settlements.map(function(r, idx){
       var dt = r.settledAt&&r.settledAt.toDate
-        ? r.settledAt.toDate().toLocaleDateString('ar-KW',{year:'numeric',month:'short',day:'numeric'})
-        : (r.dateFrom||'—');
+        ? r.settledAt.toDate().toLocaleDateString('ar-KW',{year:'numeric',month:'short',day:'numeric'}) : (r.dateFrom||'—');
       var settledTime = r.settledAt&&r.settledAt.toDate
         ? r.settledAt.toDate().toLocaleTimeString('ar-KW',{hour:'2-digit',minute:'2-digit'}) : '';
       var typeCol = '<span class="tag tag-green">إنهاء حساب</span>'
@@ -4518,7 +4544,13 @@ window.renderArchive = function(){
         ? '<span style="font-size:.7rem;color:var(--blue)">تعديل: <b>'+r.editedBy+'</b></span>'
           +'<div style="font-size:.67rem;color:var(--muted2)">'+(r.editedAt&&r.editedAt.toDate?r.editedAt.toDate().toLocaleDateString('ar-KW',{day:'numeric',month:'short'}):'')+'</div>'
         : '';
+      var actBtns = isManager ? '<div style="display:flex;flex-direction:column;gap:3px">'
+        +'<button onclick="restoreReport(\''+r.id+'\')" style="padding:3px 7px;background:#e8f5e9;color:var(--green);border:none;border-radius:5px;font-size:.68rem;cursor:pointer;font-family:Cairo,sans-serif;font-weight:700">↩ استعادة</button>'
+        +'<button onclick="openArchiveDetail(\''+r.id+'\')" style="padding:3px 7px;background:#e8f0ff;color:#1a4a8a;border:none;border-radius:5px;font-size:.68rem;cursor:pointer;font-family:Cairo,sans-serif;font-weight:700">✏️ تعديل</button>'
+        +'<button onclick="deleteReport(\''+r.id+'\')" style="padding:3px 7px;background:var(--redl);color:var(--red);border:none;border-radius:5px;font-size:.68rem;cursor:pointer;font-family:Cairo,sans-serif;font-weight:700">🗑 حذف</button>'
+      +'</div>' : '';
       return '<tr onclick="openArchiveDetail(\''+r.id+'\')" style="cursor:pointer" onmouseover="this.style.background=\'#f0f9f4\'" onmouseout="this.style.background=\'\'">'
+        +'<td style="font-size:.75rem;color:var(--muted);text-align:center">'+(idx+1)+'</td>'
         +'<td style="font-size:.8rem">'+(r.dateFrom||'—')+'→'+(r.dateTo||'—')+'</td>'
         +'<td><b>'+r.courierName+'</b></td>'
         +'<td>'+typeCol+'</td>'
@@ -4526,10 +4558,105 @@ window.renderArchive = function(){
         +'<td style="color:var(--gold);font-weight:800">'+parseFloat(r.bonus||0).toFixed(3)+' KD</td>'
         +'<td style="font-weight:700">'+parseFloat(r.cash||0).toFixed(3)+' KD</td>'
         +'<td>'+notesCol+'</td>'
+        +'<td onclick="event.stopPropagation()">'+actBtns+'</td>'
       +'</tr>';
-    }).join('') : '<tr><td colspan="7" class="empty">لا توجد تقارير مؤرشفة</td></tr>';
+    }).join('') : '<tr><td colspan="9" class="empty">لا توجد تقارير مؤرشفة</td></tr>';
   }
 };
+
+// ── إضافة # للرأس ──
+window.renderArchive._addedSeqHeader = false;
+
+// ── وظائف الأرشيف ──
+window.restoreArchiveOrder = async function(orderId){
+  var o = _orders.find(function(x){return x.id===orderId;}) || _archived.find(function(x){return x.id===orderId;});
+  var newAssignee = '';
+  var keepOld = confirm('هل تريد الاحتفاظ بالمندوب القديم ('+(o?o.courierName||'غير محدد':'غير محدد')+')\n\nاضغط موافق للاحتفاظ، إلغاء لتغييره');
+  if(!keepOld){ newAssignee = prompt('اسم المندوب الجديد:',''); if(!newAssignee) return; }
+  var updateData = {archived:false, status:'pending', restoredAt:window.FB.ts(), restoredBy:_u.id||_u.username, updatedAt:window.FB.ts()};
+  if(newAssignee) updateData.courierName = newAssignee;
+  await window.FB.upd(window.FB.doc(window.FB.db,'del_orders',orderId), updateData);
+  toast('↩ تمت استعادة الطلب');
+  renderArchive();
+};
+
+window.editArchiveOrder = function(orderId){
+  var o = _orders.find(function(x){return x.id===orderId;}) || _archived.find(function(x){return x.id===orderId;});
+  if(!o) return;
+  var newName = prompt('اسم العميل:', o.clientName||'');
+  if(newName===null) return;
+  var newCourier = prompt('المندوب المكلف:', o.courierName||'');
+  if(newCourier===null) return;
+  window.FB.upd(window.FB.doc(window.FB.db,'del_orders',orderId),{clientName:newName,courierName:newCourier,updatedAt:window.FB.ts()}).then(function(){ toast('✅ تم التعديل'); renderArchive(); });
+};
+
+window.deleteArchiveOrder = async function(orderId){
+  if(!confirm('حذف هذا الطلب نهائياً؟ لا يمكن التراجع')) return;
+  await window.FB.del(window.FB.doc(window.FB.db,'del_orders',orderId));
+  toast('🗑 تم الحذف');
+  renderArchive();
+};
+
+window.restoreArchiveInsp = async function(id, type){
+  var col = type==='insp' ? 'iri_inspections' : 'del_orders';
+  var rec = type==='insp' ? _inspections.find(function(x){return x.id===id;}) : _orders.find(function(x){return x.id===id;});
+  var oldEmp = rec ? (type==='insp'?rec.empName:rec.courierName)||'غير محدد' : 'غير محدد';
+  var keepOld = confirm('الاحتفاظ بالموظف القديم ('+oldEmp+')؟\nموافق = نعم | إلغاء = تغيير');
+  var newEmp = '';
+  if(!keepOld){ newEmp = prompt('اسم الموظف الجديد:',''); if(!newEmp) return; }
+  var d = {archived:false, status:'new', restoredAt:window.FB.ts(), restoredBy:_u.id||_u.username, updatedAt:window.FB.ts()};
+  if(newEmp){ if(type==='insp') d.empName=newEmp; else d.courierName=newEmp; }
+  await window.FB.upd(window.FB.doc(window.FB.db,col,id), d);
+  toast('↩ تمت الاستعادة');
+  renderArchive();
+};
+
+window.editArchiveInsp = function(id, type){
+  var col = type==='insp' ? 'iri_inspections' : 'del_orders';
+  var rec = type==='insp' ? _inspections.find(function(x){return x.id===id;}) : _orders.find(function(x){return x.id===id;});
+  if(!rec) return;
+  var clientKey = type==='insp' ? 'client' : 'clientName';
+  var empKey    = type==='insp' ? 'empName' : 'courierName';
+  var newName   = prompt('اسم العميل:', rec[clientKey]||'');
+  if(newName===null) return;
+  var newEmp    = prompt('الموظف المكلف:', rec[empKey]||'');
+  if(newEmp===null) return;
+  var d = {updatedAt:window.FB.ts()}; d[clientKey]=newName; d[empKey]=newEmp;
+  window.FB.upd(window.FB.doc(window.FB.db,col,id),d).then(function(){ toast('✅ تم التعديل'); renderArchive(); });
+};
+
+window.deleteArchiveInsp = async function(id, type){
+  if(!confirm('حذف هذا الكشف نهائياً؟')) return;
+  var col = type==='insp' ? 'iri_inspections' : 'del_orders';
+  await window.FB.del(window.FB.doc(window.FB.db,col,id));
+  toast('🗑 تم الحذف');
+  renderArchive();
+};
+
+window.restoreReport = async function(rptId){
+  if(!confirm('استعادة هذا التقرير إلى صفحة التقارير؟')) return;
+  // إزالة علامة settlement حتى يعود للتقارير النشطة
+  await window.FB.upd(window.FB.doc(window.FB.db,'del_reports',rptId),{type:'report_restored', restoredAt:window.FB.ts(), restoredBy:_u.id||_u.username});
+  // استعادة الطلبات المرتبطة (إزالة settled)
+  var rpt = (_delReports||[]).find(function(x){return x.id===rptId;});
+  if(rpt){
+    var relOrds = _orders.filter(function(o){return o.courierId===rpt.courierId&&o.settled;});
+    for(var i=0;i<relOrds.length;i++){
+      await window.FB.upd(window.FB.doc(window.FB.db,'del_orders',relOrds[i].id),{settled:false,updatedAt:window.FB.ts()});
+    }
+  }
+  toast('↩ تم استعادة التقرير');
+  showPage('reports');
+};
+
+window.deleteReport = async function(rptId){
+  if(!confirm('حذف هذا التقرير نهائياً؟')) return;
+  await window.FB.del(window.FB.doc(window.FB.db,'del_reports',rptId));
+  toast('🗑 تم الحذف');
+  renderArchive();
+};
+
+
 
 
 window.openArchiveDetail = function(rptId){
