@@ -601,6 +601,10 @@ tbody tr[onclick]:active { background: #d8f0e2 !important; }
               إضافة صنف
             </button>
           </div>
+          <!-- بانر الطلب المرتبط -->
+          <div id="items-order-banner" style="display:none;background:var(--gl);border-radius:10px;padding:10px 14px;margin-bottom:12px;font-size:.82rem;color:var(--green);font-weight:700">
+            🔍 تم الكشف — أضف الأصناف لعرض السعر ثم اضغط <b>احسب الآن</b>
+          </div>
           <div id="items-catalog-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px;padding:4px 0"></div>
         </div>
 
@@ -634,7 +638,22 @@ tbody tr[onclick]:active { background: #d8f0e2 !important; }
               ⚠️ لم تتم إضافة أجور العمالة — الإجمالي غير مكتمل
             </div>
           </div>
+          <!-- زر احسب الآن -->
+          <div id="calc-now-wrap" style="display:none;margin-top:12px">
+            <button onclick="openQuotePage()" style="width:100%;padding:14px;background:#1a4a8a;color:#fff;border:none;border-radius:12px;font-family:'Cairo',sans-serif;font-size:1rem;font-weight:800;cursor:pointer">
+              🧮 احسب الآن — عرض السعر
+            </button>
+          </div>
         </div>
+      </div>
+
+      <!-- QUOTE PAGE — عرض السعر -->
+      <div class="page" id="page-quote">
+        <div class="module-header">
+          <div class="dash-card-icon blue" style="width:36px;height:36px;font-size:1rem">💰</div>
+          <h2>عرض السعر</h2>
+        </div>
+        <div id="quote-content" style="max-width:520px;margin:0 auto"></div>
       </div>
 
       <!-- CUSTOMERS -->
@@ -1597,6 +1616,7 @@ window.showPage = function(page){
   if(page==='customers') renderCustomers();
   if(page==='employees') renderEmployees();
   if(page==='items')    renderItems();
+  if(page==='quote')    {} // المحتوى يُبنى بـ openQuotePage
   if(page==='archive') renderArchive();
 };
 
@@ -1975,6 +1995,14 @@ window.odmAction = async function(id, status, forceKnet){
 
 window.odmInspAction = async function(id, status){
   await window.updateInspStatus(id, status);
+  // بعد "تم الكشف" → انتقل لصفحة الأصناف لإضافة عرض السعر
+  if(status === 'inspected'){
+    _currentInspOrderId = id;
+    _invoiceItems = []; // مسح الفاتورة السابقة
+    closeModal('modal-order-detail');
+    showPage('items');
+    toast('📋 أضف الأصناف ثم اضغط "احسب الآن"');
+  }
 };
 
 // ══ فتح الخريطة ══
@@ -2987,8 +3015,7 @@ async function autoSaveCustomer(name, phone, area, block, address, locationLink)
 // ══════════════════════════════════════════════
 // ITEMS — الأصناف
 // ══════════════════════════════════════════════
-var _items = [];
-var _invoiceItems = []; // الفاتورة الحالية
+var _currentInspOrderId = null; // الطلب المرتبط بالفاتورة الحالية
 
 // تحميل الأصناف من Firebase
 function loadItems(){
@@ -3234,6 +3261,9 @@ window.renderInvoiceItems = function(){
   } else {
     if(tot){ tot.textContent = '—'; tot.style.color='var(--muted2)'; }
   }
+  // زر احسب الآن — يظهر لو فيه أصناف وفيه طلب كشف مرتبط
+  var calcWrap = document.getElementById('calc-now-wrap');
+  if(calcWrap) calcWrap.style.display = (_invoiceItems.length && _currentInspOrderId) ? '' : 'none';
 };
 
 window.saveInvoiceItems = async function(){
@@ -3253,8 +3283,139 @@ window.saveInvoiceItems = async function(){
 };
 
 window.renderItems = function(){
+  // بانر الطلب المرتبط
+  var banner = document.getElementById('items-order-banner');
+  if(banner) banner.style.display = _currentInspOrderId ? '' : 'none';
   renderItemsCatalog();
   renderInvoiceItems();
+};
+
+window.openQuotePage = function(){
+  if(!_invoiceItems.length){ toast('أضف أصنافاً أولاً'); return; }
+  var subtotal = _invoiceItems.reduce(function(s,x){return s+x.qty*parseFloat(x.item.price||0);},0);
+  var hasLabor = _invoiceItems.some(function(x){return x.item.type==='labor'||x.item.category==='أجور عمالة';});
+  var order = _orders.find(function(o){return o.id===_currentInspOrderId;});
+  var maxDiscount = Math.round(subtotal * 0.10 * 1000)/1000;
+
+  var rows = _invoiceItems.map(function(r){
+    var lineTotal = r.qty * parseFloat(r.item.price||0);
+    return '<tr>'
+      +'<td style="padding:8px 12px">'+(r.item.nameAr||'')+'</td>'
+      +'<td style="padding:8px 12px;text-align:center">'+r.qty+' '+r.item.unit+'</td>'
+      +'<td style="padding:8px 12px;text-align:center">'+parseFloat(r.item.price).toFixed(3)+' KD</td>'
+      +'<td style="padding:8px 12px;text-align:center;font-weight:700">'+lineTotal.toFixed(3)+' KD</td>'
+      +'</tr>';
+  }).join('');
+
+  document.getElementById('quote-content').innerHTML =
+    // بيانات العميل
+    (order?'<div style="background:var(--gl);border-radius:12px;padding:14px;margin-bottom:16px">'
+      +'<div style="font-size:1rem;font-weight:900">'+( order.clientName||'—')+'</div>'
+      +'<div style="font-size:.82rem;color:var(--muted)">📞 '+(order.phone||'')+'  📍 '+(order.area||'')+'</div>'
+      +'<div style="font-size:.75rem;color:var(--muted2);margin-top:2px">'+(order.inspTypeAr||'كشف')+'</div>'
+    +'</div>':'')
+    // جدول الأصناف
+    +'<div style="background:#fff;border:1px solid var(--border);border-radius:12px;overflow:hidden;margin-bottom:16px">'
+      +'<table style="width:100%;border-collapse:collapse;font-size:.85rem">'
+        +'<thead><tr style="background:var(--gl)">'
+          +'<th style="padding:10px 12px;text-align:right;font-weight:700">الصنف</th>'
+          +'<th style="padding:10px 12px;text-align:center;font-weight:700">الكمية</th>'
+          +'<th style="padding:10px 12px;text-align:center;font-weight:700">السعر</th>'
+          +'<th style="padding:10px 12px;text-align:center;font-weight:700">الإجمالي</th>'
+        +'</tr></thead>'
+        +'<tbody>'+rows+'</tbody>'
+      +'</table>'
+    +'</div>'
+    // الإجمالي + الخصم
+    +'<div style="background:#fff;border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px">'
+      +'<div style="display:flex;justify-content:space-between;margin-bottom:10px">'
+        +'<span style="color:var(--muted)">المجموع</span>'
+        +'<span id="qt-subtotal" style="font-weight:700">'+subtotal.toFixed(3)+' KD</span>'
+      +'</div>'
+      +(!hasLabor?'<div style="background:#fff5e0;border-radius:8px;padding:8px 12px;font-size:.78rem;color:var(--gold);margin-bottom:10px">⚠️ لم تتم إضافة أجور العمالة — الإجمالي غير مكتمل</div>':'')
+      // حقل الخصم
+      +'<div style="margin-bottom:12px">'
+        +'<label style="font-size:.8rem;font-weight:700;color:var(--muted);margin-bottom:6px;display:block">خصم (الحد الأقصى '+maxDiscount.toFixed(3)+' KD = 10%)</label>'
+        +'<input id="qt-discount" type="number" step="0.001" min="0" max="'+maxDiscount+'" placeholder="0.000" oninput="updateQuoteTotal('+subtotal+','+maxDiscount+')" style="width:100%;padding:10px;border:1.5px solid var(--border);border-radius:8px;font-family:Cairo,sans-serif;font-size:.9rem">'
+        +'<div id="qt-discount-warn" style="display:none;font-size:.75rem;color:var(--red);margin-top:4px">⚠️ الخصم لا يتجاوز '+maxDiscount.toFixed(3)+' KD (10%)</div>'
+      +'</div>'
+      +'<div style="display:flex;justify-content:space-between;align-items:center;border-top:2px solid var(--gm);padding-top:12px">'
+        +'<span style="font-size:1rem;font-weight:900">الإجمالي النهائي</span>'
+        +'<span id="qt-final" style="font-size:1.3rem;font-weight:900;color:var(--green)">'+subtotal.toFixed(3)+' KD</span>'
+      +'</div>'
+    +'</div>'
+    // أزرار حفظ وطباعة
+    +'<div style="display:flex;gap:10px;padding-bottom:24px">'
+      +'<button onclick="saveQuote()" style="flex:1;padding:13px;background:var(--green);color:#fff;border:none;border-radius:12px;font-family:Cairo,sans-serif;font-size:.9rem;font-weight:800;cursor:pointer">💾 حفظ عرض السعر</button>'
+      +'<button onclick="printQuote()" style="flex:1;padding:13px;background:#1a4a8a;color:#fff;border:none;border-radius:12px;font-family:Cairo,sans-serif;font-size:.9rem;font-weight:800;cursor:pointer">🖨 طباعة</button>'
+    +'</div>';
+
+  showPage('quote');
+};
+
+window.updateQuoteTotal = function(subtotal, maxDiscount){
+  var disc = parseFloat(document.getElementById('qt-discount').value)||0;
+  var warn = document.getElementById('qt-discount-warn');
+  var final = document.getElementById('qt-final');
+  if(disc > maxDiscount){
+    disc = maxDiscount;
+    document.getElementById('qt-discount').value = maxDiscount.toFixed(3);
+    if(warn) warn.style.display='';
+  } else {
+    if(warn) warn.style.display='none';
+  }
+  if(final) final.textContent = (subtotal - disc).toFixed(3)+' KD';
+};
+
+window.saveQuote = async function(){
+  var subtotal = _invoiceItems.reduce(function(s,x){return s+x.qty*parseFloat(x.item.price||0);},0);
+  var disc = parseFloat(document.getElementById('qt-discount').value)||0;
+  var final = subtotal - disc;
+  var data = {
+    orderId: _currentInspOrderId||'',
+    items: _invoiceItems.map(function(x){return {itemId:x.itemId,nameAr:x.item.nameAr,price:x.item.price,unit:x.item.unit,qty:x.qty,lineTotal:x.qty*parseFloat(x.item.price||0)};}),
+    subtotal, discount:disc, total:final,
+    createdBy: _u.id||_u.username, createdAt: window.FB.ts(), type:'quote'
+  };
+  if(_currentInspOrderId){
+    // ربط عرض السعر بالطلب
+    await window.FB.upd(window.FB.doc(window.FB.db,'del_orders',_currentInspOrderId),{quoteTotal:final,quoteDiscount:disc,updatedAt:window.FB.ts()});
+  }
+  await window.FB.add(window.FB.col(window.FB.db,'iri_invoices_v2'), data);
+  toast('✅ تم حفظ عرض السعر');
+  _currentInspOrderId = null;
+  _invoiceItems = [];
+};
+
+window.printQuote = function(){
+  var subtotal = _invoiceItems.reduce(function(s,x){return s+x.qty*parseFloat(x.item.price||0);},0);
+  var disc = parseFloat((document.getElementById('qt-discount')||{}).value)||0;
+  var final = subtotal - disc;
+  var order = _orders.find(function(o){return o.id===_currentInspOrderId;});
+  var rows = _invoiceItems.map(function(r){
+    return '<tr><td>'+r.item.nameAr+'</td><td style="text-align:center">'+r.qty+' '+r.item.unit+'</td>'
+      +'<td style="text-align:center">'+parseFloat(r.item.price).toFixed(3)+' KD</td>'
+      +'<td style="text-align:center;font-weight:700">'+(r.qty*parseFloat(r.item.price)).toFixed(3)+' KD</td></tr>';
+  }).join('');
+  var w = window.open('','_blank');
+  w.document.write('<!DOCTYPE html><html dir="rtl"><head><meta charset="UTF-8">'
+    +'<title>عرض سعر</title>'
+    +'<style>body{font-family:Cairo,sans-serif;padding:24px;color:#111}h2{color:#1a7a40}table{width:100%;border-collapse:collapse;margin:12px 0}th,td{border:1px solid #ddd;padding:8px 12px;font-size:.88rem}th{background:#e8f5e9}tfoot td{font-weight:900;background:#f5fdf7}.total-row{font-size:1.1rem;color:#1a7a40}</style>'
+    +'</head><body>'
+    +'<h2>Kuwait Organic — عرض سعر</h2>'
+    +(order?'<p><b>العميل:</b> '+order.clientName+' | <b>هاتف:</b> '+order.phone+'</p>':'')
+    +'<p><b>التاريخ:</b> '+new Date().toLocaleDateString('ar-KW')+'</p>'
+    +'<table><thead><tr><th>الصنف</th><th>الكمية</th><th>السعر</th><th>الإجمالي</th></tr></thead>'
+    +'<tbody>'+rows+'</tbody>'
+    +'<tfoot>'
+      +'<tr><td colspan="3">المجموع</td><td>'+subtotal.toFixed(3)+' KD</td></tr>'
+      +(disc>0?'<tr><td colspan="3">خصم</td><td>- '+disc.toFixed(3)+' KD</td></tr>':'')
+      +'<tr class="total-row"><td colspan="3"><b>الإجمالي النهائي</b></td><td><b>'+final.toFixed(3)+' KD</b></td></tr>'
+    +'</tfoot></table>'
+    +'<p style="margin-top:20px;font-size:.8rem;color:#888">Kuwait Organic — q8organic.com</p>'
+    +'</body></html>');
+  w.document.close();
+  w.print();
 };
 
 
