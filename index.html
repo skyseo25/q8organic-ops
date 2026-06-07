@@ -248,8 +248,7 @@ tr:hover td{background:#fafcfb;}
   cursor:pointer;
   transition:box-shadow .15s, transform .1s;
 }
-.order-card:active{transform:scale(.99);}
-.order-card:hover{box-shadow:0 4px 20px rgba(26,122,64,.14);}
+
 
 /* شريط الوضع العلوي */
 .oc-topbar{
@@ -321,7 +320,7 @@ tr:hover td{background:#fafcfb;}
 .oc-btn-red{background:var(--redl);color:var(--red);border:1px solid #f5b8b4;}
 .oc-btn-ghost{background:var(--gl);color:var(--green);border:1.5px solid var(--gm);}
 .oc-btn-map{background:#1a4a8a;color:#fff;}
-.oc-btn-wa{background:#25D366;color:#fff;}
+
 .oc-btn-knet{background:#e8f0ff;color:#1a4a8a;border:1.5px solid #c8d8f8;}
 
 .oc-done-row{
@@ -1944,8 +1943,8 @@ window.renderCourierView = function(){
     var addr = [o.area?(_lang==='en'?translateArea(o.area):o.area):'', o.block?((_lang==='ar'?'ق':'B.')+o.block):'', o.street?((_lang==='ar'?'ش':'St.')+o.street):'', o.avenue?((_lang==='ar'?'ج':'Av.')+o.avenue):'', o.house?((_lang==='ar'?'م':'H.')+o.house):''].filter(Boolean).join(' \u2014 ') || o.address || '';
 
     var oid = o.id;
-    var mapB = o.locationLink ? '<a class="oc-btn oc-btn-map" href="'+o.locationLink+'" target="_blank" onclick="event.stopPropagation()">📍 خريطة</a>' : '';
-    var waB  = o.phone ? '<a class="oc-btn oc-btn-wa" href="https://wa.me/965'+o.phone.replace(/[^0-9]/g,'')+'" target="_blank" onclick="event.stopPropagation()">💬 واتساب</a>' : '';
+    var mapB = o.locationLink ? '<a href="'+o.locationLink+'" target="_blank" onclick="event.stopPropagation()" style="display:inline-flex;align-items:center;gap:6px;background:#1a7a40;color:#fff;border-radius:10px;padding:9px 16px;font-size:.82rem;font-weight:700;text-decoration:none;margin-top:6px;width:100%;justify-content:center">📍 فتح الموقع على الخريطة</a>' : '';
+    var waB  = ''; // removed
     var trB  = (_role==='manager'||_role==='supervisor')&&!isInsp ? '<button class="oc-btn oc-btn-ghost" style="flex:0;padding:10px 14px" onclick="event.stopPropagation();openOrderModal(\''+oid+'\')">🔄 تحويل</button>' : '';
 
     var acts = '';
@@ -1979,7 +1978,7 @@ window.renderCourierView = function(){
     var doneTime='';
     if(isDone&&o.deliveredAt&&o.deliveredAt.toDate){var dT=o.deliveredAt.toDate();doneTime=dT.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'})+' '+dT.toLocaleDateString('en-GB');}
 
-    return '<div class="order-card '+csStatus+'" onclick="openOrderDetail(\''+oid+'\')">'
+    return '<div class="order-card '+csStatus+'">' 
       +'<div class="oc-topbar">'
         +'<div style="display:flex;align-items:center;gap:6px">'
           +'<span class="oc-num">#'+(idx+1)+'</span>'
@@ -1993,11 +1992,12 @@ window.renderCourierView = function(){
         +(o.phone?'<div class="oc-phone" style="margin-bottom:8px"><a href="tel:'+o.phone+'" onclick="event.stopPropagation()">📞 '+o.phone+'</a></div>':'')
         +(!isInsp&&o.amount&&parseFloat(o.amount)>0?'<div class="oc-amount"><span class="oc-amount-val">KWD '+parseFloat(o.amount).toFixed(3)+'</span><span class="oc-amount-type">'+(o.paymentType==='knet'?'💳 Knet — لا كاش':o.paymentType==='cash'?'💵 كاش':'✅ مدفوع')+'</span></div>':(!isInsp&&o.paymentType==='knet'?'<div class="oc-knet">💳 Knet — لا كاش</div>':''))
         +(addr?'<div class="oc-address">📍 '+addr+'</div>':'')
+        +mapB
         +(o.notes||o.desc?'<div style="font-size:.8rem;color:var(--muted);margin-top:4px">📝 '+(o.notes||o.desc)+'</div>':'')
         +(doneTime?'<div style="font-size:.72rem;color:var(--green);font-weight:700;margin-top:6px">✅ '+(isInsp?'تم الكشف':'تم التسليم')+': '+doneTime+'</div>':'')
         +(bon>0?'<div style="font-size:.78rem;font-weight:800;color:var(--gold);margin-top:4px">⭐ مكافأة: '+bon.toFixed(3)+' KD</div>':'')
       +'</div>'
-      +((acts||mapB||waB||trB)?'<div class="oc-footer">'+((mapB||waB||trB)?'<div class="oc-action-row">'+mapB+waB+trB+'</div>':'')+(acts?'<div class="oc-action-row">'+acts+'</div>':'')+'</div>':'')
+      +((acts||trB)?'<div class="oc-footer">'+(trB?'<div class="oc-action-row">'+trB+'</div>':'')+(acts?'<div class="oc-action-row">'+acts+'</div>':'')+'</div>':'')
       +'</div>';
   }).join('');
 };
