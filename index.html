@@ -1931,6 +1931,19 @@ function renderDashboard(){
     return dt && dt.toDateString()===todayStr;
   }).length;
 
+  // ── المنجز اليوم مع وقت التسليم/الكشف ──
+  var completedToday = [];
+  _orders.forEach(function(o){
+    if(o.archived) return;
+    var isInsp = o.orderType==='inspection';
+    var done = isInsp ? (o.status==='inspected'||o.status==='closed') : (o.status==='delivered');
+    if(!done) return;
+    var dt = o.deliveredAt&&o.deliveredAt.toDate ? o.deliveredAt.toDate() : null;
+    if(!dt || dt.toDateString()!==todayStr) return;
+    completedToday.push({isInsp:isInsp, name:o.clientName||'—', courier:o.courierName||'', time:dt});
+  });
+  completedToday.sort(function(a,b){return b.time-a.time;});
+
   // ── كارت 3: التقارير (معلّقة + منتهية منذ آخر اطّلاع) ──
   // التقرير "تم إنهاء حسابه" إذا له finished أو settledAt (يتم من قسم التقارير فقط)
   var rptDayMap = {};
@@ -2101,6 +2114,29 @@ function renderDashboard(){
           +'</div>';
         }).join('')
         :'<div style="color:var(--muted2);font-size:.82rem;text-align:center;padding:12px">لا توجد تحويلات معلقة ✅</div>'
+      )
+    +'</div>'
+
+    // كارت 5 — أُنجز اليوم (وقت التسليم/الكشف)
+    +'<div class="dash-card" style="cursor:default">'
+      +'<div class="dash-card-icon green">✅</div>'
+      +'<h3>أُنجز اليوم — وقت التسليم/الكشف</h3>'
+      +'<div class="val">'+completedToday.length+'</div>'
+      +(completedToday.length
+        ? completedToday.map(function(c){
+            var hhmm = c.time.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
+            return '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--border)">'
+              +'<div style="flex:1;min-width:0">'
+                +'<div style="font-weight:800;font-size:.84rem">'+(c.isInsp?'🔧 ':'🚚 ')+c.name+'</div>'
+                +(c.courier?'<div style="font-size:.7rem;color:var(--muted)">'+c.courier+'</div>':'')
+              +'</div>'
+              +'<div style="text-align:left;white-space:nowrap">'
+                +'<span style="background:var(--gl);color:var(--green);border-radius:20px;padding:3px 10px;font-size:.8rem;font-weight:900">🕐 '+hhmm+'</span>'
+                +'<div style="font-size:.62rem;color:var(--muted2);margin-top:2px">'+(c.isInsp?'تم الكشف':'تم التسليم')+'</div>'
+              +'</div>'
+            +'</div>';
+          }).join('')
+        :'<div style="color:var(--muted2);font-size:.82rem;text-align:center;padding:12px">لا يوجد إنجاز اليوم بعد</div>'
       )
     +'</div>';
 
