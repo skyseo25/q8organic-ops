@@ -636,7 +636,7 @@ tbody tr[onclick]:active { background: #d8f0e2 !important; }
         </div>
 
         <!-- الفاتورة الحالية -->
-        <div class="sec-card">
+        <div class="sec-card" id="invoice-builder-card" style="display:none">
           <div class="sec-header">
             <h3>الفاتورة الحالية</h3>
             <div style="display:flex;gap:8px">
@@ -4173,7 +4173,7 @@ window.renderItemsCatalog = function(){
           +'<span style="font-size:.88rem;font-weight:800;color:var(--gold)">'+parseFloat(it.price||0).toFixed(3)+' KD</span>'
           +'<span style="font-size:.7rem;color:var(--muted2)">/ '+it.unit+'</span>'
         +'</div>'
-        +'<button onclick="addItemToInvoice(\''+it.id+'\')" style="width:100%;margin-top:8px;padding:7px;background:var(--green);color:#fff;border:none;border-radius:8px;font-family:Cairo,sans-serif;font-size:.78rem;font-weight:700;cursor:pointer">+ إضافة للفاتورة</button>'
+        +(_currentInspOrderId?'<button onclick="addItemToInvoice(\''+it.id+'\')" style="width:100%;margin-top:8px;padding:7px;background:var(--green);color:#fff;border:none;border-radius:8px;font-family:Cairo,sans-serif;font-size:.78rem;font-weight:700;cursor:pointer">+ إضافة للفاتورة</button>':'')
       +'</div>';
     });
   });
@@ -4301,6 +4301,9 @@ window.renderItems = function(){
   // بانر الطلب المرتبط
   var banner = document.getElementById('items-order-banner');
   if(banner) banner.style.display = _currentInspOrderId ? '' : 'none';
+  // شريط الفاتورة الحالية يظهر فقط عند بناء عرض سعر من كشف
+  var invCard = document.getElementById('invoice-builder-card');
+  if(invCard) invCard.style.display = _currentInspOrderId ? '' : 'none';
   renderItemsCatalog();
   renderInvoiceItems();
 };
