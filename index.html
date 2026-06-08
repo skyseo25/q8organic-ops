@@ -678,7 +678,7 @@ tbody tr[onclick]:active { background: #d8f0e2 !important; }
       <div class="page" id="page-quote">
         <div class="module-header">
           <div class="dash-card-icon blue" style="width:36px;height:36px;font-size:1rem">🧾</div>
-          <h2>الفواتير والعروض</h2>
+          <h2>الفواتير وعرض السعر</h2>
         </div>
         <!-- قائمة العروض المحفوظة -->
         <div class="sec-card" style="margin-bottom:16px" id="quotes-list-wrap">
@@ -1724,7 +1724,7 @@ function getNavItems(){
     return [
       {id:'courier',    icon:'🚚', ar:'طلباتي',          en:'My Orders',      roles:['employee']},
       {id:'irrigation', icon:'➕', ar:'خدماتي',  en:'My Services',      roles:['employee']},
-      {id:'quote',      icon:'🧾', ar:'الفواتير والعروض', en:'Invoices & Quotes', roles:['employee']},
+      {id:'quote',      icon:'🧾', ar:'الفواتير وعرض السعر', en:'Invoices & Quotes', roles:['employee']},
       {id:'archive',    icon:'📦', ar:'أرشيف تقاريري',   en:'My Reports',     roles:['employee']},
     ];
   }
@@ -1733,7 +1733,7 @@ function getNavItems(){
     {id:'orders',     icon:'🚚', ar:'طلبات التوصيل والكشف',   en:'Active Orders',        roles:['manager','supervisor'],           section_ar:'الأعمال',  section_en:'Operations'},
     {id:'irrigation', icon:'➕', ar:(_role==='employee'?'خدماتي':'إضافة توصيل وخدمة'),      en:(_role==='employee'?'My Services':'Add Order / Service'),  roles:['manager','supervisor','employee'], section_ar:'الأعمال',  section_en:'Operations'},
     {id:'items',      icon:'📋', ar:'الأصناف',                 en:'Items',               roles:['manager','supervisor','employee'], section_ar:'الأعمال',  section_en:'Operations'},
-    {id:'quote',      icon:'🧾', ar:'الفواتير والعروض',        en:'Invoices & Quotes',   roles:['manager','supervisor','employee'], section_ar:'الأعمال',  section_en:'Operations'},
+    {id:'quote',      icon:'🧾', ar:'الفواتير وعرض السعر',        en:'Invoices & Quotes',   roles:['manager','supervisor','employee'], section_ar:'الأعمال',  section_en:'Operations'},
     {id:'reports',    icon:'📊', ar:'التقارير',                en:'Reports',             roles:['manager','supervisor'],           section_ar:'الإدارة',  section_en:'Management'},
     {id:'employees',  icon:'👤', ar:'الموظفون',                en:'Employees',           roles:['manager','supervisor'],           section_ar:'الإدارة',  section_en:'Management'},
     {id:'customers',  icon:'👥', ar:'قاعدة العملاء',          en:'Customers',           roles:['manager'],                       section_ar:'الإدارة',  section_en:'Management'},
@@ -1787,7 +1787,7 @@ window.showPage = function(page){
   // Page title
   var items = getNavItems();
   var found = items.find(function(x){ return x.id===page; });
-  var titles = {dashboard:'لوحة التحكم',orders:'طلبات التوصيل والكشف',courier:'طلباتي',irrigation:'الري والصيانة',quote:'الفواتير والعروض',customers:'العملاء',employees:'الموظفون',reports:'التقارير',archive:'الأرشيف',settings:'الإعدادات'};
+  var titles = {dashboard:'لوحة التحكم',orders:'طلبات التوصيل والكشف',courier:'طلباتي',irrigation:'الري والصيانة',quote:'الفواتير وعرض السعر',customers:'العملاء',employees:'الموظفون',reports:'التقارير',archive:'الأرشيف',settings:'الإعدادات'};
   var titlesEn = {dashboard:'Dashboard',orders:'Delivery & Inspection',courier:'My Orders',irrigation:'Irrigation & Maint.',quote:'Invoices & Quotes',customers:'Customers',employees:'Employees',reports:'Reports',archive:'Archive',settings:'Settings'};
   document.getElementById('page-title').textContent = found ? (_lang==='ar'?found.ar:found.en) : (_lang==='ar'?(titles[page]||page):(titlesEn[page]||page));
   // Render
