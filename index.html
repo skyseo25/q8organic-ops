@@ -4771,7 +4771,7 @@ function buildPrintDoc(opts){
     +'</tr>';
   }).join('');
   var emptyRows='';
-  var need = Math.max(0, 12-(opts.items||[]).length);
+  var need = Math.max(0, 10-(opts.items||[]).length);
   for(var k=0;k<need;k++){ emptyRows+='<tr><td class="c">&nbsp;</td><td></td><td></td></tr>'; }
 
   var totRows='';
@@ -4816,13 +4816,13 @@ function buildPrintDoc(opts){
     +'.itbl th{background:#eaf3e7;color:#2f7d32;border:1px solid #bcd3b3;padding:6px 8px;font-size:.8rem;font-weight:800}'
     +'.itbl td{border:1px solid #bcd3b3;padding:5px 8px;font-size:.8rem}'
     +'.itbl td.c{text-align:center}.itbl td.r{text-align:right}'
-    +'.below{display:flex;margin-top:12px}.below .sp{flex:1}.below .tot{flex:0 0 240px}'
+    +'.below2{display:flex;gap:16px;margin-top:12px;align-items:flex-start}'
+    +'.below2 .terms{flex:1}.below2 .tot{flex:0 0 235px}'
     +'.trw{display:flex;justify-content:space-between;padding:3px 2px;font-size:.82rem}'
     +'.totbox{display:flex;justify-content:space-between;align-items:center;border:2px solid #2f7d32;border-radius:10px;padding:10px 14px;margin-top:6px}'
     +'.totbox .lbl{color:#2f7d32;font-weight:800;font-size:1.05rem}.totbox .val{font-weight:900;font-size:1.15rem;color:#1a7a40}'
-    +'.terms{font-size:.72rem;line-height:1.75;color:#26341f;margin-top:14px}'
+    +'.terms{font-size:.7rem;line-height:1.7;color:#26341f}'
     +'.terms .ttl{color:#2f7d32;font-weight:900;font-size:.85rem;margin-bottom:4px}'
-    +'.greenmark{text-align:center;color:#2f7d32;font-weight:900;font-size:1.6rem;font-family:Cairo,sans-serif;margin-top:22px}'
     +'@media print{@page{margin:8mm}}'
     +'</style></head><body><div class="page">'
     +'<table class="hdrt"><tr>'
@@ -4840,9 +4840,10 @@ function buildPrintDoc(opts){
     +'<div class="secbar">الاصناف والخدمات المطلوبة</div>'
     +'<table class="itbl"><thead><tr><th style="width:40px">#</th><th>البيان / الصنف</th><th style="width:130px">الكمية</th></tr></thead>'
     +'<tbody>'+rows+emptyRows+'</tbody></table>'
-    +'<div class="below"><div class="sp"></div><div class="tot">'+totRows+'<div class="totbox"><span class="lbl">المجموع</span><span class="val">'+final.toFixed(3)+' دك</span></div></div></div>'
-    +'<div class="terms"><div class="ttl">احكام وشروط العقد</div>'+terms+'</div>'
-    +'<div class="greenmark">اللون الاخضر يبدأ من هنا</div>'
+    +'<div class="below2">'
+      +'<div class="terms"><div class="ttl">احكام وشروط العقد</div>'+terms+'</div>'
+      +'<div class="tot">'+totRows+'<div class="totbox"><span class="lbl">المجموع</span><span class="val">'+final.toFixed(3)+' دك</span></div></div>'
+    +'</div>'
     +'</div></body></html>';
 }
 
