@@ -786,6 +786,16 @@ tbody tr[onclick]:active { background: #d8f0e2 !important; }
             <tbody id="del-reports-tbody"></tbody></table>
           </div>
         </div>
+        <!-- مكافآت الخدمات (تمديد/صيانة) -->
+        <div class="sec-card" id="svc-bonus-card">
+          <div class="sec-header"><h3>🛠 مكافآت الخدمات (تمديد / صيانة)</h3></div>
+          <div class="tbl-wrap">
+            <table><thead><tr>
+              <th>العميل</th><th>النوع</th><th>ساعات</th><th>المستفيدون / المكافآت</th><th>الحالة</th><th></th>
+            </tr></thead>
+            <tbody id="svc-bonus-tbody"></tbody></table>
+          </div>
+        </div>
         <!-- ملخص الري -->
         <div class="sec-card">
           <div class="sec-header"><h3>🔧 ملخص الصيانة والري</h3></div>
@@ -1399,6 +1409,7 @@ var _u = null, _role = null, _lang = 'ar';
 var _orders = [], _archived = [], _iriUsers = [], _delUsers = [];
 var _invoices = [], _inspections = [], _customers = [], _sysUsers = [];
 var _delReports = [], _iriItems = [];
+var _svcBonuses = [];
 var _rptAckMs = 0; // آخر وقت ضغط فيه المدير على "اطّلعت" (ms)
 var _opsSettings = {}; // إعدادات عامة (منها مكافآت التوصيل)
 var _loginRole = 'manager';
@@ -1879,6 +1890,11 @@ function setupListeners(){
     _delReports=sn.docs.map(function(x){return Object.assign({id:x.id},x.data());});
     if(_curPage==='reports') renderReports();
     if(_curPage==='archive') renderArchive();
+    if(_curPage==='dashboard') renderDashboard();
+  });
+  FB.snap(FB.col(d,'ops_svc_bonuses'),function(sn){
+    _svcBonuses=sn.docs.map(function(x){return Object.assign({id:x.id},x.data());});
+    if(_curPage==='reports') renderReports();
     if(_curPage==='dashboard') renderDashboard();
   });
   FB.snap(FB.doc(d,'ops_settings','config'),function(sn){
@@ -2737,7 +2753,29 @@ window.confirmWorkDone = async function(id){
     closeModal('modal-work-done');
     closeModal('modal-order-detail');
     closeModal('modal-svc-detail');
-    toast('🛠 تم إنهاء الأعمال'+(workHours?(' — '+workHours+' ساعة'):''));
+    // ── إنشاء سجل مكافأة خدمة (انتظار) — الفني 1.5 دك/ساعة، المرافق 1 دك/ساعة ──
+    try{
+      var bTechId   = o ? (o.courierId||'') : (ins.empId||'');
+      var bTechName = o ? (o.courierName||'') : (ins.empName||'');
+      if(!bTechName) bTechName = (_u && (_u.name||_u.username)) || '';
+      var bClient   = o ? (o.clientName||'') : (ins.client||'');
+      var bType     = o ? (o.inspTypeAr||'كشف') : (ins.inspTypeAr||'كشف');
+      var rows = [{ empId:bTechId, empName:bTechName, role:'tech', rate:1.5, hours:workHours, amount:+(workHours*1.5).toFixed(3) }];
+      helpers.forEach(function(hp){
+        rows.push({ empId:hp.id, empName:hp.name, role:'helper', rate:1, hours:workHours, amount:+(workHours*1).toFixed(3) });
+      });
+      var totalBonus = rows.reduce(function(s,r){return s+r.amount;},0);
+      await window.FB.add(window.FB.col(window.FB.db,'ops_svc_bonuses'), {
+        inspId: ins ? ins.id : '',
+        orderId: o ? o.id : (relO ? relO.id : ''),
+        phone: o ? (o.phone||'') : (ins.phone||''),
+        clientName: bClient, inspTypeAr: bType,
+        hours: workHours, rows: rows, totalBonus: +totalBonus.toFixed(3),
+        status: 'pending', approvedBy: '', approvedAt: null,
+        createdAt: window.FB.ts(), createdBy: (_u && (_u.name||_u.username))||''
+      });
+    }catch(e){}
+    toast('🛠 تم إنهاء الأعمال'+(workHours?(' — '+workHours+' ساعة'):'')+' — المكافأة بانتظار الاعتماد');
   }catch(e){ toast('خطأ: '+e.message); }
 };
 
@@ -5428,6 +5466,65 @@ window.renderReports = function(){
   if(iriTbody) iriTbody.innerHTML=keys.map(function(k){
     return '<tr><td>'+k+'</td><td>'+months[k].count+'</td><td>'+months[k].total.toFixed(3)+' د.ك</td></tr>';
   }).join('')||'<tr><td colspan="3" class="empty">—</td></tr>';
+
+  renderSvcBonuses(range);
+};
+
+// عرض مكافآت الخدمات (تمديد/صيانة) في صفحة التقارير
+window.renderSvcBonuses = function(range){
+  var tb = document.getElementById('svc-bonus-tbody');
+  if(!tb) return;
+  range = range || getRptDateRange();
+  var fromD = new Date(range.from+'T00:00:00');
+  var toD   = new Date(range.to+'T23:59:59');
+  var canApprove = (_role==='manager'||_role==='supervisor');
+  var isEmployee = _role==='employee';
+  var myId = _u?(_u.id||_u.username):''; var myU=_u?(_u.username||''):''; var myN=_u?(_u.name||''):'';
+  var list = (_svcBonuses||[]).filter(function(b){
+    var dt = b.createdAt&&b.createdAt.toDate?b.createdAt.toDate():(b.createdAt?new Date(window.tsMs(b.createdAt)):null);
+    if(dt && !(dt>=fromD && dt<=toD)) return false;
+    if(isEmployee){
+      var mine = (b.rows||[]).some(function(r){ return r.empId===myId||r.empId===myU||r.empName===myN; });
+      if(!mine) return false;
+    }
+    return true;
+  }).sort(function(a,b){ return window.tsMs(b.createdAt)-window.tsMs(a.createdAt); });
+
+  if(!list.length){ tb.innerHTML='<tr><td colspan="6" class="empty">لا توجد مكافآت خدمات في هذه الفترة</td></tr>'; return; }
+
+  tb.innerHTML = list.map(function(b){
+    var benef = (b.rows||[]).map(function(r){
+      var lbl = r.role==='tech'?'فني':'مرافق';
+      return '<div style="font-size:.78rem;margin-bottom:2px"><b>'+r.empName+'</b> <span style="color:var(--muted2)">('+lbl+')</span> — <span style="color:var(--gold);font-weight:800">'+(parseFloat(r.amount||0)).toFixed(3)+' KD</span></div>';
+    }).join('');
+    var statusCell, actCell='';
+    if(b.status==='approved'){
+      statusCell = '<span style="background:var(--gl);color:var(--green);border-radius:20px;padding:3px 10px;font-size:.72rem;font-weight:800">✅ معتمد</span>';
+      actCell = '<span style="font-size:.72rem;color:var(--muted)">اعتمدت من قبل '+(b.approvedBy||'—')+'</span>';
+    } else {
+      statusCell = '<span style="background:#fff5e0;color:var(--gold);border-radius:20px;padding:3px 10px;font-size:.72rem;font-weight:800">🔄 انتظار</span>';
+      actCell = canApprove ? '<button class="btn btn-green btn-sm" onclick="approveSvcBonus(\''+b.id+'\')">✅ اعتمدت</button>' : '<span style="color:var(--muted2);font-size:.72rem">بانتظار الاعتماد</span>';
+    }
+    return '<tr>'
+      +'<td><b>'+(b.clientName||'—')+'</b></td>'
+      +'<td style="font-size:.78rem">'+(b.inspTypeAr||'كشف')+'</td>'
+      +'<td style="text-align:center;font-weight:800">'+(b.hours||0)+'</td>'
+      +'<td>'+benef+'<div style="font-size:.72rem;color:var(--muted);margin-top:3px">الإجمالي: <b>'+(parseFloat(b.totalBonus||0)).toFixed(3)+' KD</b></div></td>'
+      +'<td>'+statusCell+'</td>'
+      +'<td style="white-space:nowrap">'+actCell+'</td>'
+      +'</tr>';
+  }).join('');
+};
+
+// اعتماد مكافأة خدمة (للمدير أو المشرف)
+window.approveSvcBonus = async function(id){
+  if(_role!=='manager' && _role!=='supervisor'){ toast('هذا الإجراء للمدير أو المشرف فقط'); return; }
+  try{
+    await window.FB.upd(window.FB.doc(window.FB.db,'ops_svc_bonuses',id), {
+      status:'approved', approvedBy:(_u.name||_u.username||''), approvedAt:window.FB.ts()
+    });
+    toast('✅ تم اعتماد المكافأة');
+  }catch(e){ toast('خطأ: '+e.message); }
 };
 
 window.openRptEdit = function(courierId, name, total, delivered, bonus, cash){
