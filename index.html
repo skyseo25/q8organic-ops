@@ -2640,6 +2640,58 @@ window.openMap = function(directUrl, query){
   window.open('https://www.google.com/maps?q='+query, '_blank');
 };
 
+// ══ نافذة إنهاء الأعمال (اختيار المرافقين) ══
+window.openWorkDoneModal = function(orderId){
+  var o = _orders.find(function(x){return x.id===orderId;});
+  if(!o) return;
+  var techName = o.courierName || (_u && (_u.name||_u.username)) || '—';
+  var others = (_delUsers||[]).filter(function(u){ return u.id!==o.courierId && u.username!==o.courierId; });
+  var checks = others.map(function(u){
+    return '<label style="display:flex;align-items:center;gap:10px;padding:10px 8px;border-bottom:1px solid var(--border);cursor:pointer">'
+      +'<input type="checkbox" class="wd-helper" value="'+u.id+'" data-name="'+(u.name||u.username)+'" style="width:18px;height:18px">'
+      +'<span style="font-weight:600">'+(u.name||u.username)+'</span></label>';
+  }).join('') || '<div style="text-align:center;color:var(--muted2);padding:14px;font-size:.85rem">لا يوجد موظفون آخرون</div>';
+  var html = '<div class="overlay open" id="modal-work-done" onclick="if(event.target===this)closeModal(\'modal-work-done\')">'
+    +'<div class="modal" style="max-width:420px">'
+    +'<h3>🛠 إنهاء الأعمال</h3>'
+    +'<div style="background:var(--gl);border-radius:10px;padding:12px;margin-bottom:12px">'
+      +'<div style="font-size:.76rem;color:var(--muted)">الفني المكلّف</div>'
+      +'<div style="font-size:1.05rem;font-weight:900">'+techName+'</div>'
+      +'<div style="font-size:.76rem;color:var(--muted);margin-top:4px">'+(o.clientName||'')+' · '+(o.inspTypeAr||'كشف')+'</div>'
+    +'</div>'
+    +'<div style="font-size:.82rem;font-weight:700;color:var(--muted);margin-bottom:6px">👷 الموظفون المرافقون (اختر من رافقك)</div>'
+    +'<div style="max-height:240px;overflow:auto;border:1px solid var(--border);border-radius:10px;margin-bottom:14px">'+checks+'</div>'
+    +'<div class="modal-actions">'
+      +'<button class="btn-cancel" onclick="closeModal(\'modal-work-done\')">إلغاء</button>'
+      +'<button class="btn-save" onclick="confirmWorkDone(\''+orderId+'\')">💾 تأكيد إنهاء الأعمال</button>'
+    +'</div>'
+  +'</div></div>';
+  var old=document.getElementById('modal-work-done'); if(old) old.remove();
+  document.body.insertAdjacentHTML('beforeend', html);
+};
+
+window.confirmWorkDone = async function(orderId){
+  var o = _orders.find(function(x){return x.id===orderId;});
+  if(!o) return;
+  var helpers = [];
+  document.querySelectorAll('#modal-work-done .wd-helper:checked').forEach(function(ch){
+    helpers.push({id:ch.value, name:ch.getAttribute('data-name')||''});
+  });
+  try{
+    await window.FB.upd(window.FB.doc(window.FB.db,'del_orders',orderId), {
+      workDone:true, workDoneAt:window.FB.ts(),
+      techId:o.courierId||'', techName:o.courierName||'',
+      helpers:helpers,
+      status:'closed', updatedAt:window.FB.ts()
+    });
+    var inspRec = (_inspections||[]).find(function(x){return x.phone===o.phone && x.client===o.clientName;});
+    if(inspRec){ try{ await window.FB.upd(window.FB.doc(window.FB.db,'iri_inspections',inspRec.id),{status:'closed',workDone:true,updatedAt:window.FB.ts()}); }catch(e){} }
+    closeModal('modal-work-done');
+    closeModal('modal-order-detail');
+    toast('🛠 تم إنهاء الأعمال — بانتظار إضافة المكافآت');
+  }catch(e){ toast('خطأ: '+e.message); }
+};
+
 window.renderCourierView = function(){
   var myId = _u.id || _u.username;
   var myUsername = _u.username || '';
@@ -2758,6 +2810,7 @@ window.renderCourierView = function(){
         if(o.status==='delivering'||o.status==='received'||o.status==='scheduled'){
           acts+='<button class="oc-btn oc-btn-primary" onclick="odmInspAction(\''+oid+'\',\'inspected\')">✅ تم الكشف</button>';
           acts+='<button class="oc-btn oc-btn-gold" onclick="odmInspAction(\''+oid+'\',\'noreply\')">📵 لا رد</button>';
+          acts+='<button class="oc-btn oc-btn-primary" style="background:#0a5a2a" onclick="openWorkDoneModal(\''+oid+'\')">🛠 أنهيت الأعمال</button>';
         }
         if(o.status==='inspected') acts+='<button class="oc-btn oc-btn-ghost" onclick="odmInspAction(\''+oid+'\',\'closed\')">🔒 إغلاق</button>';
       }
