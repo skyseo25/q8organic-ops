@@ -1516,6 +1516,48 @@ Object.assign(UI_EN, {
   // متفرقات
   "بانتظار الاعتماد":"Pending approval"
 });
+Object.assign(UI_EN, {
+  // عناوين أقسام وجداول
+  "آخر النشاطات":"Recent Activity",
+  "طلبات التوصيل النشطة":"Active Delivery Orders",
+  "تمديدات وخدمات":"Extensions & Services",
+  "🔧 تمديدات وخدمات":"🔧 Extensions & Services",
+  "🚚 التوصيل":"🚚 Delivery",
+  "التوصيل":"Delivery",
+  "نوع الخدمة":"Service Type",
+  "العروض المحفوظة":"Saved Quotes",
+  "لا توجد فواتير أو عروض":"No invoices or quotes",
+  "📦 تقارير مناديب التوصيل":"📦 Courier Reports",
+  "🔧 ملخص الصيانة والري":"🔧 Maintenance & Irrigation Summary",
+  "الكشف والصيانة":"Inspection & Maintenance",
+  "🔧 الكشف والصيانة":"🔧 Inspection & Maintenance",
+  "📊 التقارير":"📊 Reports",
+  "التقارير":"Reports",
+  "هذا الشهر":"This Month",
+  "الفواتير وعرض السعر":"Invoices & Quotes",
+  "طلبات الخدمة":"Service Requests",
+  // صفحة إضافة طلب
+  "طلب توصيل":"Delivery Order",
+  "توصيل طلبات ومنتجات":"Deliver orders & products",
+  "طلب خدمة / كشف":"Service / Inspection Request",
+  "كشف · تمديد · صيانة":"Inspection · Extension · Maintenance",
+  // لوحة التحكم — كارت الإنجاز
+  "أُنجز اليوم — وقت التسليم/الكشف":"Completed Today — Delivery/Inspection Time",
+  "لا يوجد إنجاز اليوم بعد":"Nothing completed today yet",
+  // عناصر نائبة (placeholders)
+  "بحث...":"Search...",
+  "🔍 بحث...":"🔍 Search...",
+  "بحث بالاسم أو الهاتف...":"Search by name or phone...",
+  "ابحث بالهاتف أو الاسم...":"Search by phone or name...",
+  "أي ملاحظات إضافية...":"Any additional notes...",
+  "اكتب تفاصيل المشكلة أو الطلب...":"Describe the issue or request...",
+  "مثال: أنبوب ري":"e.g. Irrigation pipe",
+  "مثال: #1234 أو كرتون A":"e.g. #1234 or Box A",
+  "مثال: 2.5":"e.g. 2.5",
+  "مثال: 001":"e.g. 001",
+  "اسم الصنف":"Item name",
+  "اختياري":"Optional"
+});
 var UI_PREFIX = {"خطأ: ": "Error: ","الفترة: ": "Period: ","المندوب: ": "Courier: ","الهاتف: ": "Phone: ","رقم الطلب: ": "Order #: ","تعديل: ": "Edited: ","بواسطة ": "by ","آخر نسخة: ": "Last backup: ","طُبع بتاريخ: ": "Printed on: ","أُعدّ بواسطة: ": "Prepared by: ","تم التسليم: ": "Delivered at: ","تم الإنهاء بواسطة: ": "Settled by: ","تقرير ": "Report ","كشف رقم ": "Inspection #","تعديل تقرير: ": "Edit report: "};
 var UI_PREFIX_KEYS = Object.keys(UI_PREFIX).sort(function(a,b){return b.length-a.length;});
 
@@ -2101,8 +2143,8 @@ function renderDashboard(){
       +'<h3>الطلبات النشطة</h3>'
       +'<div class="val">'+(activeDelivery+activeInsp)+'</div>'
       +'<div style="display:flex;gap:8px;margin-top:8px">'
-        +'<span style="background:var(--orangel);color:var(--orange);padding:3px 10px;border-radius:20px;font-size:.72rem;font-weight:700">🚚 توصيل: '+activeDelivery+'</span>'
-        +'<span style="background:#e8f0ff;color:#1a4a8a;padding:3px 10px;border-radius:20px;font-size:.72rem;font-weight:700">🔧 كشف: '+activeInsp+'</span>'
+        +'<span style="background:var(--orangel);color:var(--orange);padding:3px 10px;border-radius:20px;font-size:.72rem;font-weight:700">🚚 '+(_lang==='ar'?'توصيل':'Delivery')+': '+activeDelivery+'</span>'
+        +'<span style="background:#e8f0ff;color:#1a4a8a;padding:3px 10px;border-radius:20px;font-size:.72rem;font-weight:700">🔧 '+(_lang==='ar'?'كشف':'Inspection')+': '+activeInsp+'</span>'
       +'</div>'
     +'</div>'
 
