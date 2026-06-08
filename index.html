@@ -5212,6 +5212,9 @@ window.renderReports = function(){
     }, 0);
     var knetCount = myOrds.filter(function(o){return o.status==='delivered'&&o.paymentType==='knet';}).length;
 
+    // لا تعرض مندوباً بدون أي طلب في الفترة (يخفي التقارير الفارغة)
+    if(totalOrds===0){ return; }
+
     allReportData.push({id:u.id, name:u.name, totalOrds, delivered, bonus, cash, knet, knetCount});
 
     var actBtns = canEdit
