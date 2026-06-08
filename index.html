@@ -2651,11 +2651,16 @@ window.openMap = function(directUrl, query){
 };
 
 // ══ نافذة إنهاء الأعمال (اختيار المرافقين) ══
-window.openWorkDoneModal = function(orderId){
-  var o = _orders.find(function(x){return x.id===orderId;});
-  if(!o) return;
-  var techName = o.courierName || (_u && (_u.name||_u.username)) || '—';
-  var others = (_delUsers||[]).filter(function(u){ return u.id!==o.courierId && u.username!==o.courierId; });
+window.openWorkDoneModal = function(id){
+  var o   = (_orders||[]).find(function(x){return x.id===id;});
+  var ins = o ? null : (_inspections||[]).find(function(x){return x.id===id;});
+  if(!o && !ins) return;
+  var techName = o ? (o.courierName||'') : (ins.empName||'');
+  if(!techName) techName = (_u && (_u.name||_u.username)) || '—';
+  var techId   = o ? (o.courierId||'') : (ins.empId||'');
+  var clientNm = o ? (o.clientName||'') : (ins.client||'');
+  var typeAr   = o ? (o.inspTypeAr||'كشف') : (ins.inspTypeAr||'كشف');
+  var others = (_delUsers||[]).filter(function(u){ return u.id!==techId && u.username!==techId && (u.name||u.username)!==techName; });
   var checks = others.map(function(u){
     return '<label style="display:flex;align-items:center;gap:10px;padding:10px 8px;border-bottom:1px solid var(--border);cursor:pointer">'
       +'<input type="checkbox" class="wd-helper" value="'+u.id+'" data-name="'+(u.name||u.username)+'" style="width:18px;height:18px">'
@@ -2667,37 +2672,48 @@ window.openWorkDoneModal = function(orderId){
     +'<div style="background:var(--gl);border-radius:10px;padding:12px;margin-bottom:12px">'
       +'<div style="font-size:.76rem;color:var(--muted)">الفني المكلّف</div>'
       +'<div style="font-size:1.05rem;font-weight:900">'+techName+'</div>'
-      +'<div style="font-size:.76rem;color:var(--muted);margin-top:4px">'+(o.clientName||'')+' · '+(o.inspTypeAr||'كشف')+'</div>'
+      +'<div style="font-size:.76rem;color:var(--muted);margin-top:4px">'+clientNm+' · '+typeAr+'</div>'
     +'</div>'
     +'<div style="font-size:.82rem;font-weight:700;color:var(--muted);margin-bottom:6px">👷 الموظفون المرافقون (اختر من رافقك)</div>'
     +'<div style="max-height:240px;overflow:auto;border:1px solid var(--border);border-radius:10px;margin-bottom:14px">'+checks+'</div>'
     +'<div class="modal-actions">'
       +'<button class="btn-cancel" onclick="closeModal(\'modal-work-done\')">إلغاء</button>'
-      +'<button class="btn-save" onclick="confirmWorkDone(\''+orderId+'\')">💾 تأكيد إنهاء الأعمال</button>'
+      +'<button class="btn-save" onclick="confirmWorkDone(\''+id+'\')">💾 تأكيد إنهاء الأعمال</button>'
     +'</div>'
   +'</div></div>';
   var old=document.getElementById('modal-work-done'); if(old) old.remove();
   document.body.insertAdjacentHTML('beforeend', html);
 };
 
-window.confirmWorkDone = async function(orderId){
-  var o = _orders.find(function(x){return x.id===orderId;});
-  if(!o) return;
+window.confirmWorkDone = async function(id){
+  var o   = (_orders||[]).find(function(x){return x.id===id;});
+  var ins = o ? null : (_inspections||[]).find(function(x){return x.id===id;});
+  if(!o && !ins) return;
   var helpers = [];
   document.querySelectorAll('#modal-work-done .wd-helper:checked').forEach(function(ch){
     helpers.push({id:ch.value, name:ch.getAttribute('data-name')||''});
   });
   try{
-    await window.FB.upd(window.FB.doc(window.FB.db,'del_orders',orderId), {
-      workDone:true, workDoneAt:window.FB.ts(),
-      techId:o.courierId||'', techName:o.courierName||'',
-      helpers:helpers,
-      status:'closed', updatedAt:window.FB.ts()
-    });
-    var inspRec = (_inspections||[]).find(function(x){return x.phone===o.phone && x.client===o.clientName;});
-    if(inspRec){ try{ await window.FB.upd(window.FB.doc(window.FB.db,'iri_inspections',inspRec.id),{status:'closed',workDone:true,updatedAt:window.FB.ts()}); }catch(e){} }
+    if(o){
+      await window.FB.upd(window.FB.doc(window.FB.db,'del_orders',o.id), {
+        workDone:true, workDoneAt:window.FB.ts(),
+        techId:o.courierId||'', techName:o.courierName||'',
+        helpers:helpers, status:'closed', updatedAt:window.FB.ts()
+      });
+      var inspRec = (_inspections||[]).find(function(x){return x.phone===o.phone && x.client===o.clientName;});
+      if(inspRec){ try{ await window.FB.upd(window.FB.doc(window.FB.db,'iri_inspections',inspRec.id),{status:'closed',workDone:true,workDoneAt:window.FB.ts(),helpers:helpers,techName:o.courierName||'',techId:o.courierId||'',updatedAt:window.FB.ts()}); }catch(e){} }
+    } else {
+      await window.FB.upd(window.FB.doc(window.FB.db,'iri_inspections',ins.id), {
+        workDone:true, workDoneAt:window.FB.ts(),
+        techId:ins.empId||'', techName:ins.empName||'',
+        helpers:helpers, status:'closed', updatedAt:window.FB.ts()
+      });
+      var relO = (_orders||[]).find(function(x){ return (x.orderType==='inspection'||x.orderType==='service') && x.phone===ins.phone && x.clientName===ins.client; });
+      if(relO){ try{ await window.FB.upd(window.FB.doc(window.FB.db,'del_orders',relO.id),{workDone:true,workDoneAt:window.FB.ts(),techId:relO.courierId||'',techName:relO.courierName||ins.empName||'',helpers:helpers,status:'closed',updatedAt:window.FB.ts()}); }catch(e){} }
+    }
     closeModal('modal-work-done');
     closeModal('modal-order-detail');
+    closeModal('modal-svc-detail');
     toast('🛠 تم إنهاء الأعمال — بانتظار إضافة المكافآت');
   }catch(e){ toast('خطأ: '+e.message); }
 };
@@ -3719,6 +3735,11 @@ window.openOrderDetailBySvc = function(inspOrId){
     }
   }
   if(roStatus==='inspected') progBtns += _pb('closed','🔒 إغلاق','#555');
+  // زر "أنهيت الأعمال" — يظهر للفني في أي حالة نشطة حتى يُنهي الأعمال
+  var _wdDone = (relatedOrder && relatedOrder.workDone) || insp.workDone;
+  if(!_wdDone && roStatus!=='returned'){
+    progBtns += '<button onclick="openWorkDoneModal(\''+(_rid||inspId)+'\')" style="flex:1;min-width:46%;padding:12px;background:#0a5a2a;color:#fff;border:none;border-radius:10px;font-family:Cairo,sans-serif;font-size:.85rem;font-weight:800;cursor:pointer">🛠 أنهيت الأعمال</button>';
+  }
   // إلغاء حالة الإغلاق (إعادة فتح)
   if(roStatus==='closed' && relatedOrder){
     progBtns += '<button onclick="reopenInsp(\''+relatedOrder.id+'\',\''+inspId+'\')" style="flex:1;min-width:46%;padding:12px;background:#b8720a;color:#fff;border:none;border-radius:10px;font-family:Cairo,sans-serif;font-size:.85rem;font-weight:800;cursor:pointer">🔓 إلغاء الإغلاق</button>';
