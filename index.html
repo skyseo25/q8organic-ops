@@ -2250,7 +2250,7 @@ window.renderOrders = function(){
         +'<td><span class="tag" style="background:#e8f0ff;color:#1a4a8a;font-size:.68rem">'+(o.inspTypeAr||'كشف')+'</span></td>'
         +'<td><span class="status '+s.cl+'">'+s.ar+'</span></td>'
         +'<td>'+(o.courierName||'<span style="color:var(--muted2);font-size:.75rem">لم يُحدد</span>')+'</td>'
-        +'<td onclick="return false"><button class="btn-edit-sm" onclick="openOrderModal(\''+o.id+'\')" style="font-size:.7rem">تعديل</button></td>'
+        +'<td onclick="return false"><button class="btn-edit-sm" onclick="openOrderModal(\''+o.id+'\')" style="font-size:.7rem">تعديل</button>'+(_role==='manager'?' <button class="btn-danger" onclick="delInspectionOrder(\''+o.id+'\')" style="font-size:.7rem">حذف</button>':'')+'</td>'
       +'</tr>';
     });
 
@@ -2273,7 +2273,7 @@ window.renderOrders = function(){
         +'<td><span class="tag" style="background:#e8f0ff;color:#1a4a8a;font-size:.68rem">'+(r.inspTypeAr||'كشف')+'</span></td>'
         +'<td><span class="status '+s.cl+'">'+s.ar+'</span></td>'
         +'<td>'+(r.empName||'<span style="color:var(--muted2);font-size:.75rem">لم يُحدد</span>')+'</td>'
-        +'<td onclick="return false"><button class="btn-edit-sm" onclick="openSvcRequestModal(\''+r.id+'\')" style="font-size:.7rem">تعديل</button></td>'
+        +'<td onclick="return false"><button class="btn-edit-sm" onclick="openSvcRequestModal(\''+r.id+'\')" style="font-size:.7rem">تعديل</button>'+(_role==='manager'?' <button class="btn-danger" onclick="delInsp(\''+r.id+'\')" style="font-size:.7rem">حذف</button>':'')+'</td>'
       +'</tr>');
     });
 
@@ -2365,6 +2365,21 @@ window.saveOrder = async function(){
 window.delOrder = async function(id){
   if(!confirm(_lang==='ar'?'حذف هذا الطلب؟':'Delete this order?'))return;
   await window.FB.del(window.FB.doc(window.FB.db,'del_orders',id)); toast(_lang==='ar'?'تم الحذف':'Deleted');
+};
+
+// حذف طلب كشف (من del_orders) + سجل الكشف المرتبط في iri_inspections
+window.delInspectionOrder = async function(orderId){
+  if(_role!=='manager'){ toast(_lang==='ar'?'صلاحية غير كافية':'Insufficient permission'); return; }
+  if(!confirm(_lang==='ar'?'حذف هذا الطلب نهائياً؟ لا يمكن التراجع':'Permanently delete this order? This cannot be undone')) return;
+  var o = _orders.find(function(x){return x.id===orderId;});
+  try{
+    await window.FB.del(window.FB.doc(window.FB.db,'del_orders',orderId));
+    if(o){
+      var insp = (_inspections||[]).find(function(x){return x.phone===o.phone && x.client===o.clientName;});
+      if(insp){ try{ await window.FB.del(window.FB.doc(window.FB.db,'iri_inspections',insp.id)); }catch(e){} }
+    }
+    toast(_lang==='ar'?'🗑 تم الحذف':'🗑 Deleted');
+  }catch(e){ toast('خطأ: '+e.message); }
 };
 
 // ══════════════════════════════════════════════
@@ -3166,7 +3181,7 @@ window.saveInspection = async function(){
     closeModal('modal-inspection');
   }finally{_savingInsp=false;}
 };
-window.delInsp=async function(id){if(!confirm('حذف؟'))return;await window.FB.del(window.FB.doc(window.FB.db,'iri_inspections',id));toast('تم');};
+window.delInsp=async function(id){if(!confirm(_lang==='ar'?'حذف هذا الطلب نهائياً؟ لا يمكن التراجع':'Permanently delete this order? This cannot be undone'))return;await window.FB.del(window.FB.doc(window.FB.db,'iri_inspections',id));toast(_lang==='ar'?'🗑 تم الحذف':'🗑 Deleted');};
 
 // ══════════════════════════════════════════════
 // CUSTOMERS
