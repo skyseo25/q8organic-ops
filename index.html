@@ -4753,80 +4753,100 @@ function buildPrintDoc(opts){
   var area = o.area||''; var block=o.block||''; var street=o.street||''; var avenue=o.avenue||''; var house=o.house||'';
   var dateStr = new Date().toLocaleDateString('en-GB');
   var invNo = opts.invoiceNo ? String(opts.invoiceNo).padStart(4,'0') : '';
-  var invNoRow = (isInv && invNo)
-    ? '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px"><span class="lbl" style="font-size:1.05rem">رقم الفاتورة</span><span style="color:#d00000;font-size:10pt;font-weight:900;letter-spacing:1px">'+invNo+'</span></div>'
-    : '';
+
+  // العنوان بسطر واحد مثل الـ PDF
+  var addrParts = [];
+  if(area) addrParts.push(area);
+  if(block) addrParts.push('قطعة'+block);
+  if(street) addrParts.push('شارع'+street);
+  if(avenue) addrParts.push('جادة'+avenue);
+  if(house) addrParts.push('منزل'+house);
+  var addrInline = addrParts.join('   ');
+
   var rows = (opts.items||[]).map(function(it,i){
     return '<tr>'
-      +'<td style="padding:8px;border:1px solid #cfe3d3;text-align:center">'+(i+1)+'</td>'
-      +'<td style="padding:8px 10px;border:1px solid #cfe3d3"><b>'+(it.nameAr||'')+'</b>'+(it.nameEn?' <span style="color:#999;font-size:.72rem">'+it.nameEn+'</span>':'')+'</td>'
-      +'<td style="padding:8px;border:1px solid #cfe3d3;text-align:center">'+it.qty+' '+(it.unit||'')+'</td>'
-      +'<td style="padding:8px;border:1px solid #cfe3d3;text-align:center">'+parseFloat(it.price||0).toFixed(3)+'</td>'
-      +'<td style="padding:8px;border:1px solid #cfe3d3;text-align:center;font-weight:700;color:#1a7a40">'+parseFloat(it.lineTotal||0).toFixed(3)+'</td>'
+      +'<td class="c">'+(i+1)+'</td>'
+      +'<td class="r"><b>'+(it.nameAr||'')+'</b>'+(it.nameEn?' <span style="color:#9aa;font-size:.7rem">'+it.nameEn+'</span>':'')+'</td>'
+      +'<td class="c">'+it.qty+' '+(it.unit||'')+'</td>'
+      +'<td class="c">'+parseFloat(it.price||0).toFixed(3)+'</td>'
+      +'<td class="c" style="font-weight:700;color:#1a7a40">'+parseFloat(it.lineTotal||0).toFixed(3)+'</td>'
     +'</tr>';
   }).join('');
   var emptyRows='';
-  var need = Math.max(0, 5-(opts.items||[]).length);
-  for(var k=0;k<need;k++){ emptyRows+='<tr><td style="padding:11px;border:1px solid #cfe3d3">&nbsp;</td><td style="border:1px solid #cfe3d3"></td><td style="border:1px solid #cfe3d3"></td><td style="border:1px solid #cfe3d3"></td><td style="border:1px solid #cfe3d3"></td></tr>'; }
+  var need = Math.max(0, 6-(opts.items||[]).length);
+  for(var k=0;k<need;k++){ emptyRows+='<tr><td class="c">&nbsp;</td><td></td><td></td><td></td><td></td></tr>'; }
+
   var totRows='';
   if(hasDisc){
-    totRows = '<div style="display:flex;justify-content:space-between;padding:3px 0;font-size:.82rem"><span>قبل الخصم</span><span style="text-decoration:line-through;color:#999">'+subtotal.toFixed(3)+'</span></div>'
-      +'<div style="display:flex;justify-content:space-between;padding:3px 0;font-size:.82rem;color:#c05a10"><span>خصم ('+discPct+'%)</span><span>- '+disc.toFixed(3)+'</span></div>';
+    totRows = '<div class="trw"><span>قبل الخصم</span><span style="text-decoration:line-through;color:#999">'+subtotal.toFixed(3)+'</span></div>'
+      +'<div class="trw" style="color:#c05a10"><span>خصم ('+discPct+'%)</span><span>- '+disc.toFixed(3)+'</span></div>';
   }
+
   var terms = 'تمديد شبكة بالادوات الموضحه اعلاه مع كفالة شاملة لمدة ( 6 ) اشهر من تاريخ تسليم العمل باستثناء حالات الكسر او القطع وسوء الاستخدام<br>'
     +'يقر الطرف الثاني عند دفع مبلغ العقد بانه عاين واستلم الشبكة كما اتفق مع الشركة وتم ضبطها حسب طلبه<br>'
     +'في حالة رغبة العميل في تعديل او توسيع الشبكة بعد التركيب ، يتم ذلك بعقد منفصل او ملحق<br>'
     +'يتم تقديم الصيانه اثناء فترة الضمان خلال ( 6 ) ايام عمل من الابلاغ عن الخلل<br>'
-    +'الكفالة لا تشمل اي تلف ناتج عن الكسر او القطع او الحفر او نقل الشبكة او تعديل المكونات';
+    +'الكفالة لا تشمل اي تلف ناتج عن الكسر او القطع او الحفر او نقل الشبكة او تعديل المكونات<br>'
+    +(isInv?'':'عرض السعر صالح لمدة 30 يوم من تاريخ المعاينة');
+
+  var subtitle = docType+' لتمديد شبكة ري او الخدمات المذكوره في '+(isInv?'هذه الفاتورة':'هذا العرض');
+
   return '<!DOCTYPE html><html dir="rtl" lang="ar"><head><meta charset="UTF-8"><title>'+docType+'</title>'
     +'<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&display=swap" rel="stylesheet">'
-    +'<style>*{margin:0;padding:0;box-sizing:border-box}body{font-family:Cairo,sans-serif;color:#0c2e1a;background:#fff;padding:16px}'
-    +'.page{max-width:780px;margin:0 auto}'
-    +'.top{display:flex;align-items:center;justify-content:space-between;border:2.5px solid #2f7d32;border-radius:16px;padding:14px 22px;margin-bottom:14px}'
-    +'.top h1{color:#2f7d32;font-size:1.5rem;font-weight:900}.top .slogan{color:#6b8f3a;font-weight:800;font-size:.9rem;margin-top:4px}'
-    +'.top .doctype{color:#2f7d32;font-size:1.7rem;font-weight:900;white-space:nowrap}'
-    +'.box{border:2.5px solid #2f7d32;border-radius:16px;padding:18px 20px}'
-    +'.lbl{color:#2f7d32;font-weight:800}'
+    +'<style>'
+    +'*{margin:0;padding:0;box-sizing:border-box}'
+    +'body{font-family:Cairo,sans-serif;color:#1a2a1a;background:#fff;padding:14px}'
+    +'.page{max-width:760px;margin:0 auto}'
+    +'.hdrt{width:100%;table-layout:fixed;border-collapse:collapse;border-bottom:2px solid #5f8d3e;margin-bottom:12px}'
+    +'.hdrt td{vertical-align:middle;padding-bottom:10px}'
+    +'.hdrt .ar{text-align:right}'
+    +'.hdrt .en{text-align:left;direction:ltr}'
+    +'.hdrt .mid{text-align:center}'
+    +'.hdrt .mid img{width:90px;height:auto}'
+    +'.cname{color:#2f7d32;font-weight:900;font-size:.92rem;margin-bottom:3px}'
+    +'.cinfo{color:#3a4a3a;font-weight:700;font-size:.72rem;line-height:1.7;white-space:nowrap}'
+    +'.hdrt .ar .cinfo{direction:rtl;unicode-bidi:isolate}'
+    +'.trow{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:4px}'
+    +'.trow .dt{font-weight:800;font-size:.95rem}'
+    +'.trow .dt .lbl,.addr .lbl{color:#2f7d32}'
+    +'.trow .dtype{color:#2f7d32;font-weight:900;font-size:1.5rem;text-decoration:underline;text-underline-offset:6px;white-space:nowrap}'
+    +'.invno{color:#d00000;font-size:10pt;font-weight:900;margin-top:5px}'
+    +'.invno .lbl{color:#2f7d32;font-size:.82rem;font-weight:800}'
+    +'.subt{text-align:center;font-weight:900;font-size:1rem;margin:6px 0 12px}'
+    +'.addr{text-align:center;font-weight:800;font-size:.86rem;margin-bottom:4px}'
+    +'.secbar{background:#2f7d32;color:#fff;text-align:center;font-weight:800;padding:9px;border-radius:10px;margin:12px 0 0;font-size:.92rem}'
     +'table{width:100%;border-collapse:collapse}'
-    +'.bayan thead th{background:#2f7d32;color:#fff;padding:9px 8px;font-size:.85rem;border:1px solid #2f7d32}'
-    +'.foot{display:flex;justify-content:center;gap:24px;align-items:center;border:2.5px solid #2f7d32;border-radius:14px;padding:12px;margin-top:14px;font-weight:800;color:#2f7d32;font-size:.88rem;flex-wrap:wrap}'
+    +'.itbl th{background:#eaf3e7;color:#2f7d32;border:1px solid #bcd3b3;padding:8px;font-size:.82rem;font-weight:800}'
+    +'.itbl td{border:1px solid #bcd3b3;padding:8px;font-size:.82rem}'
+    +'.itbl td.c{text-align:center}.itbl td.r{text-align:right}'
+    +'.below{display:flex;margin-top:12px}.below .sp{flex:1}.below .tot{flex:0 0 240px}'
+    +'.trw{display:flex;justify-content:space-between;padding:3px 2px;font-size:.82rem}'
+    +'.totbox{display:flex;justify-content:space-between;align-items:center;border:2px solid #2f7d32;border-radius:10px;padding:10px 14px;margin-top:6px}'
+    +'.totbox .lbl{color:#2f7d32;font-weight:800;font-size:1.05rem}.totbox .val{font-weight:900;font-size:1.15rem;color:#1a7a40}'
+    +'.terms{font-size:.72rem;line-height:1.75;color:#26341f;margin-top:14px}'
+    +'.terms .ttl{color:#2f7d32;font-weight:900;font-size:.85rem;margin-bottom:4px}'
+    +'.foot{display:flex;align-items:center;justify-content:center;gap:16px;flex-wrap:wrap;border-top:2px solid #5f8d3e;margin-top:16px;padding-top:10px;color:#2f7d32;font-weight:700;font-size:.78rem}'
+    +'.foot img{width:60px}'
     +'@media print{@page{margin:8mm}}'
     +'</style></head><body><div class="page">'
-    +'<div class="top">'
-      +'<div style="text-align:right"><h1>شركة كويت اورجانيك</h1><div class="slogan">الجودة . الثقة . التميز</div></div>'
-      +'<div style="flex:0 0 auto;text-align:center"><img src="'+(window.Q8_LOGO||'')+'" style="width:92px"></div>'
-      +'<div class="doctype">'+docType+'</div>'
+    +'<table class="hdrt"><tr>'
+      +'<td class="ar" style="width:36%"><div class="cname">شركة كويت اورجانيك</div><div class="cinfo">السجل التجاري : <bdi>483368</bdi><br>رقم الترخيص : <bdi>2023/18377</bdi></div></td>'
+      +'<td class="mid" style="width:28%"><img src="'+(window.Q8_LOGO||'')+'"></td>'
+      +'<td class="en" style="width:36%"><div class="cname">Kuwait Organic Company</div><div class="cinfo">CR No. 483368<br>Lic. No. 2023/18377</div></td>'
+    +'</tr></table>'
+    +'<div class="trow">'
+      +'<div class="dt"><span class="lbl">التاريخ / </span>'+dateStr+((isInv&&invNo)?'<div class="invno"><span class="lbl">رقم الفاتورة / </span>'+invNo+'</div>':'')+'</div>'
+      +'<div class="dtype">'+docType+'</div>'
     +'</div>'
-    +'<div class="box">'
-      +'<div style="display:flex;justify-content:space-between;margin-bottom:14px"><span class="lbl" style="font-size:1.05rem">التاريخ</span><span style="font-weight:800">'+dateStr+'</span></div>'
-      +invNoRow
-      +'<div class="lbl" style="margin-bottom:6px">بيانات العميل</div>'
-      +'<div style="margin-bottom:4px"><span class="lbl">الاسم: </span>'+clientName+'</div>'
-      +'<div style="margin-bottom:12px"><span class="lbl">هاتف: </span>'+phone+'</div>'
-      +'<table style="margin-bottom:14px;text-align:center">'
-        +'<thead><tr>'
-          +'<th class="lbl" style="border:1px solid #cfe3d3;padding:6px;background:#f1f8f2">المنطقة</th>'
-          +'<th class="lbl" style="border:1px solid #cfe3d3;padding:6px;background:#f1f8f2">قطعة</th>'
-          +'<th class="lbl" style="border:1px solid #cfe3d3;padding:6px;background:#f1f8f2">شارع</th>'
-          +'<th class="lbl" style="border:1px solid #cfe3d3;padding:6px;background:#f1f8f2">جادة</th>'
-          +'<th class="lbl" style="border:1px solid #cfe3d3;padding:6px;background:#f1f8f2">منزل</th>'
-        +'</tr></thead><tbody><tr>'
-          +'<td style="border:1px solid #cfe3d3;padding:8px">'+area+'</td>'
-          +'<td style="border:1px solid #cfe3d3;padding:8px">'+block+'</td>'
-          +'<td style="border:1px solid #cfe3d3;padding:8px">'+street+'</td>'
-          +'<td style="border:1px solid #cfe3d3;padding:8px">'+avenue+'</td>'
-          +'<td style="border:1px solid #cfe3d3;padding:8px">'+house+'</td>'
-        +'</tr></tbody></table>'
-      +'<table class="bayan"><thead><tr><th style="width:34px">#</th><th>البيان / الصنف</th><th style="width:80px">الكمية</th><th style="width:80px">السعر</th><th style="width:90px">الإجمالي</th></tr></thead>'
-      +'<tbody>'+rows+emptyRows+'</tbody></table>'
-      +'<div style="display:flex;justify-content:space-between;gap:18px;margin-top:16px;align-items:flex-start">'
-        +'<div style="flex:1;font-size:.72rem;line-height:1.7;color:#234"><div class="lbl" style="margin-bottom:4px">احكام وشروط العقد</div>'+terms+'</div>'
-        +'<div style="flex:0 0 210px">'+totRows
-          +'<div style="display:flex;justify-content:space-between;align-items:center;border:2px solid #2f7d32;border-radius:10px;padding:10px 14px;margin-top:6px"><span class="lbl" style="font-size:1.05rem">المجموع</span><span style="font-weight:900;font-size:1.15rem;color:#1a7a40">'+final.toFixed(3)+' دك</span></div>'
-        +'</div>'
-      +'</div>'
-    +'</div>'
-    +'<div class="foot"><span>📞 +965 94403090</span><span>🌐 www.q8organic.com</span><span>📷 q8.organic.garden</span></div>'
+    +'<div class="subt">'+subtitle+'</div>'
+    +(clientName?'<div class="addr"><span class="lbl">العميل / </span>'+clientName+(phone?'&nbsp;&nbsp;&nbsp;<span class="lbl">هاتف / </span>'+phone:'')+'</div>':(phone?'<div class="addr"><span class="lbl">هاتف / </span>'+phone+'</div>':''))
+    +(addrInline?'<div class="addr"><span class="lbl">العنوان / </span>'+addrInline+'</div>':'')
+    +'<div class="secbar">الاصناف والخدمات المطلوبة</div>'
+    +'<table class="itbl"><thead><tr><th style="width:34px">#</th><th>البيان / الصنف</th><th style="width:78px">الكمية</th><th style="width:78px">السعر</th><th style="width:88px">الإجمالي</th></tr></thead>'
+    +'<tbody>'+rows+emptyRows+'</tbody></table>'
+    +'<div class="below"><div class="sp"></div><div class="tot">'+totRows+'<div class="totbox"><span class="lbl">المجموع</span><span class="val">'+final.toFixed(3)+' دك</span></div></div></div>'
+    +'<div class="terms"><div class="ttl">احكام وشروط العقد</div>'+terms+'</div>'
+    +'<div class="foot"><img src="'+(window.Q8_LOGO||'')+'"><span>📞 +965 94403090</span><span>✉️ q8organic19@gmail.com</span><span>🌐 q8organic.com</span></div>'
     +'</div></body></html>';
 }
 
