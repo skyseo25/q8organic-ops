@@ -4768,13 +4768,11 @@ function buildPrintDoc(opts){
       +'<td class="c">'+(i+1)+'</td>'
       +'<td class="r"><b>'+(it.nameAr||'')+'</b>'+(it.nameEn?' <span style="color:#9aa;font-size:.7rem">'+it.nameEn+'</span>':'')+'</td>'
       +'<td class="c">'+it.qty+' '+(it.unit||'')+'</td>'
-      +'<td class="c">'+parseFloat(it.price||0).toFixed(3)+'</td>'
-      +'<td class="c" style="font-weight:700;color:#1a7a40">'+parseFloat(it.lineTotal||0).toFixed(3)+'</td>'
     +'</tr>';
   }).join('');
   var emptyRows='';
-  var need = Math.max(0, 6-(opts.items||[]).length);
-  for(var k=0;k<need;k++){ emptyRows+='<tr><td class="c">&nbsp;</td><td></td><td></td><td></td><td></td></tr>'; }
+  var need = Math.max(0, 4-(opts.items||[]).length);
+  for(var k=0;k<need;k++){ emptyRows+='<tr><td class="c">&nbsp;</td><td></td><td></td></tr>'; }
 
   var totRows='';
   if(hasDisc){
@@ -4797,8 +4795,8 @@ function buildPrintDoc(opts){
     +'*{margin:0;padding:0;box-sizing:border-box}'
     +'body{font-family:Cairo,sans-serif;color:#1a2a1a;background:#fff;padding:14px}'
     +'.page{max-width:760px;margin:0 auto}'
-    +'.hdrt{width:100%;table-layout:fixed;border-collapse:collapse;border-bottom:2px solid #5f8d3e;margin-bottom:12px}'
-    +'.hdrt td{vertical-align:middle;padding-bottom:10px}'
+    +'.hdrt{width:100%;table-layout:fixed;border-collapse:collapse;border-bottom:2px solid #5f8d3e;margin-bottom:8px}'
+    +'.hdrt td{vertical-align:middle;padding-bottom:8px}'
     +'.hdrt .ar{text-align:right}'
     +'.hdrt .en{text-align:left;direction:ltr}'
     +'.hdrt .mid{text-align:center}'
@@ -4806,15 +4804,14 @@ function buildPrintDoc(opts){
     +'.cname{color:#2f7d32;font-weight:900;font-size:.92rem;margin-bottom:3px}'
     +'.cinfo{color:#3a4a3a;font-weight:700;font-size:.72rem;line-height:1.7;white-space:nowrap}'
     +'.hdrt .ar .cinfo{direction:rtl;unicode-bidi:isolate}'
-    +'.trow{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:4px}'
-    +'.trow .dt{font-weight:800;font-size:.95rem}'
-    +'.trow .dt .lbl,.addr .lbl{color:#2f7d32}'
-    +'.trow .dtype{color:#2f7d32;font-weight:900;font-size:1.5rem;text-decoration:underline;text-underline-offset:6px;white-space:nowrap}'
-    +'.invno{color:#d00000;font-size:10pt;font-weight:900;margin-top:5px}'
+    +'.dtype{display:block;text-align:center;color:#2f7d32;font-weight:900;font-size:1.6rem;text-decoration:underline;text-underline-offset:6px;margin:2px 0 8px}'
+    +'.metarow{display:flex;justify-content:space-between;align-items:center;font-weight:800;font-size:.92rem;margin-bottom:6px}'
+    +'.metarow .lbl,.addr .lbl{color:#2f7d32}'
+    +'.invno{color:#d00000;font-size:10pt;font-weight:900}'
     +'.invno .lbl{color:#2f7d32;font-size:.82rem;font-weight:800}'
-    +'.subt{text-align:center;font-weight:900;font-size:1rem;margin:6px 0 12px}'
-    +'.addr{text-align:center;font-weight:800;font-size:.86rem;margin-bottom:4px}'
-    +'.secbar{background:#2f7d32;color:#fff;text-align:center;font-weight:800;padding:9px;border-radius:10px;margin:12px 0 0;font-size:.92rem}'
+    +'.subt{text-align:center;font-weight:900;font-size:.98rem;margin:4px 0 7px}'
+    +'.addr{text-align:center;font-weight:800;font-size:.86rem;margin-bottom:3px}'
+    +'.secbar{background:#2f7d32;color:#fff;text-align:center;font-weight:800;padding:8px;border-radius:10px;margin:7px 0 0;font-size:.9rem}'
     +'table{width:100%;border-collapse:collapse}'
     +'.itbl th{background:#eaf3e7;color:#2f7d32;border:1px solid #bcd3b3;padding:8px;font-size:.82rem;font-weight:800}'
     +'.itbl td{border:1px solid #bcd3b3;padding:8px;font-size:.82rem}'
@@ -4834,15 +4831,16 @@ function buildPrintDoc(opts){
       +'<td class="mid" style="width:28%"><img src="'+(window.Q8_LOGO||'')+'"></td>'
       +'<td class="en" style="width:36%"><div class="cname">Kuwait Organic Company</div><div class="cinfo">CR No. 483368<br>Lic. No. 2023/18377</div></td>'
     +'</tr></table>'
-    +'<div class="trow">'
-      +'<div class="dt"><span class="lbl">التاريخ / </span>'+dateStr+((isInv&&invNo)?'<div class="invno"><span class="lbl">رقم الفاتورة / </span>'+invNo+'</div>':'')+'</div>'
-      +'<div class="dtype">'+docType+'</div>'
+    +'<div class="dtype">'+docType+'</div>'
+    +'<div class="metarow">'
+      +'<div><span class="lbl">التاريخ / </span>'+dateStr+'</div>'
+      +((isInv&&invNo)?'<div class="invno"><span class="lbl">رقم الفاتورة / </span>'+invNo+'</div>':'<div></div>')
     +'</div>'
     +'<div class="subt">'+subtitle+'</div>'
     +(clientName?'<div class="addr"><span class="lbl">العميل / </span>'+clientName+(phone?'&nbsp;&nbsp;&nbsp;<span class="lbl">هاتف / </span>'+phone:'')+'</div>':(phone?'<div class="addr"><span class="lbl">هاتف / </span>'+phone+'</div>':''))
     +(addrInline?'<div class="addr"><span class="lbl">العنوان / </span>'+addrInline+'</div>':'')
     +'<div class="secbar">الاصناف والخدمات المطلوبة</div>'
-    +'<table class="itbl"><thead><tr><th style="width:34px">#</th><th>البيان / الصنف</th><th style="width:78px">الكمية</th><th style="width:78px">السعر</th><th style="width:88px">الإجمالي</th></tr></thead>'
+    +'<table class="itbl"><thead><tr><th style="width:40px">#</th><th>البيان / الصنف</th><th style="width:130px">الكمية</th></tr></thead>'
     +'<tbody>'+rows+emptyRows+'</tbody></table>'
     +'<div class="below"><div class="sp"></div><div class="tot">'+totRows+'<div class="totbox"><span class="lbl">المجموع</span><span class="val">'+final.toFixed(3)+' دك</span></div></div></div>'
     +'<div class="terms"><div class="ttl">احكام وشروط العقد</div>'+terms+'</div>'
