@@ -1887,6 +1887,7 @@ function setupListeners(){
     _svcBonuses=sn.docs.map(function(x){return Object.assign({id:x.id},x.data());});
     if(_curPage==='reports') renderReports();
     if(_curPage==='dashboard') renderDashboard();
+    if(_curPage==='courier') renderCourierView();
   });
   FB.snap(FB.doc(d,'ops_settings','config'),function(sn){
     var cfg = sn && sn.exists && sn.exists() ? sn.data() : (sn && sn.data ? sn.data() : null);
@@ -2819,6 +2820,36 @@ window.renderCourierView = function(){
     '<div class="cour-stat"><div class="sv">'+myOrders.length+'</div><div class="sl">'+(_lang==='ar'?'إجمالي':'Total')+'</div></div>'
     +'<div class="cour-stat" style="border-color:var(--gold)"><div class="sv" style="color:var(--gold)">'+(activeDelivery+activeInsp)+'</div><div class="sl">'+(_lang==='ar'?'نشط':'Active')+'</div></div>'
     +'<div class="cour-stat" style="border-color:var(--green)"><div class="sv" style="color:var(--green)">'+delivered+'</div><div class="sl">'+(_lang==='ar'?'مُسلَّم':'Delivered')+'</div></div>';
+
+  // ── إحصائية الشهر + حالات المكافآت (للموظف) ──
+  if(s){
+    var now = new Date(); var mY=now.getFullYear(), mM=now.getMonth();
+    function inThisMonth(t){ var d = t&&t.toDate?t.toDate():(t?new Date(window.tsMs(t)):null); return d && d.getFullYear()===mY && d.getMonth()===mM; }
+    var delMonth = deliveryOrders.filter(function(o){ return o.status==='delivered' && inThisMonth(o.deliveredAt||o.createdAt); }).length;
+    var myBonusAll = (_svcBonuses||[]).filter(function(b){ return (b.rows||[]).some(function(r){ return r.empId===myId||r.empId===myUsername||r.empName===myName; }); });
+    var svcMonth = myBonusAll.filter(function(b){ return inThisMonth(b.createdAt); }).length;
+    var cPending  = myBonusAll.filter(function(b){ return !b.settled && b.status!=='approved'; }).length;
+    var cApproved = myBonusAll.filter(function(b){ return !b.settled && b.status==='approved'; }).length;
+    var cUnsettled= myBonusAll.filter(function(b){ return !b.settled; }).length;
+    var cSettled  = myBonusAll.filter(function(b){ return !!b.settled; }).length;
+    var ex = document.getElementById('courier-extra-stats'); if(ex) ex.remove();
+    var box = '<div id="courier-extra-stats" style="margin-top:10px">'
+      +'<div style="display:flex;gap:8px;margin-bottom:8px">'
+        +'<div class="cour-stat" style="flex:1;border-color:#1a4a8a"><div class="sv" style="color:#1a4a8a">'+svcMonth+'</div><div class="sl">🛠 خدمات هذا الشهر</div></div>'
+        +'<div class="cour-stat" style="flex:1;border-color:var(--green)"><div class="sv" style="color:var(--green)">'+delMonth+'</div><div class="sl">🚚 توصيل هذا الشهر</div></div>'
+      +'</div>'
+      +'<div style="background:#fff;border:1px solid var(--border);border-radius:12px;padding:10px">'
+        +'<div style="font-size:.72rem;font-weight:800;color:var(--muted);margin-bottom:8px">📊 حالة مكافآت الخدمات</div>'
+        +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">'
+          +'<div style="background:#fff5e0;border-radius:8px;padding:8px;text-align:center"><div style="font-weight:900;color:var(--gold)">'+cPending+'</div><div style="font-size:.68rem;color:var(--muted)">🔄 لم تُعتمد</div></div>'
+          +'<div style="background:#eef6ff;border-radius:8px;padding:8px;text-align:center"><div style="font-weight:900;color:#1a4a8a">'+cApproved+'</div><div style="font-size:.68rem;color:var(--muted)">✅ اعتُمدت</div></div>'
+          +'<div style="background:#f6f6f6;border-radius:8px;padding:8px;text-align:center"><div style="font-weight:900;color:#555">'+cUnsettled+'</div><div style="font-size:.68rem;color:var(--muted)">⏳ لم يُنهَ حسابها</div></div>'
+          +'<div style="background:#eaf7ee;border-radius:8px;padding:8px;text-align:center"><div style="font-weight:900;color:var(--green)">'+cSettled+'</div><div style="font-size:.68rem;color:var(--muted)">🟢 أُنهي حسابها</div></div>'
+        +'</div>'
+      +'</div>'
+    +'</div>';
+    s.insertAdjacentHTML('afterend', box);
+  }
 
   // فلاتر
   var f = document.getElementById('courier-filter-wrap');
