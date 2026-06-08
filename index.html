@@ -623,10 +623,16 @@ tbody tr[onclick]:active { background: #d8f0e2 !important; }
         <div class="sec-card" style="margin-bottom:16px">
           <div class="sec-header">
             <h3>قائمة الأصناف</h3>
+            <div style="display:flex;gap:8px;flex-wrap:wrap">
             <button class="btn btn-green" onclick="openItemModal()" id="btn-add-item">
               <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
               إضافة صنف
             </button>
+            <button class="btn btn-ghost" onclick="addCategory()" id="btn-add-cat">
+              <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              إضافة قسم
+            </button>
+            </div>
           </div>
           <!-- بانر الطلب المرتبط -->
           <div id="items-order-banner" style="display:none;background:var(--gl);border-radius:10px;padding:10px 14px;margin-bottom:12px;font-size:.82rem;color:var(--green);font-weight:700">
@@ -1002,9 +1008,8 @@ tbody tr[onclick]:active { background: #d8f0e2 !important; }
     </div>
     <div class="field-m"><label>القسم</label>
       <select id="item-category">
-        <option value="تمديدات">🔧 تمديدات فقط</option>
-        <option value="خدمات">🛠 خدمات فقط</option>
-        <option value="تمديدات وخدمات">🔧🛠 تمديدات وخدمات</option>
+        <option value="تمديدات">🔧 تمديدات</option>
+        <option value="خدمات">🛠 خدمات</option>
         <option value="أجور عمالة">👷 أجور عمالة</option>
       </select>
     </div>
@@ -1874,6 +1879,8 @@ function setupListeners(){
   FB.snap(FB.doc(d,'ops_settings','config'),function(sn){
     var cfg = sn && sn.exists && sn.exists() ? sn.data() : (sn && sn.data ? sn.data() : null);
     if(cfg && typeof cfg.rptAckMs==='number') _rptAckMs = cfg.rptAckMs;
+    if(cfg && Array.isArray(cfg.itemCategories) && cfg.itemCategories.length) _itemCats = cfg.itemCategories;
+    if(_curPage==='items') renderItemsCatalog();
     if(_curPage==='dashboard') renderDashboard();
   });
 }
@@ -4020,10 +4027,54 @@ async function autoSaveCustomer(name, phone, area, block, street, avenue, house,
 var _currentInspOrderId = null; // الطلب المرتبط بالفاتورة الحالية
 
 // تحميل الأصناف من Firebase
+// ── الأقسام (ديناميكية ومحفوظة في Firebase) ──
+var _itemCats = [
+  {name:'تمديدات', icon:'🔧'},
+  {name:'خدمات', icon:'🛠'},
+  {name:'أجور عمالة', icon:'👷'}
+];
+var _catMigrated = false;
+function catIconFor(name){
+  if(name==='تمديدات وخدمات') name='تمديدات';
+  var c=_itemCats.find(function(x){return x.name===name;});
+  if(c&&c.icon) return c.icon;
+  var def={'تمديدات':'🔧','خدمات':'🛠','أجور عمالة':'👷','أخرى':'📋'};
+  return def[name]||'📋';
+}
+function renderCategoryOptions(selected){
+  var sel=document.getElementById('item-category'); if(!sel) return;
+  var norm=(selected==='تمديدات وخدمات')?'تمديدات':selected;
+  var cats=_itemCats.slice();
+  if(norm && !cats.some(function(c){return c.name===norm;})) cats.push({name:norm,icon:'📋'});
+  sel.innerHTML = cats.map(function(c){return '<option value="'+c.name+'">'+(c.icon||'📋')+' '+c.name+'</option>';}).join('');
+  if(norm) sel.value = norm;
+}
+window.addCategory = async function(){
+  if(_role!=='manager'){ toast('هذا الإجراء للمدير فقط'); return; }
+  var name = prompt('اسم القسم الجديد:'); if(name===null) return;
+  name=(name||'').trim(); if(!name) return;
+  if(_itemCats.some(function(c){return c.name===name;})){ toast('القسم موجود مسبقاً'); return; }
+  var icon=(prompt('أيقونة القسم (إيموجي — اختياري):','📋')||'📋').trim()||'📋';
+  _itemCats.push({name:name, icon:icon});
+  try{
+    await window.FB.set(window.FB.doc(window.FB.db,'ops_settings','config'),{itemCategories:_itemCats,updatedAt:window.FB.ts()},{merge:true});
+    toast('✅ تم إضافة القسم: '+name);
+  }catch(e){ toast('خطأ في الحفظ'); }
+  var sel=document.getElementById('item-category'); renderCategoryOptions(sel?sel.value:'');
+  if(_curPage==='items') renderItemsCatalog();
+};
+
 function loadItems(){
   var d = window.FB.db;
   window.FB.snap(window.FB.q(window.FB.col(d,'iri_items'),window.FB.ord('createdAt','asc')), function(sn){
     _items = sn.docs.map(function(x){ return Object.assign({id:x.id}, x.data()); });
+    // ترحيل لمرة واحدة: دمج "تمديدات وخدمات" ضمن "تمديدات"
+    if(!_catMigrated){
+      _catMigrated = true;
+      _items.filter(function(x){return x.category==='تمديدات وخدمات';}).forEach(function(x){
+        try{ window.FB.upd(window.FB.doc(window.FB.db,'iri_items',x.id),{category:'تمديدات'}); }catch(e){}
+      });
+    }
     if(_curPage==='items') renderItemsCatalog();
   });
 }
@@ -4058,7 +4109,7 @@ window.openItemModal = function(id){
       document.getElementById('item-name-en').value   = it.nameEn||'';
       document.getElementById('item-price').value     = it.price||'';
       document.getElementById('item-unit').value      = it.unit||'قطعة';
-      document.getElementById('item-category').value  = it.category||'تمديدات';
+      renderCategoryOptions(it.category||'تمديدات');
       document.getElementById('item-image-url').value = it.image||'';
       if(it.image){
         document.getElementById('item-img-preview-src').src = it.image;
@@ -4069,7 +4120,7 @@ window.openItemModal = function(id){
   } else {
     ['item-name-ar','item-name-en','item-price','item-image-url'].forEach(function(x){document.getElementById(x).value='';});
     document.getElementById('item-unit').value     = 'قطعة';
-    document.getElementById('item-category').value = 'تمديدات';
+    renderCategoryOptions('تمديدات');
   }
   openModal('modal-item');
 };
@@ -4148,6 +4199,7 @@ window.renderItemsCatalog = function(){
   var cats = {};
   _items.forEach(function(it){
     var cat = it.category||'أخرى';
+    if(cat==='تمديدات وخدمات') cat='تمديدات';
     if(!cats[cat]) cats[cat] = [];
     cats[cat].push(it);
   });
@@ -4155,10 +4207,10 @@ window.renderItemsCatalog = function(){
 
   var html = '';
   Object.keys(cats).forEach(function(cat){
-    html += '<div style="grid-column:1/-1;font-size:.88rem;font-weight:800;color:var(--green);padding:6px 0 4px;border-bottom:2px solid var(--gm);margin-bottom:4px">'+(catIcons[cat]||'📋')+' '+cat+'</div>';
+    html += '<div style="grid-column:1/-1;font-size:.88rem;font-weight:800;color:var(--green);padding:6px 0 4px;border-bottom:2px solid var(--gm);margin-bottom:4px">'+catIconFor(cat)+' '+cat+'</div>';
     cats[cat].forEach(function(it){
       var isLabor = it.type==='labor' || it.category==='أجور عمالة';
-      var catColor = isLabor ? 'var(--green)' : it.category==='تمديدات وخدمات' ? 'var(--blue)' : 'var(--gold)';
+      var catColor = isLabor ? 'var(--green)' : (it.category==='تمديدات وخدمات'||it.category==='تمديدات') ? 'var(--blue)' : 'var(--gold)';
       html += '<div style="background:#fff;border:1.5px solid '+(isLabor?'var(--gm)':'var(--border)')+';border-radius:12px;padding:12px;position:relative">'
         +(_role==='manager'?'<div style="position:absolute;top:6px;left:6px;display:flex;gap:4px">'
           +'<button onclick="openItemModal(\''+it.id+'\')" style="background:var(--gl);border:none;border-radius:6px;padding:2px 6px;font-size:.65rem;cursor:pointer;color:var(--green)">✏️</button>'
