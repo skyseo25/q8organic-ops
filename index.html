@@ -2810,10 +2810,13 @@ window.renderCourierView = function(){
         if(o.status==='delivering'||o.status==='received'||o.status==='scheduled'){
           acts+='<button class="oc-btn oc-btn-primary" onclick="odmInspAction(\''+oid+'\',\'inspected\')">✅ تم الكشف</button>';
           acts+='<button class="oc-btn oc-btn-gold" onclick="odmInspAction(\''+oid+'\',\'noreply\')">📵 لا رد</button>';
-          acts+='<button class="oc-btn oc-btn-primary" style="background:#0a5a2a" onclick="openWorkDoneModal(\''+oid+'\')">🛠 أنهيت الأعمال</button>';
         }
         if(o.status==='inspected') acts+='<button class="oc-btn oc-btn-ghost" onclick="odmInspAction(\''+oid+'\',\'closed\')">🔒 إغلاق</button>';
       }
+    }
+    // زر "أنهيت الأعمال" للكشف/الخدمة — يظهر في أي حالة نشطة حتى يُنهي الفني الأعمال
+    if(isInsp && !o.workDone && o.status!=='returned'){
+      acts += '<button class="oc-btn oc-btn-primary" style="background:#0a5a2a" onclick="openWorkDoneModal(\''+oid+'\')">🛠 أنهيت الأعمال</button>';
     }
 
     var doneTime='';
