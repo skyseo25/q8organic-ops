@@ -787,7 +787,7 @@ tbody tr[onclick]:active { background: #d8f0e2 !important; }
           </div>
         </div>
         <!-- ملخص الري -->
-        <div class="sec-card">
+        <div class="sec-card" id="iri-summary-card">
           <div class="sec-header"><h3>🔧 ملخص الصيانة والري</h3></div>
           <div class="tbl-wrap"><table><thead><tr><th>الشهر</th><th>الفواتير</th><th>الإجمالي</th></tr></thead>
           <tbody id="iri-summary-tbody"></tbody></table></div>
@@ -1744,7 +1744,7 @@ function getNavItems(){
     {id:'irrigation', icon:'➕', ar:(_role==='employee'?'خدماتي':'إضافة توصيل وخدمة'),      en:(_role==='employee'?'My Services':'Add Order / Service'),  roles:['manager','supervisor','employee'], section_ar:'الأعمال',  section_en:'Operations'},
     {id:'items',      icon:'📋', ar:'الأصناف',                 en:'Items',               roles:['manager','supervisor','employee'], section_ar:'الأعمال',  section_en:'Operations'},
     {id:'quote',      icon:'🧾', ar:'الفواتير وعرض السعر',        en:'Invoices & Quotes',   roles:['manager','supervisor','employee'], section_ar:'الأعمال',  section_en:'Operations'},
-    {id:'reports',    icon:'📊', ar:'التقارير',                en:'Reports',             roles:['manager','supervisor'],           section_ar:'الإدارة',  section_en:'Management'},
+    {id:'reports',    icon:'📊', ar:'التقارير',                en:'Reports',             roles:['manager','supervisor','employee'], section_ar:'الإدارة',  section_en:'Management'},
     {id:'employees',  icon:'👤', ar:'الموظفون',                en:'Employees',           roles:['manager','supervisor'],           section_ar:'الإدارة',  section_en:'Management'},
     {id:'customers',  icon:'👥', ar:'قاعدة العملاء',          en:'Customers',           roles:['manager'],                       section_ar:'الإدارة',  section_en:'Management'},
     {id:'archive',    icon:'📦', ar:'الأرشيف',                en:'Archive',             roles:['manager','supervisor'],           section_ar:'الإدارة',  section_en:'Management'},
@@ -1835,6 +1835,7 @@ function setupListeners(){
     if(_curPage==='orders') renderOrders();
     if(_curPage==='courier') renderCourierView();
     if(_curPage==='archive') renderArchive();
+    if(_curPage==='reports') renderReports();
   });
   FB.snap(FB.q(FB.col(d,'del_archived'),FB.ord('createdAt','desc')),function(sn){
     _archived=sn.docs.map(function(x){return Object.assign({id:x.id},x.data());});
@@ -2007,8 +2008,20 @@ function renderDashboard(){
     }
   });
   var _byDateDesc = function(a,b){return a.date<b.date?1:(a.date>b.date?-1:0);};
-  // معلّقة: فيها تقرير واحد على الأقل لم يُنهَ حسابه
-  var unfinishedDays = Object.values(rptDayMap).filter(function(g){return g.settled < g.total;}).sort(_byDateDesc);
+  // معلّقة: موظفون لديهم نشاط (توصيل مُسلّم أو مكافآت خدمات) لم يُنهَ حسابه بعد
+  var unfinishedDays = [];
+  (_delUsers||[]).forEach(function(u){
+    var delCount = (_orders||[]).filter(function(o){
+      if(o.orderType==='inspection'||o.orderType==='service') return false;
+      if(o.settled || o.status!=='delivered') return false;
+      return o.courierId===u.id||o.courierId===u.username||o.courierName===u.name;
+    }).length;
+    var svcCount = (_svcBonuses||[]).filter(function(b){
+      if(b.settled) return false;
+      return (b.rows||[]).some(function(r){return r.empId===u.id||r.empId===u.username||r.empName===u.name;});
+    }).length;
+    if(delCount>0 || svcCount>0) unfinishedDays.push({name:u.name||u.username, delCount:delCount, svcCount:svcCount});
+  });
   // منتهية بالكامل ومنذ آخر "اطّلعت"
   var settledRecent = Object.values(rptDayMap).filter(function(g){
     return g.total>0 && g.settled===g.total && g.lastMs > (_rptAckMs||0);
@@ -2098,13 +2111,13 @@ function renderDashboard(){
       +'<div class="val">'+unfinishedDays.length+'</div>'
       +(unfinishedDays.length
         ? unfinishedDays.map(function(d){
-          var label = _lang==='ar' ? ('تقرير '+dayNameAr(d.date)+' '+fmtDateLatin(d.date))
-                                   : ('Report '+dayNameEn(d.date)+' '+fmtDateLatin(d.date));
-          var pending = d.total - d.settled;
+          var parts = [];
+          if(d.delCount>0) parts.push(d.delCount+(_lang==='ar'?' توصيل':' delivery'));
+          if(d.svcCount>0) parts.push(d.svcCount+(_lang==='ar'?' خدمة':' service'));
           return '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--border)">'
             +'<div style="flex:1;min-width:0">'
-              +'<div style="font-weight:700;font-size:.86rem">'+label+'</div>'
-              +'<div style="font-size:.72rem;color:var(--muted)">'+pending+(_lang==='ar'?' تقرير':' report'+(pending===1?'':'s'))+'</div>'
+              +'<div style="font-weight:700;font-size:.86rem">'+d.name+'</div>'
+              +'<div style="font-size:.72rem;color:var(--muted)">'+parts.join(' · ')+'</div>'
             +'</div>'
           +'</div>';
         }).join('')
@@ -5369,6 +5382,9 @@ window.renderReports = function(){
   // زر طباعة الكل للمدير/المشرف
   var printAllBtn = document.getElementById('rpt-print-all-btn');
   if(printAllBtn) printAllBtn.style.display = canEdit ? '' : 'none';
+  // إخفاء ملخص الري عن الموظف
+  var iriCard = document.getElementById('iri-summary-card');
+  if(iriCard) iriCard.style.display = canEdit ? '' : 'none';
 
   // تحديد المناديب للعرض
   var usersToShow = canEdit
