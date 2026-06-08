@@ -2219,11 +2219,18 @@ window.setOrdersTab = function(tab){
 window.renderOrders = function(){
   var filter = (document.getElementById('orders-status-filter')||{}).value||'';
   var myId = _u ? (_u.id||_u.username) : '';
+  var myU = _u ? (_u.username||'') : '';
+  var myN = _u ? (_u.name||'') : '';
   var isEmployee = _role==='employee';
+  function isMine(o){
+    if(o.courierId===myId||o.courierId===myU) return true;
+    if(o.courierName && (o.courierName===myN||o.courierName===myU||o.courierName===myId)) return true;
+    return false;
+  }
 
   // فصل الطلبات
   var allActive = _orders.filter(function(o){
-    if(isEmployee && o.courierId!==myId) return false;
+    if(isEmployee && !isMine(o)) return false;
     if(o.archived||o.settled) return false;
     if(filter && o.status!==filter) return false;
     return true;
@@ -2698,11 +2705,13 @@ window.confirmWorkDone = async function(orderId){
 window.renderCourierView = function(){
   var myId = _u.id || _u.username;
   var myUsername = _u.username || '';
+  var myName = _u.name || '';
 
-  // المندوب يرى فقط الطلبات المحولة إليه بشكل صريح (courierId = myId)
-  // الطلبات بدون مندوب لا تظهر له
+  // المندوب يرى الطلبات المُسنَدة إليه بالـ id أو بالاسم (لتغطية الكشوفات المُسنَدة بالاسم)
   var myOrders = _orders.filter(function(o){
-    return o.courierId === myId || o.courierId === myUsername;
+    if(o.courierId === myId || o.courierId === myUsername) return true;
+    if(o.courierName && (o.courierName === myName || o.courierName === myUsername || o.courierName === myId)) return true;
+    return false;
   });
 
   var myCourierData = _delUsers.find(function(u){ return u.id===myId || u.username===myUsername; });
@@ -5673,7 +5682,7 @@ window.renderArchive = function(){
       var inArch = o.archived || o.settled || o.status==='delivered' || o.status==='returned' || o.status==='closed';
       if(!inArch) return false;
       if(o.orderType==='inspection') return false;
-      if(isEmployee && o.courierId!==myId) return false;
+      if(isEmployee && o.courierId!==myId && o.courierName!==myName && o.courierName!==myId) return false;
       var dt = o.archivedAt || o.deliveredAt || o.updatedAt || o.createdAt || null;
       if(!archDateFilter(dt)) return false;
       if(q && !(o.clientName||'').toLowerCase().includes(q) && !(o.area||'').toLowerCase().includes(q) && !(o.courierName||'').toLowerCase().includes(q)) return false;
@@ -5720,7 +5729,7 @@ window.renderArchive = function(){
     var inspOrds = (_orders||[]).filter(function(o){
       var inArch = o.archived || o.status==='closed' || o.status==='inspected';
       if(!inArch || o.orderType!=='inspection') return false;
-      if(isEmployee && o.courierId!==myId) return false;
+      if(isEmployee && o.courierId!==myId && o.courierName!==myName && o.courierName!==myId) return false;
       var dt = o.archivedAt||o.updatedAt||o.createdAt;
       if(!archDateFilter(dt)) return false;
       if(q && !(o.clientName||'').toLowerCase().includes(q)) return false;
