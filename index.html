@@ -706,13 +706,6 @@ tbody tr[onclick]:active { background: #d8f0e2 !important; }
           <div class="dash-card-icon blue" style="width:36px;height:36px;font-size:1rem">👥</div>
           <h2>قاعدة العملاء</h2>
         </div>
-        <div class="sec-card" style="margin-bottom:16px">
-          <div class="sec-header">
-            <h3>🏆 أكثر 10 عملاء طلباً</h3>
-            <span id="cust-total-badge" class="tag tag-green" style="font-size:.82rem;font-weight:800"></span>
-          </div>
-          <div id="cust-top10" style="padding:4px 6px 8px"></div>
-        </div>
         <div class="sec-card">
           <div class="sec-header">
             <h3>العملاء</h3>
@@ -725,7 +718,7 @@ tbody tr[onclick]:active { background: #d8f0e2 !important; }
             </div>
           </div>
           <div class="tbl-wrap"><table><thead><tr>
-            <th>#</th><th>الاسم</th><th>الهاتف</th><th>المنطقة</th><th>العنوان</th><th>الطلبات</th><th></th>
+            <th>#</th><th>الاسم</th><th>الهاتف</th><th>العنوان</th><th>الطلبات</th><th></th>
           </tr></thead><tbody id="customers-tbody"></tbody></table></div>
         </div>
       </div>
@@ -3203,27 +3196,6 @@ window.renderCustomers = function(){
   // ترتيب حسب عدد الطلبات (الأكثر أولاً)
   list.sort(function(a,b){ return (b.serviceCount||0)-(a.serviceCount||0); });
 
-  // شارة إجمالي العملاء
-  var totalBadge = document.getElementById('cust-total-badge');
-  if(totalBadge) totalBadge.textContent = (_lang==='ar'?'إجمالي العملاء: ':'Total customers: ')+_customers.length;
-
-  // لوحة أكثر 10 عملاء طلباً
-  var topEl = document.getElementById('cust-top10');
-  if(topEl){
-    var top = _customers.slice().sort(function(a,b){return (b.serviceCount||0)-(a.serviceCount||0);}).slice(0,10)
-              .filter(function(c){return (c.serviceCount||0)>0;});
-    var medals=['🥇','🥈','🥉'];
-    topEl.innerHTML = top.map(function(c,i){
-      var rank = medals[i]||((i+1)+'.');
-      return '<div style="display:flex;align-items:center;gap:10px;padding:8px 4px;border-bottom:1px solid var(--border)">'
-        +'<span style="font-weight:800;width:30px;text-align:center;font-size:.95rem">'+rank+'</span>'
-        +'<div style="flex:1;min-width:0"><div style="font-weight:700">'+(c.name||'—')+'</div>'
-          +'<div style="font-size:.74rem;color:var(--muted)">'+(c.phone||'')+(c.area?' · '+c.area:'')+'</div></div>'
-        +'<span class="tag tag-green" style="font-size:.78rem;font-weight:800">'+(c.serviceCount||0)+(_lang==='ar'?' طلب':' orders')+'</span>'
-      +'</div>';
-    }).join('') || '<div style="text-align:center;color:var(--muted2);padding:14px;font-size:.85rem">'+(_lang==='ar'?'لا توجد طلبات بعد':'No orders yet')+'</div>';
-  }
-
   document.getElementById('customers-tbody').innerHTML=list.map(function(c,idx){
     var addr = [c.area, c.block?'ق'+c.block:'', c.street?'ش'+c.street:'', c.avenue?'ج'+c.avenue:'', c.house?'م'+c.house:''].filter(Boolean).join(' · ') || c.address || '—';
     return '<tr>'
@@ -3238,7 +3210,7 @@ window.renderCustomers = function(){
         +(_role==='manager'?'<button class="btn-danger" onclick="delCustomer(\''+c.id+'\')">✕</button>':'')
       +'</td>'
     +'</tr>';
-  }).join('')||'<tr><td colspan="7" class="empty">لا يوجد عملاء</td></tr>';
+  }).join('')||'<tr><td colspan="6" class="empty">لا يوجد عملاء</td></tr>';
 };
 
 window.openQuickOrder = function(custId){
