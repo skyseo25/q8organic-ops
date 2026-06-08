@@ -756,7 +756,7 @@ tbody tr[onclick]:active { background: #d8f0e2 !important; }
           <div style="padding:14px 20px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
             <div style="display:flex;gap:6px;">
               <button class="btn btn-green btn-sm" id="rpt-f-today" onclick="setRptFilter('today')">اليوم</button>
-              <button class="btn btn-ghost btn-sm" id="rpt-f-yesterday" onclick="setRptFilter('yesterday')">أمس</button>
+              <button class="btn btn-ghost btn-sm" id="rpt-f-all" onclick="setRptFilter('all')">الكل</button>
               <button class="btn btn-ghost btn-sm" id="rpt-f-custom" onclick="setRptFilter('custom')">تاريخ محدد</button>
             </div>
             <input type="date" id="rpt-date-from" class="filter-input" style="display:none">
@@ -1564,7 +1564,7 @@ var T = {
     name:'الاسم', username:'المعرف', role:'الدور', symbol:'الرمز',
     suspend:'تعليق', activate:'تفعيل',
     manager_r:'مدير', supervisor_r:'مشرف', employee_r:'موظف',
-    exec:'تنفيذ', today:'اليوم', yesterday:'أمس', custom_date:'تاريخ محدد',
+    exec:'تنفيذ', today:'اليوم', yesterday:'أمس', all_period:'الكل', custom_date:'تاريخ محدد',
     print_all:'طباعة الكل', settle:'إنهاء الحساب', print:'طباعة',
     received_btn:(_lang==='ar'?'📦 استلمت الطلب':'📦 Received'), delivering_btn:(_lang==='ar'?'🚗 جاري التوصيل':'🚗 Delivering'),
     delivered_btn:'✅ تم التسليم', noreply_btn:(_lang==='ar'?'📵 لا يوجد رد':'📵 No Reply'), returned_btn:(_lang==='ar'?'↩️ مرتجع':'↩️ Return'),
@@ -1590,7 +1590,7 @@ var T = {
     name:'Name', username:'Username', role:'Role', symbol:'Symbol',
     suspend:'Suspend', activate:'Activate',
     manager_r:'Manager', supervisor_r:'Supervisor', employee_r:'Employee',
-    exec:'Execute', today:'Today', yesterday:'Yesterday', custom_date:'Custom Date',
+    exec:'Execute', today:'Today', yesterday:'Yesterday', all_period:'All', custom_date:'Custom Date',
     print_all:'Print All', settle:'Settle Account', print:'Print',
     received_btn:'Received', delivering_btn:'Delivering',
     delivered_btn:'Delivered', noreply_btn:'No Reply', returned_btn:'Return',
@@ -5119,7 +5119,7 @@ var _rptFilter = 'today';
 
 window.setRptFilter = function(f){
   _rptFilter = f;
-  ['today','yesterday','custom'].forEach(function(x){
+  ['today','all','custom'].forEach(function(x){
     var btn = document.getElementById('rpt-f-'+x);
     if(btn) btn.className = x===f ? 'btn btn-green btn-sm' : 'btn btn-ghost btn-sm';
   });
@@ -5135,10 +5135,8 @@ function getRptDateRange(){
   var todayStr = now.toISOString().substring(0,10);
   if(_rptFilter==='today'){
     return {from: todayStr, to: todayStr};
-  } else if(_rptFilter==='yesterday'){
-    var y = new Date(now); y.setDate(y.getDate()-1);
-    var yStr = y.toISOString().substring(0,10);
-    return {from: yStr, to: yStr};
+  } else if(_rptFilter==='all'){
+    return {from: '2000-01-01', to: '2999-12-31'};
   } else {
     var f = (document.getElementById('rpt-date-from')||{}).value || todayStr;
     var toVal = (document.getElementById('rpt-date-to')||{}).value || todayStr;
@@ -5154,7 +5152,9 @@ window.renderReports = function(){
   // تحديث عنوان التقرير بالتاريخ
   var titleEl = document.getElementById('rpt-table-title');
   var isArRpt = _lang==='ar';
-  var dateLabel = range.from === range.to
+  var dateLabel = (_rptFilter==='all')
+    ? (isArRpt?'📦 تقرير الكل — جميع الفترات':'📦 All Reports')
+    : range.from === range.to
     ? (isArRpt?'📦 تقرير يوم ':'📦 Report: ') + range.from
     : (isArRpt?'📦 تقرير الفترة: ':'📦 Period: ') + range.from + ' — ' + range.to;
   if(titleEl) titleEl.textContent = dateLabel;
@@ -5937,7 +5937,7 @@ function applyStaticLang(lang){
   s('lbl-new-ext',t('new_ext'));
   var bne=document.getElementById('btn-new-ext');
   if(bne){var sp=bne.querySelector('span');if(sp)sp.textContent=t('create_inv');}
-  s('rpt-f-today',t('today'));s('rpt-f-yesterday',t('yesterday'));s('rpt-f-custom',t('custom_date'));
+  s('rpt-f-today',t('today'));s('rpt-f-all',t('all_period'));s('rpt-f-custom',t('custom_date'));
   var rpb=document.getElementById('rpt-print-all-btn');
   if(rpb)rpb.textContent=t('print_all');
   var rth=document.getElementById('rpt-th-actions');
