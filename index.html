@@ -5217,6 +5217,7 @@ window.renderReports = function(){
     var actBtns = canEdit
       ? '<button class="btn-edit-sm" onclick="openRptEdit(\''+u.id+'\',\''+u.name+'\','+totalOrds+','+delivered+','+bonus.toFixed(3)+','+cash.toFixed(3)+')">'+(_lang==='ar'?'تعديل':'Edit')+'</button> '
         + '<button class="btn btn-green btn-sm" onclick="settleReport(\''+u.id+'\',\''+u.name+'\',\''+range.from+'\',\''+range.to+'\')">✅ '+(_lang==='ar'?'إنهاء الحساب':'Settle')+'</button>'
+        + (_role==='manager' ? ' <button class="btn btn-sm" style="background:var(--redl);color:var(--red);border:none;font-weight:700" onclick="deleteCourierReport(\''+u.id+'\',\''+u.name+'\',\''+range.from+'\',\''+range.to+'\')">🗑 '+(_lang==='ar'?'حذف التقرير':'Delete')+'</button>' : '')
       : '<button class="btn btn-ghost btn-sm" onclick="printSingleReport(\''+u.name+'\',\''+range.from+'\',\''+range.to+'\','+totalOrds+','+delivered+','+bonus.toFixed(3)+','+cash.toFixed(3)+','+knet.toFixed(3)+',\'\')">🖨 '+(_lang==='ar'?'طباعة':'Print')+'</button>';
 
     rows += '<tr>'
@@ -5301,6 +5302,35 @@ window.ackSettledReports = async function(){
     await window.FB.set(window.FB.doc(window.FB.db,'ops_settings','config'),
       {rptAckMs:now, rptAckBy:(_u.name||_u.username), rptAckAt:window.FB.ts()}, {merge:true});
     toast('✅ تم — بدأ العدّ من جديد');
+  }catch(e){ toast('خطأ: '+e.message); }
+};
+
+// حذف تقرير المندوب: يحذف طلبات المندوب في الفترة نهائياً (للمدير فقط)
+window.deleteCourierReport = async function(courierId, name, dateFrom, dateTo){
+  if(_role!=='manager'){ toast(_lang==='ar'?'هذه الخاصية للمدير فقط':'Manager only'); return; }
+  var range = dateFrom && dateTo ? {from:dateFrom, to:dateTo} : getRptDateRange();
+  var fromD = new Date(range.from + 'T00:00:00');
+  var toD   = new Date(range.to   + 'T23:59:59');
+  var ords = _orders.filter(function(o){
+    if(o.orderType==='inspection') return false;
+    if(o.settled) return false;
+    if(o.courierId!==courierId && o.courierName!==name) return false;
+    var dt = o.deliveredAt&&o.deliveredAt.toDate?o.deliveredAt.toDate()
+           : o.updatedAt&&o.updatedAt.toDate?o.updatedAt.toDate()
+           : o.createdAt&&o.createdAt.toDate?o.createdAt.toDate():null;
+    if(!dt) return false;
+    return dt>=fromD && dt<=toD;
+  });
+  if(!ords.length){ toast(_lang==='ar'?'لا توجد طلبات في هذا التقرير':'No orders in this report'); return; }
+  if(!confirm(_lang==='ar'
+      ? ('⚠️ حذف تقرير '+name+' نهائياً؟\nسيتم حذف '+ords.length+' طلب من قاعدة البيانات ولا يمكن التراجع.')
+      : ('⚠️ Permanently delete '+name+"'s report?\nThis will delete "+ords.length+' orders. Cannot be undone.'))) return;
+  try{
+    for(var i=0;i<ords.length;i++){
+      await window.FB.del(window.FB.doc(window.FB.db,'del_orders',ords[i].id));
+    }
+    toast(_lang==='ar'?('🗑 تم حذف التقرير ('+ords.length+' طلب)'):('🗑 Report deleted ('+ords.length+' orders)'));
+    renderReports();
   }catch(e){ toast('خطأ: '+e.message); }
 };
 
