@@ -2651,6 +2651,55 @@ window.openMap = function(directUrl, query){
 };
 
 // ══ نافذة إنهاء الأعمال (اختيار المرافقين) ══
+// ── أدوات الوقت لتتبّع مدة العمل ──
+window.tsMs = function(t){
+  if(!t) return 0;
+  if(typeof t==='number') return t;
+  if(t.toDate) { try{ return t.toDate().getTime(); }catch(e){ return 0; } }
+  if(t.seconds) return t.seconds*1000;
+  var d = new Date(t); return isNaN(d.getTime())?0:d.getTime();
+};
+window.fmtDur = function(ms){
+  if(!ms || ms<0) ms=0;
+  var s = Math.floor(ms/1000);
+  var h = Math.floor(s/3600), m = Math.floor((s%3600)/60), ss = s%60;
+  function p(n){ return (n<10?'0':'')+n; }
+  return p(h)+':'+p(m)+':'+p(ss);
+};
+// مؤقّت حيّ — يحدّث #work-timer-live كل ثانية ويتوقف تلقائياً إذا اختفى العنصر
+window.startWorkTimer = function(){
+  if(window._wkTimer){ clearInterval(window._wkTimer); window._wkTimer=null; }
+  function tick(){
+    var el = document.getElementById('work-timer-live');
+    if(!el){ clearInterval(window._wkTimer); window._wkTimer=null; return; }
+    var st = parseInt(el.getAttribute('data-start')||'0',10);
+    el.textContent = window.fmtDur(Date.now()-st);
+  }
+  tick();
+  window._wkTimer = setInterval(tick, 1000);
+};
+
+window.startWork = async function(id){
+  var o   = (_orders||[]).find(function(x){return x.id===id;});
+  var ins = o ? null : (_inspections||[]).find(function(x){return x.id===id;});
+  if(!o && !ins) return;
+  try{
+    if(o){
+      await window.FB.upd(window.FB.doc(window.FB.db,'del_orders',o.id), {workStartedAt:window.FB.ts(), updatedAt:window.FB.ts()});
+      o.workStartedAt = Date.now();
+      var ir=(_inspections||[]).find(function(x){return x.phone===o.phone&&x.client===o.clientName;});
+      if(ir){ ir.workStartedAt=Date.now(); try{ await window.FB.upd(window.FB.doc(window.FB.db,'iri_inspections',ir.id),{workStartedAt:window.FB.ts(),updatedAt:window.FB.ts()}); }catch(e){} }
+    } else {
+      await window.FB.upd(window.FB.doc(window.FB.db,'iri_inspections',ins.id), {workStartedAt:window.FB.ts(), updatedAt:window.FB.ts()});
+      ins.workStartedAt = Date.now();
+      var ro=(_orders||[]).find(function(x){return (x.orderType==='inspection'||x.orderType==='service')&&x.phone===ins.phone&&x.clientName===ins.client;});
+      if(ro){ ro.workStartedAt=Date.now(); try{ await window.FB.upd(window.FB.doc(window.FB.db,'del_orders',ro.id),{workStartedAt:window.FB.ts(),updatedAt:window.FB.ts()}); }catch(e){} }
+    }
+    toast('▶️ بدأ احتساب وقت العمل');
+    if(ins){ openOrderDetailBySvc(ins.id); }
+  }catch(e){ toast('خطأ: '+e.message); }
+};
+
 window.openWorkDoneModal = function(id){
   var o   = (_orders||[]).find(function(x){return x.id===id;});
   var ins = o ? null : (_inspections||[]).find(function(x){return x.id===id;});
@@ -2693,28 +2742,32 @@ window.confirmWorkDone = async function(id){
   document.querySelectorAll('#modal-work-done .wd-helper:checked').forEach(function(ch){
     helpers.push({id:ch.value, name:ch.getAttribute('data-name')||''});
   });
+  // حساب مدة العمل من وقت البدء حتى الآن
+  var startMs = window.tsMs(o ? o.workStartedAt : ins.workStartedAt);
+  var durMs = startMs ? (Date.now() - startMs) : 0;
   try{
     if(o){
       await window.FB.upd(window.FB.doc(window.FB.db,'del_orders',o.id), {
-        workDone:true, workDoneAt:window.FB.ts(),
+        workDone:true, workDoneAt:window.FB.ts(), workDurationMs:durMs,
         techId:o.courierId||'', techName:o.courierName||'',
         helpers:helpers, status:'closed', updatedAt:window.FB.ts()
       });
       var inspRec = (_inspections||[]).find(function(x){return x.phone===o.phone && x.client===o.clientName;});
-      if(inspRec){ try{ await window.FB.upd(window.FB.doc(window.FB.db,'iri_inspections',inspRec.id),{status:'closed',workDone:true,workDoneAt:window.FB.ts(),helpers:helpers,techName:o.courierName||'',techId:o.courierId||'',updatedAt:window.FB.ts()}); }catch(e){} }
+      if(inspRec){ try{ await window.FB.upd(window.FB.doc(window.FB.db,'iri_inspections',inspRec.id),{status:'closed',workDone:true,workDoneAt:window.FB.ts(),workDurationMs:durMs,helpers:helpers,techName:o.courierName||'',techId:o.courierId||'',updatedAt:window.FB.ts()}); }catch(e){} }
     } else {
       await window.FB.upd(window.FB.doc(window.FB.db,'iri_inspections',ins.id), {
-        workDone:true, workDoneAt:window.FB.ts(),
+        workDone:true, workDoneAt:window.FB.ts(), workDurationMs:durMs,
         techId:ins.empId||'', techName:ins.empName||'',
         helpers:helpers, status:'closed', updatedAt:window.FB.ts()
       });
       var relO = (_orders||[]).find(function(x){ return (x.orderType==='inspection'||x.orderType==='service') && x.phone===ins.phone && x.clientName===ins.client; });
-      if(relO){ try{ await window.FB.upd(window.FB.doc(window.FB.db,'del_orders',relO.id),{workDone:true,workDoneAt:window.FB.ts(),techId:relO.courierId||'',techName:relO.courierName||ins.empName||'',helpers:helpers,status:'closed',updatedAt:window.FB.ts()}); }catch(e){} }
+      if(relO){ try{ await window.FB.upd(window.FB.doc(window.FB.db,'del_orders',relO.id),{workDone:true,workDoneAt:window.FB.ts(),workDurationMs:durMs,techId:relO.courierId||'',techName:relO.courierName||ins.empName||'',helpers:helpers,status:'closed',updatedAt:window.FB.ts()}); }catch(e){} }
     }
+    if(window._wkTimer){ clearInterval(window._wkTimer); window._wkTimer=null; }
     closeModal('modal-work-done');
     closeModal('modal-order-detail');
     closeModal('modal-svc-detail');
-    toast('🛠 تم إنهاء الأعمال — بانتظار إضافة المكافآت');
+    toast('🛠 تم إنهاء الأعمال — المدة: '+window.fmtDur(durMs));
   }catch(e){ toast('خطأ: '+e.message); }
 };
 
@@ -3735,16 +3788,40 @@ window.openOrderDetailBySvc = function(inspOrId){
     }
   }
   if(roStatus==='inspected') progBtns += _pb('closed','🔒 إغلاق','#555');
-  // زر "أنهيت الأعمال" — يظهر للفني في أي حالة نشطة حتى يُنهي الأعمال
-  var _wdDone = (relatedOrder && relatedOrder.workDone) || insp.workDone;
-  if(!_wdDone && roStatus!=='returned'){
-    progBtns += '<button onclick="openWorkDoneModal(\''+(_rid||inspId)+'\')" style="flex:1;min-width:46%;padding:12px;background:#0a5a2a;color:#fff;border:none;border-radius:10px;font-family:Cairo,sans-serif;font-size:.85rem;font-weight:800;cursor:pointer">🛠 أنهيت الأعمال</button>';
-  }
   // إلغاء حالة الإغلاق (إعادة فتح)
   if(roStatus==='closed' && relatedOrder){
     progBtns += '<button onclick="reopenInsp(\''+relatedOrder.id+'\',\''+inspId+'\')" style="flex:1;min-width:46%;padding:12px;background:#b8720a;color:#fff;border:none;border-radius:10px;font-family:Cairo,sans-serif;font-size:.85rem;font-weight:800;cursor:pointer">🔓 إلغاء الإغلاق</button>';
   }
   var progHtml = progBtns ? '<div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px">'+progBtns+'</div>' : '';
+
+  // ── تتبّع وقت العمل: بدأت العمل ← مؤقّت حيّ ← أنهيت عملي ──
+  var _wdDone = (relatedOrder && relatedOrder.workDone) || insp.workDone;
+  var _wStart = window.tsMs((relatedOrder && relatedOrder.workStartedAt) || insp.workStartedAt);
+  var _wDur   = (relatedOrder && relatedOrder.workDurationMs) || insp.workDurationMs || 0;
+  var workHtml = '';
+  if(roStatus!=='returned'){
+    if(_wdDone){
+      var _wEnd = window.tsMs((relatedOrder && relatedOrder.workDoneAt) || insp.workDoneAt);
+      var shownDur = _wDur || (_wStart ? (_wEnd-_wStart) : 0);
+      workHtml = '<div style="background:#eaf7ee;border:1px solid var(--gm);border-radius:12px;padding:14px;margin-bottom:12px;text-align:center">'
+        +'<div style="font-size:.74rem;color:var(--green);font-weight:800;margin-bottom:4px">✅ تم إنهاء العمل</div>'
+        +'<div style="font-size:1.4rem;font-weight:900;color:var(--green);font-variant-numeric:tabular-nums">⏱ '+window.fmtDur(shownDur)+'</div>'
+        +'<div style="font-size:.7rem;color:var(--muted)">إجمالي مدة العمل</div>'
+      +'</div>';
+    } else if(_wStart){
+      workHtml = '<div style="background:#eef6ff;border:1px solid #cfe0f5;border-radius:12px;padding:14px;margin-bottom:12px;text-align:center">'
+        +'<div style="font-size:.74rem;color:#1a4a8a;font-weight:800;margin-bottom:4px">▶️ العمل جارٍ — يُحتسب الوقت</div>'
+        +'<div id="work-timer-live" data-start="'+_wStart+'" style="font-size:1.7rem;font-weight:900;color:#1a4a8a;font-variant-numeric:tabular-nums;letter-spacing:1px">00:00:00</div>'
+      +'</div>'
+      +'<button onclick="openWorkDoneModal(\''+inspId+'\')" style="width:100%;padding:13px;background:#0a5a2a;color:#fff;border:none;border-radius:10px;font-family:Cairo,sans-serif;font-size:.92rem;font-weight:900;cursor:pointer;margin-bottom:12px">🛠 أنهيت عملي</button>';
+    } else {
+      if(relatedQuote){
+        workHtml = '<button onclick="startWork(\''+inspId+'\')" style="width:100%;padding:13px;background:#1a4a8a;color:#fff;border:none;border-radius:10px;font-family:Cairo,sans-serif;font-size:.92rem;font-weight:900;cursor:pointer;margin-bottom:12px">▶️ بدأت العمل</button>';
+      } else {
+        workHtml = '<div style="text-align:center;color:var(--muted2);font-size:.78rem;margin-bottom:12px">⏱ يظهر زر «بدأت العمل» بعد إضافة عرض السعر / الفاتورة</div>';
+      }
+    }
+  }
 
   var html = '<div class="overlay open" id="modal-svc-detail" style="align-items:flex-end;padding:0" onclick="if(event.target===this)closeModal(\'modal-svc-detail\')">'
     +'<div style="background:#fff;width:100%;max-width:520px;border-radius:20px 20px 0 0;max-height:92vh;overflow-y:auto;box-shadow:0 -8px 40px rgba(0,0,0,0.18);animation:slideUp .25s ease">'
@@ -3792,6 +3869,9 @@ window.openOrderDetailBySvc = function(inspOrId){
     // أزرار تقدّم حالة الكشف
     +progHtml
 
+    // تتبّع وقت العمل (بدأت / مؤقّت / أنهيت)
+    +workHtml
+
     // أزرار الإدارة
     +(isManager?'<div style="display:flex;gap:8px;margin-bottom:8px">'
       +(insp.id?'<button onclick="openSvcRequestModal(\''+inspId+'\');closeModal(\'modal-svc-detail\')" style="flex:1;padding:10px;background:var(--gl);color:var(--green);border:1px solid var(--gm);border-radius:10px;font-family:Cairo,sans-serif;font-size:.82rem;font-weight:700;cursor:pointer">✏️ تعديل الكشف</button>':'')
@@ -3804,6 +3884,7 @@ window.openOrderDetailBySvc = function(inspOrId){
     +'</div></div></div>';
 
   document.body.insertAdjacentHTML('beforeend', html);
+  if(document.getElementById('work-timer-live')) window.startWorkTimer();
 };
 
 window.updateSvcQuotePrice = function(qid, subtotal, source){
