@@ -1948,6 +1948,7 @@ function renderDashboard(){
   // التقرير "تم إنهاء حسابه" إذا له finished أو settledAt (يتم من قسم التقارير فقط)
   var rptDayMap = {};
   (_delReports||[]).forEach(function(r){
+    if(r.type==='auto') return; // تجاهل التقارير التلقائية (لقطات يومية) — لا تُحتسب كـ"غير منتهية"
     var dk = r.dateFrom || r.dateTo
            || (r.savedAt&&r.savedAt.toDate?r.savedAt.toDate().toISOString().substring(0,10):null);
     if(!dk) return;
@@ -2838,16 +2839,16 @@ window.updateOrderStatus = async function(id, status, forceKnet){
       } else {
         toast(t('delivered_btn'));
       }
-      // تحقق إذا هذا آخر طلب نشط للمندوب → حفظ تلقائي للتقرير
-      setTimeout(function(){
-        var myId = order.courierId;
-        var remaining = _orders.filter(function(o){
-          return (o.courierId===myId) && o.status!=='delivered' && o.status!=='returned' && o.orderType!=='inspection';
-        });
-        if(remaining.length === 0){
-          autoSaveDailyReport(myId);
-        }
-      }, 2000);
+      // حفظ تلقائي للتقرير معطّل — كان ينشئ تقارير "auto" غير ظاهرة تربك لوحة التحكم
+      // setTimeout(function(){
+      //   var myId = order.courierId;
+      //   var remaining = _orders.filter(function(o){
+      //     return (o.courierId===myId) && o.status!=='delivered' && o.status!=='returned' && o.orderType!=='inspection';
+      //   });
+      //   if(remaining.length === 0){
+      //     autoSaveDailyReport(myId);
+      //   }
+      // }, 2000);
     }
     // إذا كان delivered قبل وتم تغييره (تراجع)
     else if(prevStatus==='delivered' && status!=='delivered' && order.orderType!=='inspection' && order.courierId){
