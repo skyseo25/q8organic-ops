@@ -895,6 +895,17 @@ tbody tr[onclick]:active { background: #d8f0e2 !important; }
             <div id="backup-status" style="margin-top:12px;font-size:.8rem;color:var(--muted2)"></div>
           </div>
         </div>
+        <!-- تنظيف بيانات الاختبار (للمدير) -->
+        <div class="sec-card" id="cleanup-card" style="margin-top:20px;border:1px solid #f5b8b4">
+          <div class="sec-header"><h3 style="color:var(--red)">🧹 تنظيف بيانات الاختبار</h3></div>
+          <div style="padding:16px;">
+            <p style="font-size:.83rem;color:var(--muted);margin-bottom:14px">إجراءات لا يمكن التراجع عنها — استخدمها لتصفير البيانات بعد الاختبار.</p>
+            <div style="display:flex;gap:10px;flex-wrap:wrap;">
+              <button class="btn btn-sm" style="background:var(--redl);color:var(--red);border:none;font-weight:700" onclick="clearAllSvcBonuses()">🗑 حذف كل مكافآت الخدمات</button>
+              <button class="btn btn-sm" style="background:var(--redl);color:var(--red);border:none;font-weight:700" onclick="resetAllBalances()">💰 تصفير أرصدة المكافآت لكل الموظفين</button>
+            </div>
+          </div>
+        </div>
       </div>
 
     </div><!-- /content -->
@@ -3690,6 +3701,35 @@ window.resetCourierBalance=async function(id,name,bal){
   try{
     await window.FB.upd(window.FB.doc(window.FB.db,'ops_users',id),{balance:0,lastPaid:parseFloat(bal),lastPaidAt:window.FB.ts(),updatedAt:window.FB.ts()});
     toast('✅ تم دفع '+parseFloat(bal).toFixed(3)+' KD وتصفير رصيد '+name);
+  }catch(e){ toast('خطأ: '+e.message); }
+};
+
+// حذف كل سجلات مكافآت الخدمات (للمدير — بيانات اختبار)
+window.clearAllSvcBonuses = async function(){
+  if(_role!=='manager'){ toast('هذا الإجراء للمدير فقط'); return; }
+  var n = (_svcBonuses||[]).length;
+  if(!n){ toast('لا توجد مكافآت خدمات'); return; }
+  if(!confirm('⚠️ حذف كل مكافآت الخدمات ('+n+' سجل) نهائياً؟ لا يمكن التراجع.')) return;
+  try{
+    var list = (_svcBonuses||[]).slice();
+    for(var i=0;i<list.length;i++){
+      await window.FB.del(window.FB.doc(window.FB.db,'ops_svc_bonuses',list[i].id));
+    }
+    toast('🗑 تم حذف '+n+' مكافأة خدمة');
+  }catch(e){ toast('خطأ: '+e.message); }
+};
+
+// تصفير أرصدة المكافآت لكل الموظفين (للمدير — بيانات اختبار)
+window.resetAllBalances = async function(){
+  if(_role!=='manager'){ toast('هذا الإجراء للمدير فقط'); return; }
+  if(!confirm('⚠️ تصفير رصيد المكافأة لكل الموظفين؟ لا يمكن التراجع.')) return;
+  try{
+    var emps = (_sysUsers||[]).filter(function(u){ return parseFloat(u.balance||0)!==0; });
+    if(!emps.length){ toast('كل الأرصدة مُصفّرة'); return; }
+    for(var i=0;i<emps.length;i++){
+      await window.FB.upd(window.FB.doc(window.FB.db,'ops_users',emps[i].id),{balance:0,updatedAt:window.FB.ts()});
+    }
+    toast('💰 تم تصفير '+emps.length+' رصيد');
   }catch(e){ toast('خطأ: '+e.message); }
 };
 
