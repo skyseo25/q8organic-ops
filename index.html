@@ -4771,7 +4771,7 @@ function buildPrintDoc(opts){
     +'</tr>';
   }).join('');
   var emptyRows='';
-  var need = Math.max(0, 4-(opts.items||[]).length);
+  var need = Math.max(0, 12-(opts.items||[]).length);
   for(var k=0;k<need;k++){ emptyRows+='<tr><td class="c">&nbsp;</td><td></td><td></td></tr>'; }
 
   var totRows='';
@@ -4813,8 +4813,8 @@ function buildPrintDoc(opts){
     +'.addr{text-align:center;font-weight:800;font-size:.86rem;margin-bottom:3px}'
     +'.secbar{background:#2f7d32;color:#fff;text-align:center;font-weight:800;padding:8px;border-radius:10px;margin:7px 0 0;font-size:.9rem}'
     +'table{width:100%;border-collapse:collapse}'
-    +'.itbl th{background:#eaf3e7;color:#2f7d32;border:1px solid #bcd3b3;padding:8px;font-size:.82rem;font-weight:800}'
-    +'.itbl td{border:1px solid #bcd3b3;padding:8px;font-size:.82rem}'
+    +'.itbl th{background:#eaf3e7;color:#2f7d32;border:1px solid #bcd3b3;padding:6px 8px;font-size:.8rem;font-weight:800}'
+    +'.itbl td{border:1px solid #bcd3b3;padding:5px 8px;font-size:.8rem}'
     +'.itbl td.c{text-align:center}.itbl td.r{text-align:right}'
     +'.below{display:flex;margin-top:12px}.below .sp{flex:1}.below .tot{flex:0 0 240px}'
     +'.trw{display:flex;justify-content:space-between;padding:3px 2px;font-size:.82rem}'
@@ -4822,8 +4822,7 @@ function buildPrintDoc(opts){
     +'.totbox .lbl{color:#2f7d32;font-weight:800;font-size:1.05rem}.totbox .val{font-weight:900;font-size:1.15rem;color:#1a7a40}'
     +'.terms{font-size:.72rem;line-height:1.75;color:#26341f;margin-top:14px}'
     +'.terms .ttl{color:#2f7d32;font-weight:900;font-size:.85rem;margin-bottom:4px}'
-    +'.foot{display:flex;align-items:center;justify-content:center;gap:16px;flex-wrap:wrap;border-top:2px solid #5f8d3e;margin-top:16px;padding-top:10px;color:#2f7d32;font-weight:700;font-size:.78rem}'
-    +'.foot img{width:60px}'
+    +'.greenmark{text-align:center;color:#2f7d32;font-weight:900;font-size:1.6rem;font-family:Cairo,sans-serif;margin-top:22px}'
     +'@media print{@page{margin:8mm}}'
     +'</style></head><body><div class="page">'
     +'<table class="hdrt"><tr>'
@@ -4837,14 +4836,13 @@ function buildPrintDoc(opts){
       +((isInv&&invNo)?'<div class="invno"><span class="lbl">رقم الفاتورة / </span>'+invNo+'</div>':'<div></div>')
     +'</div>'
     +'<div class="subt">'+subtitle+'</div>'
-    +(clientName?'<div class="addr"><span class="lbl">العميل / </span>'+clientName+(phone?'&nbsp;&nbsp;&nbsp;<span class="lbl">هاتف / </span>'+phone:'')+'</div>':(phone?'<div class="addr"><span class="lbl">هاتف / </span>'+phone+'</div>':''))
-    +(addrInline?'<div class="addr"><span class="lbl">العنوان / </span>'+addrInline+'</div>':'')
+    +((addrInline||phone)?'<div class="addr">'+(addrInline?'<span class="lbl">العنوان / </span>'+addrInline:'')+(phone?(addrInline?'&nbsp;&nbsp;&nbsp;&nbsp;':'')+'<span class="lbl">هاتف / </span>'+phone:'')+'</div>':'')
     +'<div class="secbar">الاصناف والخدمات المطلوبة</div>'
     +'<table class="itbl"><thead><tr><th style="width:40px">#</th><th>البيان / الصنف</th><th style="width:130px">الكمية</th></tr></thead>'
     +'<tbody>'+rows+emptyRows+'</tbody></table>'
     +'<div class="below"><div class="sp"></div><div class="tot">'+totRows+'<div class="totbox"><span class="lbl">المجموع</span><span class="val">'+final.toFixed(3)+' دك</span></div></div></div>'
     +'<div class="terms"><div class="ttl">احكام وشروط العقد</div>'+terms+'</div>'
-    +'<div class="foot"><img src="'+(window.Q8_LOGO||'')+'"><span>📞 +965 94403090</span><span>✉️ q8organic19@gmail.com</span><span>🌐 q8organic.com</span></div>'
+    +'<div class="greenmark">اللون الاخضر يبدأ من هنا</div>'
     +'</div></body></html>';
 }
 
