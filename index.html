@@ -1400,6 +1400,7 @@ var _orders = [], _archived = [], _iriUsers = [], _delUsers = [];
 var _invoices = [], _inspections = [], _customers = [], _sysUsers = [];
 var _delReports = [], _iriItems = [];
 var _rptAckMs = 0; // آخر وقت ضغط فيه المدير على "اطّلعت" (ms)
+var _opsSettings = {}; // إعدادات عامة (منها مكافآت التوصيل)
 var _loginRole = 'manager';
 
 
@@ -1706,8 +1707,8 @@ function startApp(){
   loadItems();
   loadQuotes();
   setupListeners();
-  // المندوب (_source=del) يذهب لصفحته الخاصة
-  if(_u._source === 'del'){
+  // الموظف (مندوب) يذهب لصفحته الخاصة
+  if(_role === 'employee'){
     showPage('courier');
   } else {
     showPage('dashboard');
@@ -1727,8 +1728,8 @@ function updateUI(){
 // SIDEBAR
 // ══════════════════════════════════════════════
 function getNavItems(){
-  // المندوب (del) له قائمة خاصة
-  if(_u && _u._source === 'del'){
+  // الموظف (مندوب) له قائمة خاصة
+  if(_role === 'employee'){
     return [
       {id:'courier',    icon:'🚚', ar:'طلباتي',          en:'My Orders',      roles:['employee']},
       {id:'irrigation', icon:'➕', ar:'خدماتي',  en:'My Services',      roles:['employee']},
@@ -1838,8 +1839,9 @@ function setupListeners(){
     _archived=sn.docs.map(function(x){return Object.assign({id:x.id},x.data());});
     if(_curPage==='archive') renderArchive();
   });
-  FB.snap(FB.q(FB.col(d,'del_users'),FB.ord('createdAt','asc')),function(sn){
-    _delUsers=sn.docs.map(function(x){return Object.assign({id:x.id},x.data());});
+  FB.snap(FB.col(d,'ops_users'),function(sn){
+    // النظام الموحّد: المناديب = الموظفون بدور "موظف"
+    _delUsers=sn.docs.map(function(x){return Object.assign({id:x.id},x.data());}).filter(function(u){return (u.role||'employee')==='employee';});
     populateCourierSelect();
     if(_curPage==='employees') renderEmployees();
     if(_curPage==='reports') renderReports();
@@ -1881,16 +1883,47 @@ function setupListeners(){
   });
   FB.snap(FB.doc(d,'ops_settings','config'),function(sn){
     var cfg = sn && sn.exists && sn.exists() ? sn.data() : (sn && sn.data ? sn.data() : null);
+    _opsSettings = cfg || {};
     if(cfg && typeof cfg.rptAckMs==='number') _rptAckMs = cfg.rptAckMs;
     if(cfg && Array.isArray(cfg.itemCategories) && cfg.itemCategories.length) _itemCats = cfg.itemCategories;
     if(_curPage==='items') renderItemsCatalog();
     if(_curPage==='dashboard') renderDashboard();
+    if(_curPage==='reports') renderReports();
+    if(_curPage==='settings' && typeof renderBonusSettings==='function') renderBonusSettings();
   });
 }
 
 // ══════════════════════════════════════════════
 // DASHBOARD
 // ══════════════════════════════════════════════
+// حساب مكافأة التوصيل (مركزي): مكافأة مندوب خاصة > عرض عام لفترة > الافتراضي (أيام الأسبوع/الجمعة)
+function getBonusForDate(dt, courierId){
+  if(!dt) dt = new Date();
+  var dstr = dt.toISOString().substring(0,10);
+  var s = _opsSettings||{};
+  // 1) مكافأة خاصة بمندوب معيّن
+  var u = (_delUsers||[]).find(function(x){return x.id===courierId||x.username===courierId;});
+  if(u && u.customBonus && u.customBonus.amount!=null && u.customBonus.amount!==''){
+    var cb=u.customBonus;
+    var inR = (!cb.from || dstr>=cb.from) && (!cb.to || dstr<=cb.to);
+    if(inR) return parseFloat(cb.amount)||0;
+  }
+  // 2) عرض/مكافأة عامة لفترة محددة
+  if(s.bonusPromo && s.bonusPromo.amount!=null && s.bonusPromo.amount!==''){
+    var p=s.bonusPromo;
+    if((!p.from||dstr>=p.from)&&(!p.to||dstr<=p.to)) return parseFloat(p.amount)||0;
+  }
+  // 3) المكافأة الافتراضية
+  var wd = (s.bonusWeekday!=null&&s.bonusWeekday!=='')?parseFloat(s.bonusWeekday):0.25;
+  var fr = (s.bonusFriday!=null&&s.bonusFriday!=='')?parseFloat(s.bonusFriday):0.5;
+  return dt.getDay()===5 ? fr : wd;
+}
+function getBonusForOrder(o){
+  var dt = o.deliveredAt&&o.deliveredAt.toDate ? o.deliveredAt.toDate()
+         : o.createdAt&&o.createdAt.toDate ? o.createdAt.toDate() : new Date();
+  return getBonusForDate(dt, o.courierId);
+}
+
 // اسم اليوم بالعربي من تاريخ YYYY-MM-DD
 function dayNameAr(dateStr){
   var days=['الأحد','الإثنين','الثلاثاء','الأربعاء','الخميس','الجمعة','السبت'];
@@ -2397,9 +2430,7 @@ function calcBonus(orders){
   orders.forEach(function(o){
     if(o.status !== 'delivered') return;
     if(o.orderType === 'inspection') return;
-    var dt = o.createdAt && o.createdAt.toDate ? o.createdAt.toDate() : new Date();
-    var day = dt.getDay(); // 5 = Friday
-    total += (day === 5) ? 0.5 : 0.25;
+    total += getBonusForOrder(o);
   });
   return total;
 }
@@ -2672,7 +2703,7 @@ window.renderCourierView = function(){
     var sCl    = ST_CL[o.status]||'st-gray';
     var isDone = o.status==='delivered'||o.status==='inspected'||o.status==='closed'||o.status==='returned';
     var csStatus = 'status-'+(o.status==='assigned'?'pending':o.status);
-    var bon = (!isInsp&&o.status==='delivered')?(function(){var dt=o.createdAt&&o.createdAt.toDate?o.createdAt.toDate():new Date();return dt.getDay()===5?0.5:0.25;})():0;
+    var bon = (!isInsp&&o.status==='delivered')?getBonusForOrder(o):0;
 
     var addr = [o.area?(_lang==='en'?translateArea(o.area):o.area):'', o.block?((_lang==='ar'?'ق':'B.')+o.block):'', o.street?((_lang==='ar'?'ش':'St.')+o.street):'', o.avenue?((_lang==='ar'?'ج':'Av.')+o.avenue):'', o.house?((_lang==='ar'?'م':'H.')+o.house):''].filter(Boolean).join(' \u2014 ') || o.address || '';
 
@@ -2837,7 +2868,7 @@ window.updateOrderStatus = async function(id, status, forceKnet){
       var courier = _delUsers.find(function(u){ return u.id===order.courierId || u.username===order.courierId; });
       if(courier){
         var newBal = parseFloat(courier.balance||0) + bonusAmt;
-        await window.FB.upd(window.FB.doc(window.FB.db,'del_users',courier.id),{balance:newBal,updatedAt:window.FB.ts()});
+        await window.FB.upd(window.FB.doc(window.FB.db,'ops_users',courier.id),{balance:newBal,updatedAt:window.FB.ts()});
         toast('✅ تم التسليم · مكافأة +'+bonusAmt.toFixed(3)+' KD');
       } else {
         toast(t('delivered_btn'));
@@ -2860,7 +2891,7 @@ window.updateOrderStatus = async function(id, status, forceKnet){
       var courierR = _delUsers.find(function(u){ return u.id===order.courierId || u.username===order.courierId; });
       if(courierR){
         var newBalR = Math.max(0, parseFloat(courierR.balance||0) - bonusR);
-        await window.FB.upd(window.FB.doc(window.FB.db,'del_users',courierR.id),{balance:newBalR,updatedAt:window.FB.ts()});
+        await window.FB.upd(window.FB.doc(window.FB.db,'ops_users',courierR.id),{balance:newBalR,updatedAt:window.FB.ts()});
       }
       toast(status==='returned'?t('returned_btn'):'✅ تم التحديث');
     }
@@ -3470,7 +3501,7 @@ window.toggleSuspend=async function(id, currentlySuspended){
 window.resetCourierBalance=async function(id,name,bal){
   if(!confirm('تأكيد دفع مكافأة '+name+' بقيمة '+parseFloat(bal).toFixed(3)+' KD وتصفير رصيده؟'))return;
   try{
-    await window.FB.upd(window.FB.doc(window.FB.db,'del_users',id),{balance:0,lastPaid:parseFloat(bal),lastPaidAt:window.FB.ts(),updatedAt:window.FB.ts()});
+    await window.FB.upd(window.FB.doc(window.FB.db,'ops_users',id),{balance:0,lastPaid:parseFloat(bal),lastPaidAt:window.FB.ts(),updatedAt:window.FB.ts()});
     toast('✅ تم دفع '+parseFloat(bal).toFixed(3)+' KD وتصفير رصيد '+name);
   }catch(e){ toast('خطأ: '+e.message); }
 };
@@ -5401,7 +5432,7 @@ window.settleReport = async function(courierId, name, dateFrom, dateTo){
       type:'settlement'
     });
     // تحديث رصيد المندوب
-    await window.FB.upd(window.FB.doc(window.FB.db,'del_users',courierId),{balance:0,lastPaid:bonus,lastPaidAt:window.FB.ts(),updatedAt:window.FB.ts()});
+    await window.FB.upd(window.FB.doc(window.FB.db,'ops_users',courierId),{balance:0,lastPaid:bonus,lastPaidAt:window.FB.ts(),updatedAt:window.FB.ts()});
     // وسم تقارير هذا المندوب المعلّقة ضمن الفترة كـ "منتهية الحساب" حتى تختفي من لوحة التحكم
     var pendingRpts = (_delReports||[]).filter(function(r){
       if(r.finished===true || r.settledAt) return false;
@@ -5854,7 +5885,7 @@ window.deleteReport = async function(rptId){
 window.openArchiveDetail = function(rptId){
   var r = (_delReports||[]).find(function(x){return x.id===rptId;});
   if(!r) return;
-  var isCourier = _u && _u._source==='del';
+  var isCourier = _role==='employee';
   var canEdit   = _role==='manager' || _role==='supervisor';
   var dt = r.settledAt&&r.settledAt.toDate ? r.settledAt.toDate().toLocaleString(_lang==='ar'?'ar-KW':'en-GB') : (r.dateFrom||'—');
 
