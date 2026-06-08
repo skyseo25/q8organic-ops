@@ -543,14 +543,6 @@ tbody tr[onclick]:active { background: #d8f0e2 !important; }
           </button>
         </div>
 
-        <!-- تبويبات الباقي (فواتير / عروض / أرشيف) — للمدير فقط -->
-        <div id="irr-manager-tabs" style="display:flex;gap:8px;margin-bottom:20px;flex-wrap:wrap;">
-          <button class="btn btn-ghost"  onclick="showIrrTab('svc')"   id="irr-tab-svc">📋 طلبات الخدمة</button>
-          <button class="btn btn-ghost"  onclick="showIrrTab('inv')"   id="irr-tab-inv">🧾 فواتير</button>
-          <button class="btn btn-ghost"  onclick="showIrrTab('quote')" id="irr-tab-quote">💰 عروض الأسعار</button>
-          <button class="btn btn-ghost"  onclick="showIrrTab('arch')"  id="irr-tab-arch">📦 أرشيف</button>
-        </div>
-
         <!-- ── طلب خدمة ── -->
         <div id="irr-svc" class="irr-tab-content" style="display:none">
           <div class="sec-card">
