@@ -26,6 +26,8 @@ body{font-family:'Cairo',sans-serif;background:var(--bg);color:var(--text);min-h
 #loading.show{display:flex;}
 .spin{width:36px;height:36px;border:3px solid var(--gm);border-top-color:var(--green);border-radius:50%;animation:spin .7s linear infinite;}
 @keyframes spin{to{transform:rotate(360deg);}}
+@keyframes blinkRed{0%,100%{opacity:1}50%{opacity:.25}}
+.backup-warn{display:inline-flex;align-items:center;gap:4px;background:#ffe5e5;color:#c62828;border:1px solid #ef5350;border-radius:14px;padding:2px 9px;font-size:.7rem;font-weight:800;margin-right:6px;animation:blinkRed 1s ease-in-out infinite;cursor:default}
 
 /* ── TOAST ── */
 #toast{position:fixed;top:18px;left:50%;transform:translateX(-50%);z-index:9998;background:#0f2318;color:#fff;border-radius:30px;padding:10px 24px;font-size:.85rem;font-weight:600;opacity:0;transition:opacity .3s;pointer-events:none;white-space:nowrap;}
@@ -428,6 +430,7 @@ tbody tr[onclick]:active { background: #d8f0e2 !important; }
       </div>
       <div class="topbar-right">
         <span id="topbar-date" style="font-size:.78rem;color:var(--muted2);"></span>
+        <span id="backup-warn" class="backup-warn" style="display:none">⚠️ <span id="backup-warn-lbl"></span></span>
         <span id="topbar-backup" style="font-size:.72rem;color:var(--muted2);display:none">💾 <span id="backup-time-lbl">—</span></span>
         <!-- زر اللغة في التوبار -->
         <div style="display:flex;gap:4px;background:var(--bg);border-radius:20px;padding:3px;border:1px solid var(--border)">
@@ -703,6 +706,13 @@ tbody tr[onclick]:active { background: #d8f0e2 !important; }
           <div class="dash-card-icon blue" style="width:36px;height:36px;font-size:1rem">👥</div>
           <h2>قاعدة العملاء</h2>
         </div>
+        <div class="sec-card" style="margin-bottom:16px">
+          <div class="sec-header">
+            <h3>🏆 أكثر 10 عملاء طلباً</h3>
+            <span id="cust-total-badge" class="tag tag-green" style="font-size:.82rem;font-weight:800"></span>
+          </div>
+          <div id="cust-top10" style="padding:4px 6px 8px"></div>
+        </div>
         <div class="sec-card">
           <div class="sec-header">
             <h3>العملاء</h3>
@@ -715,7 +725,7 @@ tbody tr[onclick]:active { background: #d8f0e2 !important; }
             </div>
           </div>
           <div class="tbl-wrap"><table><thead><tr>
-            <th>الاسم</th><th>الهاتف</th><th>المنطقة</th><th>العنوان</th><th>الخدمات</th><th></th>
+            <th>#</th><th>الاسم</th><th>الهاتف</th><th>المنطقة</th><th>العنوان</th><th>الطلبات</th><th></th>
           </tr></thead><tbody id="customers-tbody"></tbody></table></div>
         </div>
       </div>
@@ -2358,7 +2368,7 @@ window.saveOrder = async function(){
       await window.FB.add(window.FB.col(window.FB.db,'del_orders'),data);
       toast(_lang==='ar'?'✅ تم إضافة الطلب':'✅ Order added');
     }
-    await autoSaveCustomer(data.clientName, data.phone, data.area, data.block, data.street||'', data.avenue||'', data.house||'', data.address, data.locationLink);
+    await autoSaveCustomer(data.clientName, data.phone, data.area, data.block, data.street||'', data.avenue||'', data.house||'', data.address, data.locationLink, !eid);
     closeModal('modal-order');
   }finally{_savingOrder=false;}
 };
@@ -3190,20 +3200,45 @@ window.delInsp=async function(id){if(!confirm(_lang==='ar'?'حذف هذا الط
 window.renderCustomers = function(){
   var q=(document.getElementById('cust-search')||{}).value||'';
   var list=_customers.filter(function(c){return !q||(c.name||'').includes(q)||(c.phone||'').includes(q)||(c.area||'').includes(q);});
-  document.getElementById('customers-tbody').innerHTML=list.map(function(c){
+  // ترتيب حسب عدد الطلبات (الأكثر أولاً)
+  list.sort(function(a,b){ return (b.serviceCount||0)-(a.serviceCount||0); });
+
+  // شارة إجمالي العملاء
+  var totalBadge = document.getElementById('cust-total-badge');
+  if(totalBadge) totalBadge.textContent = (_lang==='ar'?'إجمالي العملاء: ':'Total customers: ')+_customers.length;
+
+  // لوحة أكثر 10 عملاء طلباً
+  var topEl = document.getElementById('cust-top10');
+  if(topEl){
+    var top = _customers.slice().sort(function(a,b){return (b.serviceCount||0)-(a.serviceCount||0);}).slice(0,10)
+              .filter(function(c){return (c.serviceCount||0)>0;});
+    var medals=['🥇','🥈','🥉'];
+    topEl.innerHTML = top.map(function(c,i){
+      var rank = medals[i]||((i+1)+'.');
+      return '<div style="display:flex;align-items:center;gap:10px;padding:8px 4px;border-bottom:1px solid var(--border)">'
+        +'<span style="font-weight:800;width:30px;text-align:center;font-size:.95rem">'+rank+'</span>'
+        +'<div style="flex:1;min-width:0"><div style="font-weight:700">'+(c.name||'—')+'</div>'
+          +'<div style="font-size:.74rem;color:var(--muted)">'+(c.phone||'')+(c.area?' · '+c.area:'')+'</div></div>'
+        +'<span class="tag tag-green" style="font-size:.78rem;font-weight:800">'+(c.serviceCount||0)+(_lang==='ar'?' طلب':' orders')+'</span>'
+      +'</div>';
+    }).join('') || '<div style="text-align:center;color:var(--muted2);padding:14px;font-size:.85rem">'+(_lang==='ar'?'لا توجد طلبات بعد':'No orders yet')+'</div>';
+  }
+
+  document.getElementById('customers-tbody').innerHTML=list.map(function(c,idx){
     var addr = [c.area, c.block?'ق'+c.block:'', c.street?'ش'+c.street:'', c.avenue?'ج'+c.avenue:'', c.house?'م'+c.house:''].filter(Boolean).join(' · ') || c.address || '—';
     return '<tr>'
+      +'<td style="color:var(--muted2);text-align:center;font-size:.8rem;font-weight:700">'+(idx+1)+'</td>'
       +'<td><b>'+(c.name||'—')+'</b></td>'
       +'<td><a href="tel:'+(c.phone||'')+'" style="color:var(--green);text-decoration:none">'+(c.phone||'—')+'</a></td>'
       +'<td style="font-size:.8rem">'+(addr).substring(0,35)+'</td>'
-      +'<td><span class="tag tag-gray" style="font-size:.7rem">'+(c.serviceCount||0)+' خدمة</span></td>'
+      +'<td><span class="tag tag-green" style="font-size:.72rem;font-weight:700">'+(c.serviceCount||0)+(_lang==='ar'?' طلب':' orders')+'</span></td>'
       +'<td style="display:flex;gap:5px;flex-wrap:wrap">'
         +'<button class="btn-green btn-sm" style="padding:4px 10px;font-size:.75rem" onclick="openQuickOrder(\''+c.id+'\')">+ طلب جديد</button>'
         +'<button class="btn-edit-sm" onclick="openCustomerModal(\''+c.id+'\')">'+t('edit')+'</button>'
         +(_role==='manager'?'<button class="btn-danger" onclick="delCustomer(\''+c.id+'\')">✕</button>':'')
       +'</td>'
     +'</tr>';
-  }).join('')||'<tr><td colspan="5" class="empty">لا يوجد عملاء</td></tr>';
+  }).join('')||'<tr><td colspan="7" class="empty">لا يوجد عملاء</td></tr>';
 };
 
 window.openQuickOrder = function(custId){
@@ -4052,7 +4087,7 @@ document.addEventListener('click', function(e){
 });
 
 // حفظ / تحديث بيانات العميل تلقائياً عند إضافة طلب
-async function autoSaveCustomer(name, phone, area, block, street, avenue, house, address, locationLink){
+async function autoSaveCustomer(name, phone, area, block, street, avenue, house, address, locationLink, incOrder){
   if(!name && !phone) return;
   var existing = _customers.find(function(c){ return c.phone && c.phone===phone; });
   var custData = {
@@ -4064,10 +4099,11 @@ async function autoSaveCustomer(name, phone, area, block, street, avenue, house,
   };
   try{
     if(existing){
+      if(incOrder) custData.serviceCount = (existing.serviceCount||0)+1; // زيادة عدّاد الطلبات
       await window.FB.upd(window.FB.doc(window.FB.db,'ops_customers',existing.id), custData);
     } else {
       custData.createdAt  = window.FB.ts();
-      custData.serviceCount = 1;
+      custData.serviceCount = incOrder ? 1 : 0;
       await window.FB.add(window.FB.col(window.FB.db,'ops_customers'), custData);
     }
   }catch(e){ console.warn('autoSaveCustomer:', e); }
@@ -5369,11 +5405,25 @@ window.settleReport = async function(courierId, name, dateFrom, dateTo){
   },0);
   var settledBy = _u.name||_u.username;
   try{
-    // حفظ التقرير في del_reports
+    // نسخة من الطلبات المُسلّمة تُحفظ داخل التقرير قبل حذفها من قاعدة البيانات
+    var batch = myOrds.filter(function(o){return o.status==='delivered';});
+    var orderSnap = batch.map(function(o){
+      return {
+        clientName:o.clientName||'', phone:o.phone||'',
+        area:o.area||'', block:o.block||'', street:o.street||'', avenue:o.avenue||'', house:o.house||'',
+        address:o.address||'', locationLink:o.locationLink||'',
+        amount:parseFloat(o.amount||0), paymentType:o.paymentType||'',
+        status:o.status||'', orderNum:o.orderNum||'', notes:o.notes||'',
+        courierId:o.courierId||'', courierName:o.courierName||'',
+        deliveredAt:o.deliveredAt||null, createdAt:o.createdAt||null
+      };
+    });
+    // حفظ التقرير في del_reports (مع تفاصيل الطلبات)
     await window.FB.add(window.FB.col(window.FB.db,'del_reports'),{
       courierId:u.id, courierName:u.name,
       dateFrom:range.from, dateTo:range.to,
       totalOrders:myOrds.length, delivered, bonus, cash, knet,
+      orders: orderSnap,
       settledBy, settledAt:window.FB.ts(),
       savedAt:window.FB.ts(),
       type:'settlement'
@@ -5393,10 +5443,9 @@ window.settleReport = async function(courierId, name, dateFrom, dateTo){
         {finished:true, finishedBy:settledBy, finishedAt:window.FB.ts()});
       pendingRpts[pr].finished = true; pendingRpts[pr].finishedBy = settledBy;
     }
-    // تمييز الطلبات كـ "منتهية الحساب" حتى لا تظهر في التقارير مرة ثانية
-    var batch = myOrds.filter(function(o){return o.status==='delivered';});
+    // حذف الطلبات المُسلّمة نهائياً (تفاصيلها محفوظة داخل التقرير + بيانات العميل في قاعدة العملاء)
     for(var bi=0;bi<batch.length;bi++){
-      await window.FB.upd(window.FB.doc(window.FB.db,'del_orders',batch[bi].id),{settled:true,settledAt:window.FB.ts()});
+      await window.FB.del(window.FB.doc(window.FB.db,'del_orders',batch[bi].id));
     }
     toast('✅ تم إنهاء حساب '+name+' وحفظه في الأرشيف');
     printSingleReport(u.name, range.from, range.to, myOrds.length, delivered, bonus, cash, knet, settledBy);
@@ -5793,12 +5842,27 @@ window.restoreReport = async function(rptId){
   if(!confirm('استعادة هذا التقرير إلى صفحة التقارير؟')) return;
   // إزالة علامة settlement حتى يعود للتقارير النشطة
   await window.FB.upd(window.FB.doc(window.FB.db,'del_reports',rptId),{type:'report_restored', restoredAt:window.FB.ts(), restoredBy:_u.id||_u.username});
-  // استعادة الطلبات المرتبطة (إزالة settled)
+  // استعادة الطلبات: التقارير الجديدة تُعاد من النسخة المحفوظة، والقديمة بإزالة وسم settled
   var rpt = (_delReports||[]).find(function(x){return x.id===rptId;});
-  if(rpt){
+  if(rpt && Array.isArray(rpt.orders) && rpt.orders.length){
+    for(var i=0;i<rpt.orders.length;i++){
+      var o = rpt.orders[i];
+      await window.FB.add(window.FB.col(window.FB.db,'del_orders'), {
+        clientName:o.clientName||'', phone:o.phone||'',
+        area:o.area||'', block:o.block||'', street:o.street||'', avenue:o.avenue||'', house:o.house||'',
+        address:o.address||'', locationLink:o.locationLink||'',
+        amount:parseFloat(o.amount||0), paymentType:o.paymentType||'',
+        status:o.status||'delivered', orderType:'delivery',
+        orderNum:o.orderNum||'', notes:o.notes||'',
+        courierId:o.courierId||rpt.courierId||'', courierName:o.courierName||rpt.courierName||'',
+        deliveredAt:o.deliveredAt||null, createdAt:o.createdAt||window.FB.ts(),
+        updatedAt:window.FB.ts()
+      });
+    }
+  } else if(rpt){
     var relOrds = _orders.filter(function(o){return o.courierId===rpt.courierId&&o.settled;});
-    for(var i=0;i<relOrds.length;i++){
-      await window.FB.upd(window.FB.doc(window.FB.db,'del_orders',relOrds[i].id),{settled:false,updatedAt:window.FB.ts()});
+    for(var j=0;j<relOrds.length;j++){
+      await window.FB.upd(window.FB.doc(window.FB.db,'del_orders',relOrds[j].id),{settled:false,updatedAt:window.FB.ts()});
     }
   }
   toast('↩ تم استعادة التقرير');
@@ -5845,6 +5909,22 @@ window.openArchiveDetail = function(rptId){
       +'</div>'
     +'</div>'
     +'<div style="font-size:.8rem;color:var(--muted);text-align:center;margin-bottom:16px">تم الإنهاء بواسطة: <b>'+( r.settledBy||'—')+'</b></div>';
+
+  if(Array.isArray(r.orders) && r.orders.length){
+    html += '<div style="border-top:1px solid var(--border);padding-top:12px;margin-bottom:14px">'
+      +'<div style="font-size:.78rem;font-weight:700;color:var(--muted);margin-bottom:8px">📋 تفاصيل الطلبات ('+r.orders.length+')</div>'
+      +'<div style="max-height:220px;overflow:auto;display:flex;flex-direction:column;gap:6px">';
+    r.orders.forEach(function(o,i){
+      var tm = o.deliveredAt&&o.deliveredAt.toDate ? o.deliveredAt.toDate().toLocaleString('en-GB',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}) : '';
+      var pay = o.paymentType==='knet'?'💳 Knet':(o.paymentType==='cash'?'💵 كاش':(o.paymentType==='free'?'—':(o.paymentType||'')));
+      html += '<div style="background:#fff;border:1px solid var(--border);border-radius:8px;padding:8px 10px;font-size:.76rem">'
+        +'<div style="display:flex;justify-content:space-between;gap:8px"><b>'+(i+1)+'. '+(o.clientName||'—')+'</b><span style="font-weight:800">'+parseFloat(o.amount||0).toFixed(3)+' KD</span></div>'
+        +'<div style="color:var(--muted);margin-top:2px">'+(o.area||o.address||'—')+(o.phone?' · '+o.phone:'')+'</div>'
+        +'<div style="color:var(--muted2);margin-top:2px">'+pay+(tm?' · 🕐 '+tm:'')+'</div>'
+      +'</div>';
+    });
+    html += '</div></div>';
+  }
 
   if(canEdit){
     html += '<div style="border-top:1px solid var(--border);padding-top:14px">'
@@ -6078,6 +6158,7 @@ window.doBackup = async function(){
     // حفظ وقت آخر نسخة
     var nowStr = new Date().toLocaleString('ar-KW');
     localStorage.setItem('lastBackupTime', nowStr);
+    localStorage.setItem('lastBackupMs', String(Date.now()));
     updateBackupTime();
     var st = document.getElementById('backup-status');
     if(st) st.textContent = '✅ تم التحميل — '+nowStr;
@@ -6129,7 +6210,25 @@ function updateBackupTime(){
   var el = document.getElementById('backup-time-lbl');
   var wrap = document.getElementById('topbar-backup');
   if(bkTime && el){ el.textContent = t('last_backup')+' '+bkTime; if(wrap) wrap.style.display=''; }
+  // تحذير أحمر يومض إذا مضى أكثر من 72 ساعة على آخر نسخة
+  var warn = document.getElementById('backup-warn');
+  var warnLbl = document.getElementById('backup-warn-lbl');
+  if(warn && warnLbl){
+    var ms = parseInt(localStorage.getItem('lastBackupMs')||'0',10);
+    var hrs = ms ? (Date.now()-ms)/3600000 : 0;
+    if(ms && hrs>=72){
+      var days = Math.floor(hrs/24);
+      warnLbl.textContent = (_lang==='ar'
+        ? 'مضى '+(days>0?days+' يوم على ':'')+'72 ساعة على آخر نسخة احتياطية'
+        : 'Over 72h since last backup');
+      warn.style.display='';
+    } else {
+      warn.style.display='none';
+    }
+  }
 }
+// إعادة فحص التحذير كل 10 دقائق
+setInterval(function(){ try{ updateBackupTime(); }catch(e){} }, 600000);
 
 // ══════════════════════════════════════════════
 // START
