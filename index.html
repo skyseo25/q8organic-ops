@@ -4401,7 +4401,7 @@ window.renderQuotes = function(){
     var itemCount = q.items ? q.items.length : 0;
     var total = (q.total !== undefined && q.total !== null) ? parseFloat(q.total) : parseFloat(q.subtotal||0);
     var badge = q.quoteStatus==='invoiced'
-      ? '<span style="background:#e8f5ee;color:var(--green);padding:1px 6px;border-radius:4px;font-size:.62rem;font-weight:800">فاتورة</span>'
+      ? '<span style="background:#e8f5ee;color:var(--green);padding:1px 6px;border-radius:4px;font-size:.62rem;font-weight:800">فاتورة'+(q.invoiceNo?' <span style="color:#d00000">#'+String(q.invoiceNo).padStart(4,'0')+'</span>':'')+'</span>'
       : '<span style="background:#fff5e0;color:var(--gold);padding:1px 6px;border-radius:4px;font-size:.62rem;font-weight:800">عرض سعر</span>';
     return '<tr onclick="openQuoteDetail(\''+q.id+'\')" style="cursor:pointer" onmouseover="this.style.background=\'#f0f9f4\'" onmouseout="this.style.background=\'\'">'
       +'<td>'+dt+'</td>'
@@ -4535,10 +4535,31 @@ window.setQuoteStatus = async function(qid, status){
   openQuoteDetail(qid);
 };
 
+// ══ توليد رقم فاتورة متسلسل (يبدأ من 1005، +1 لكل فاتورة جديدة) ══
+async function getNextInvoiceNo(){
+  var ref = window.FB.doc(window.FB.db,'ops_settings','config');
+  var last = 1004;
+  try{
+    var snap = await window.FB.get(ref);
+    if(snap.exists() && snap.data().lastInvoiceNo){ last = parseInt(snap.data().lastInvoiceNo)||1004; }
+  }catch(e){}
+  var next = last + 1;
+  if(next < 1005) next = 1005;
+  try{ await window.FB.set(ref, {lastInvoiceNo: next, updatedAt: window.FB.ts()}, {merge:true}); }catch(e){}
+  return next;
+}
+
 window.convertToInvoice = async function(qid){
   if(!confirm('تحويل هذا العرض إلى فاتورة نهائية؟')) return;
-  await window.FB.upd(window.FB.doc(window.FB.db,'iri_invoices_v2',qid),{quoteStatus:'invoiced',invoicedAt:window.FB.ts(),invoicedBy:_u.id||_u.username});
-  toast('🧾 تم التحويل إلى فاتورة');
+  var ref = window.FB.doc(window.FB.db,'iri_invoices_v2',qid);
+  var snap = await window.FB.get(ref);
+  var data = snap.exists() ? snap.data() : {};
+  var upd = {quoteStatus:'invoiced', invoicedAt:window.FB.ts(), invoicedBy:_u.id||_u.username};
+  // يُولّد الرقم مرة واحدة فقط — إعادة التحويل/الطباعة تستخدم نفس الرقم
+  if(!data.invoiceNo){ upd.invoiceNo = await getNextInvoiceNo(); upd.invoiceNoAt = window.FB.ts(); }
+  await window.FB.upd(ref, upd);
+  var no = upd.invoiceNo || data.invoiceNo;
+  toast('🧾 تم التحويل إلى فاتورة — رقم '+(no?String(no).padStart(4,'0'):''));
   openQuoteDetail(qid);
 };
 
@@ -4731,6 +4752,10 @@ function buildPrintDoc(opts){
   var phone = o.phone||'';
   var area = o.area||''; var block=o.block||''; var street=o.street||''; var avenue=o.avenue||''; var house=o.house||'';
   var dateStr = new Date().toLocaleDateString('en-GB');
+  var invNo = opts.invoiceNo ? String(opts.invoiceNo).padStart(4,'0') : '';
+  var invNoRow = (isInv && invNo)
+    ? '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px"><span class="lbl" style="font-size:1.05rem">رقم الفاتورة</span><span style="color:#d00000;font-size:10pt;font-weight:900;letter-spacing:1px">'+invNo+'</span></div>'
+    : '';
   var rows = (opts.items||[]).map(function(it,i){
     return '<tr>'
       +'<td style="padding:8px;border:1px solid #cfe3d3;text-align:center">'+(i+1)+'</td>'
@@ -4774,6 +4799,7 @@ function buildPrintDoc(opts){
     +'</div>'
     +'<div class="box">'
       +'<div style="display:flex;justify-content:space-between;margin-bottom:14px"><span class="lbl" style="font-size:1.05rem">التاريخ</span><span style="font-weight:800">'+dateStr+'</span></div>'
+      +invNoRow
       +'<div class="lbl" style="margin-bottom:6px">بيانات العميل</div>'
       +'<div style="margin-bottom:4px"><span class="lbl">الاسم: </span>'+clientName+'</div>'
       +'<div style="margin-bottom:12px"><span class="lbl">هاتف: </span>'+phone+'</div>'
@@ -4833,9 +4859,16 @@ async function imgToBase64(url){
 
 window.printQuoteFromData = async function(qid, asInvoice){
   // اقرأ أحدث نسخة من Firebase مباشرة
-  var snap = await window.FB.get(window.FB.doc(window.FB.db,'iri_invoices_v2',qid));
+  var qref = window.FB.doc(window.FB.db,'iri_invoices_v2',qid);
+  var snap = await window.FB.get(qref);
   var q = snap.exists() ? Object.assign({id:qid}, snap.data()) : _quotes.find(function(x){return x.id===qid;});
   if(!q) return;
+  // رقم الفاتورة — يُولّد متسلسلاً عند طباعة فاتورة لأول مرة، ويُعاد استخدامه لاحقاً
+  var invNo = q.invoiceNo || '';
+  if(asInvoice && !invNo){
+    invNo = await getNextInvoiceNo();
+    try{ await window.FB.upd(qref, {invoiceNo: invNo, invoiceNoAt: window.FB.ts()}); }catch(e){}
+  }
   var order    = _orders.find(function(o){return o.id===q.orderId;});
   var subtotal = parseFloat(q.subtotal||0);
   var disc     = parseFloat(q.discount||0);
@@ -4858,6 +4891,7 @@ window.printQuoteFromData = async function(qid, asInvoice){
     order, items, subtotal, disc, final,
     asInvoice: asInvoice,
     isInvoiced: q.quoteStatus==='invoiced',
+    invoiceNo: asInvoice?invNo:'',
     adminNote: adminNote
   }));
   w.document.close(); if(_lang==='en'){try{translateRoot(w.document.body);}catch(e){}} setTimeout(function(){w.print();},900);
@@ -5639,7 +5673,7 @@ window.delUser=async function(id){if(!confirm('حذف المستخدم؟'))retur
 
 window.saveSysSettings=async function(){
   var pin=document.getElementById('sys-pin').value;
-  if(pin){await window.FB.set(window.FB.doc(window.FB.db,'ops_settings','config'),{pin,updatedAt:window.FB.ts()});}
+  if(pin){await window.FB.set(window.FB.doc(window.FB.db,'ops_settings','config'),{pin,updatedAt:window.FB.ts()},{merge:true});}
   toast('✅ تم حفظ الإعدادات');
 };
 
