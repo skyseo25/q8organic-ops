@@ -4080,11 +4080,45 @@ function catIconFor(name){
 function renderCategoryOptions(selected){
   var sel=document.getElementById('item-category'); if(!sel) return;
   var norm=(selected==='تمديدات وخدمات')?'تمديدات':selected;
-  var cats=_itemCats.slice();
+  var cats=_itemCats.filter(function(c){return !c.suspended;}).slice();
   if(norm && !cats.some(function(c){return c.name===norm;})) cats.push({name:norm,icon:'📋'});
   sel.innerHTML = cats.map(function(c){return '<option value="'+c.name+'">'+(c.icon||'📋')+' '+c.name+'</option>';}).join('');
   if(norm) sel.value = norm;
 }
+function catObj(n){ return _itemCats.find(function(c){return c.name===n;}); }
+function catSuspended(n){ var c=catObj(n); return !!(c&&c.suspended); }
+function catItemCount(n){
+  return _items.filter(function(it){ var c=(it.category==='تمديدات وخدمات')?'تمديدات':(it.category||'أخرى'); return c===n; }).length;
+}
+async function saveItemCats(){
+  try{ await window.FB.set(window.FB.doc(window.FB.db,'ops_settings','config'),{itemCategories:_itemCats,updatedAt:window.FB.ts()},{merge:true}); }catch(e){ toast('خطأ في الحفظ'); }
+}
+window.toggleCatSuspend = async function(name){
+  if(_role!=='manager'){ toast('هذا الإجراء للمدير فقط'); return; }
+  var c = catObj(name);
+  if(!c){ c={name:name, icon:catIconFor(name), suspended:true}; _itemCats.push(c); }
+  else { c.suspended = !c.suspended; }
+  await saveItemCats();
+  toast(c.suspended?('⏸ تم تعليق القسم: '+name):('▶ تم تفعيل القسم: '+name));
+  renderItemsCatalog();
+};
+window.deleteCat = async function(name){
+  if(_role!=='manager'){ toast('هذا الإجراء للمدير فقط'); return; }
+  var n = catItemCount(name);
+  if(n>0){ toast('القسم يحتوي '+n+' صنف — احذف أو انقل الأصناف أولاً'); return; }
+  if(!confirm('حذف القسم: '+name+'؟')) return;
+  _itemCats = _itemCats.filter(function(c){return c.name!==name;});
+  await saveItemCats();
+  toast('🗑 تم حذف القسم: '+name);
+  renderItemsCatalog();
+};
+window.toggleItemSuspend = async function(id){
+  if(_role!=='manager'){ toast('هذا الإجراء للمدير فقط'); return; }
+  var it=_items.find(function(x){return x.id===id;}); if(!it) return;
+  var ns=!it.suspended;
+  try{ await window.FB.upd(window.FB.doc(window.FB.db,'iri_items',id),{suspended:ns,updatedAt:window.FB.ts()}); }catch(e){ toast('خطأ'); return; }
+  toast(ns?'⏸ تم تعليق الصنف':'▶ تم تفعيل الصنف');
+};
 window.addCategory = async function(){
   if(_role!=='manager'){ toast('هذا الإجراء للمدير فقط'); return; }
   var name = prompt('اسم القسم الجديد:'); if(name===null) return;
@@ -4226,10 +4260,6 @@ window.deleteItem = async function(id){
 window.renderItemsCatalog = function(){
   var grid = document.getElementById('items-catalog-grid');
   if(!grid) return;
-  if(!_items.length){
-    grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:30px;color:var(--muted2)">لا توجد أصناف — أضف صنفاً جديداً</div>';
-    return;
-  }
 
   // تجميع حسب القسم
   var cats = {};
@@ -4239,17 +4269,46 @@ window.renderItemsCatalog = function(){
     if(!cats[cat]) cats[cat] = [];
     cats[cat].push(it);
   });
-  var catIcons = {'تمديدات':'🔧','خدمات':'🛠','تمديدات وخدمات':'🔧🛠','أجور عمالة':'👷','أخرى':'📋'};
 
+  // ترتيب الأقسام: أقسام القائمة أولاً ثم أي أقسام موجودة بالأصناف
+  var orderedCats = [];
+  _itemCats.forEach(function(c){ if(orderedCats.indexOf(c.name)<0) orderedCats.push(c.name); });
+  Object.keys(cats).forEach(function(c){ if(orderedCats.indexOf(c)<0) orderedCats.push(c); });
+
+  if(!orderedCats.length){
+    grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:30px;color:var(--muted2)">لا توجد أصناف — أضف صنفاً جديداً</div>';
+    return;
+  }
+
+  var mgr = (_role==='manager');
+  var esc = function(s){ return String(s).replace(/'/g,"\\'"); };
   var html = '';
-  Object.keys(cats).forEach(function(cat){
-    html += '<div style="grid-column:1/-1;font-size:.88rem;font-weight:800;color:var(--green);padding:6px 0 4px;border-bottom:2px solid var(--gm);margin-bottom:4px">'+catIconFor(cat)+' '+cat+'</div>';
-    cats[cat].forEach(function(it){
+  orderedCats.forEach(function(cat){
+    var list = cats[cat]||[];
+    var cSusp = catSuspended(cat);
+    // رأس القسم + أدوات التحكم
+    html += '<div style="grid-column:1/-1;display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 0 4px;border-bottom:2px solid var(--gm);margin-bottom:4px;'+(cSusp?'opacity:.55':'')+'">'
+      +'<div style="font-size:.88rem;font-weight:800;color:var(--green)">'+catIconFor(cat)+' '+cat
+        +(cSusp?' <span style="background:#fff0e0;color:#b06a00;border-radius:10px;padding:1px 8px;font-size:.62rem;font-weight:800">معلّق</span>':'')
+        +' <span style="color:var(--muted2);font-weight:600;font-size:.7rem">('+list.length+')</span>'
+      +'</div>'
+      +(mgr?'<div style="display:flex;gap:6px">'
+        +'<button onclick="toggleCatSuspend(\''+esc(cat)+'\')" style="background:var(--gl);border:none;border-radius:6px;padding:3px 9px;font-size:.66rem;cursor:pointer;color:var(--green);font-weight:700">'+(cSusp?'▶ تفعيل':'⏸ تعليق')+'</button>'
+        +'<button onclick="deleteCat(\''+esc(cat)+'\')" style="background:var(--redl);border:none;border-radius:6px;padding:3px 9px;font-size:.66rem;cursor:pointer;color:var(--red);font-weight:700">✕ حذف</button>'
+      +'</div>':'')
+    +'</div>';
+
+    if(!list.length){
+      html += '<div style="grid-column:1/-1;color:var(--muted2);font-size:.78rem;padding:2px 0 8px">لا أصناف في هذا القسم</div>';
+    }
+    list.forEach(function(it){
       var isLabor = it.type==='labor' || it.category==='أجور عمالة';
-      var catColor = isLabor ? 'var(--green)' : (it.category==='تمديدات وخدمات'||it.category==='تمديدات') ? 'var(--blue)' : 'var(--gold)';
-      html += '<div style="background:#fff;border:1.5px solid '+(isLabor?'var(--gm)':'var(--border)')+';border-radius:12px;padding:12px;position:relative">'
-        +(_role==='manager'?'<div style="position:absolute;top:6px;left:6px;display:flex;gap:4px">'
+      var iSusp = !!it.suspended || cSusp;
+      html += '<div style="background:#fff;border:1.5px solid '+(isLabor?'var(--gm)':'var(--border)')+';border-radius:12px;padding:12px;position:relative;'+(iSusp?'opacity:.55':'')+'">'
+        +(it.suspended?'<div style="position:absolute;top:6px;right:6px;background:#fff0e0;color:#b06a00;border-radius:10px;padding:1px 8px;font-size:.6rem;font-weight:800;z-index:1">معلّق</div>':'')
+        +(mgr?'<div style="position:absolute;top:6px;left:6px;display:flex;gap:4px">'
           +'<button onclick="openItemModal(\''+it.id+'\')" style="background:var(--gl);border:none;border-radius:6px;padding:2px 6px;font-size:.65rem;cursor:pointer;color:var(--green)">✏️</button>'
+          +'<button onclick="toggleItemSuspend(\''+it.id+'\')" title="تعليق/تفعيل" style="background:#fff4e0;border:none;border-radius:6px;padding:2px 6px;font-size:.65rem;cursor:pointer;color:#b06a00">'+(it.suspended?'▶':'⏸')+'</button>'
           +'<button onclick="deleteItem(\''+it.id+'\')" style="background:var(--redl);border:none;border-radius:6px;padding:2px 6px;font-size:.65rem;cursor:pointer;color:var(--red)">✕</button>'
           +'</div>':'')
         +(it.image
@@ -4261,7 +4320,7 @@ window.renderItemsCatalog = function(){
           +'<span style="font-size:.88rem;font-weight:800;color:var(--gold)">'+parseFloat(it.price||0).toFixed(3)+' KD</span>'
           +'<span style="font-size:.7rem;color:var(--muted2)">/ '+it.unit+'</span>'
         +'</div>'
-        +(_currentInspOrderId?'<button onclick="addItemToInvoice(\''+it.id+'\')" style="width:100%;margin-top:8px;padding:7px;background:var(--green);color:#fff;border:none;border-radius:8px;font-family:Cairo,sans-serif;font-size:.78rem;font-weight:700;cursor:pointer">+ إضافة للفاتورة</button>':'')
+        +((_currentInspOrderId && !iSusp)?'<button onclick="addItemToInvoice(\''+it.id+'\')" style="width:100%;margin-top:8px;padding:7px;background:var(--green);color:#fff;border:none;border-radius:8px;font-family:Cairo,sans-serif;font-size:.78rem;font-weight:700;cursor:pointer">+ إضافة للفاتورة</button>':'')
       +'</div>';
     });
   });
@@ -4273,6 +4332,7 @@ window.renderItemsCatalog = function(){
 window.addItemToInvoice = function(itemId){
   var it = _items.find(function(x){return x.id===itemId;});
   if(!it) return;
+  if(it.suspended || catSuspended((it.category==='تمديدات وخدمات')?'تمديدات':(it.category||'أخرى'))){ toast('هذا الصنف/القسم معلّق'); return; }
   // لو موجود زد الكمية
   var existing = _invoiceItems.find(function(x){return x.itemId===itemId;});
   if(existing){ existing.qty += 1; }
