@@ -2535,6 +2535,9 @@ window.openOrderDetail = function(orderId){
     }
   } else {
     // ── كشف / خدمة ──
+    if(!o.workDone && o.status!=='returned'){
+      actions.push('<button style="'+btnStyle('#0a5a2a','#fff')+'" onclick="openWorkDoneModal(\''+orderId+'\')">🛠 أنهيت الأعمال</button>');
+    }
     if(o.status==='pending'||o.status==='assigned'||o.status==='new'||!o.status){
       actions.push('<button style="'+btnStyle('#1a7a40','#fff')+'" onclick="odmInspAction(\''+orderId+'\',\'received\')">📋 استلمت الطلب</button>');
     }
