@@ -2198,7 +2198,6 @@ function renderDashboard(){
   var knetConverted = _orders.filter(function(o){
     if(o.archived||o.knetSettled) return false;
     if(o.knetChanged&&o.originalPayment==='cash') return true;
-    if(o.paymentType==='knet'&&o.status==='delivered'&&!o.knetSettled) return true;
     return false;
   });
 
