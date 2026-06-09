@@ -3550,12 +3550,12 @@ window.openQuickOrder = function(custId){
 
     // حقول الطلب
     +'<div class="form-row">'
-      +'<div class="field-m"><label>رقم الطلب</label><input id="qo-num" type="text" placeholder="مثال: 001" style="width:100%;padding:9px;border:1.5px solid var(--border);border-radius:8px;font-family:Cairo,sans-serif"></div>'
+      +'<div class="field-m"><label>رقم الطلب <span style="color:#c0392b">*</span></label><input id="qo-num" type="text" placeholder="مثال: 001" oninput="qoToggleSave()" style="width:100%;padding:9px;border:1.5px solid var(--border);border-radius:8px;font-family:Cairo,sans-serif"></div>'
       +'<div class="field-m"><label>المبلغ (KD)</label><input id="qo-amount" type="number" step="0.001" min="0" placeholder="0.000" style="width:100%;padding:9px;border:1.5px solid var(--border);border-radius:8px;font-family:Cairo,sans-serif"></div>'
     +'</div>'
     +'<div class="form-row">'
-      +'<div class="field-m"><label>طريقة الدفع</label><select id="qo-payment" style="width:100%;padding:9px;border:1.5px solid var(--border);border-radius:8px;font-family:Cairo,sans-serif">'
-        +'<option value="cash">نقد / Cash</option>'
+      +'<div class="field-m"><label>طريقة الدفع</label><select id="qo-payment" onchange="qoToggleAmount()" style="width:100%;padding:9px;border:1.5px solid var(--border);border-radius:8px;font-family:Cairo,sans-serif">'
+        +'<option value="cash">نقداً / Cash</option>'
         +'<option value="knet">Knet</option>'
         +'<option value="free">مجاناً</option>'
       +'</select></div>'
@@ -3567,15 +3567,54 @@ window.openQuickOrder = function(custId){
 
     +'<div class="modal-actions" style="margin-top:14px">'
       +'<button class="btn-cancel" onclick="closeModal(\'modal-quick-order\')">إلغاء</button>'
-      +'<button class="btn-save" onclick="saveQuickOrder(\''+custId+'\')">💾 حفظ وإرسال للطلبات</button>'
+      +'<button class="btn-save" id="qo-save" onclick="saveQuickOrder(\''+custId+'\')">💾 حفظ وإرسال للطلبات</button>'
     +'</div>'
   +'</div></div>';
 
   document.body.insertAdjacentHTML('beforeend', html);
+  qoToggleAmount();
+  qoToggleSave();
+};
+
+// تفعيل/تعطيل خانة المبلغ حسب طريقة الدفع (تتفعّل فقط مع نقداً)
+window.qoToggleAmount = function(){
+  var pay = document.getElementById('qo-payment').value;
+  var amt = document.getElementById('qo-amount');
+  if(!amt) return;
+  if(pay === 'cash'){
+    amt.disabled = false;
+    amt.style.background = '';
+    amt.style.opacity = '';
+    amt.style.cursor = '';
+  } else {
+    amt.value = '';
+    amt.disabled = true;
+    amt.style.background = '#f0f0f0';
+    amt.style.opacity = '.6';
+    amt.style.cursor = 'not-allowed';
+  }
+};
+
+// تفعيل/تعطيل زر الحفظ حسب رقم الطلب (إجباري)
+window.qoToggleSave = function(){
+  var num = document.getElementById('qo-num');
+  var btn = document.getElementById('qo-save');
+  if(!num || !btn) return;
+  if(num.value.trim() !== ''){
+    btn.disabled = false;
+    btn.style.opacity = '';
+    btn.style.cursor = 'pointer';
+  } else {
+    btn.disabled = true;
+    btn.style.opacity = '.5';
+    btn.style.cursor = 'not-allowed';
+  }
 };
 
 var _savingQuickOrder = false;
 window.saveQuickOrder = async function(custId){
+  var _qn = document.getElementById('qo-num');
+  if(!_qn || _qn.value.trim() === ''){ toast('⚠️ أدخل رقم الطلب'); return; }
   if(_savingQuickOrder) return; _savingQuickOrder = true;
   try{
     var c = _customers.find(function(x){return x.id===custId;});
