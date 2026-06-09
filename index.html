@@ -1159,30 +1159,32 @@ tbody tr[onclick]:active { background: #d8f0e2 !important; }
       </div>
       <input type="hidden" id="svc-type" value="insp_ext">
     </div>
+    <!-- رقم الطلب -->
+    <div class="field-m"><label>📦 رقم الطلب <span style="color:#c0392b">*</span></label><input id="svc-num" type="text" placeholder="مثال: #1234" oninput="svcSync()"></div>
     <!-- بيانات العميل -->
     <div class="form-row">
       <div class="field-m">
-        <label>اسم العميل</label>
-        <input id="svc-client" type="text">
+        <label>اسم العميل <span style="color:#c0392b">*</span></label>
+        <input id="svc-client" type="text" oninput="svcSync()">
       </div>
       <div class="field-m">
-        <label>الهاتف</label>
+        <label>الهاتف <span style="color:#c0392b">*</span></label>
         <div style="position:relative">
-          <input id="svc-phone" type="tel" oninput="lookupCustomerByPhone2(this.value,'svc')" autocomplete="off" placeholder="ابحث بالهاتف أو الاسم...">
+          <input id="svc-phone" type="tel" oninput="lookupCustomerByPhone2(this.value,'svc');svcSync()" autocomplete="off" placeholder="ابحث بالهاتف أو الاسم...">
           <div id="svc-phone-suggestions" style="position:absolute;top:100%;right:0;left:0;background:#fff;border:1.5px solid var(--border);border-radius:9px;box-shadow:var(--sh);z-index:700;display:none;max-height:160px;overflow-y:auto;"></div>
         </div>
       </div>
     </div>
     <!-- العنوان -->
     <div class="form-row">
-      <div class="field-m"><label>المنطقة</label><input id="svc-area" type="text"></div>
-      <div class="field-m"><label>القطعة</label><input id="svc-block" type="text"></div>
+      <div class="field-m"><label>المنطقة <span style="color:#c0392b">*</span></label><input id="svc-area" type="text" oninput="svcSync()"></div>
+      <div class="field-m"><label>القطعة <span style="color:#c0392b">*</span></label><input id="svc-block" type="text" oninput="svcSync()"></div>
     </div>
     <div class="form-row">
-      <div class="field-m"><label>الشارع</label><input id="svc-street" type="text"></div>
+      <div class="field-m"><label>الشارع <span style="color:#c0392b">*</span></label><input id="svc-street" type="text" oninput="svcSync()"></div>
       <div class="field-m"><label>الجادة</label><input id="svc-avenue" type="text"></div>
     </div>
-    <div class="field-m"><label>المنزل / رقم المبنى</label><input id="svc-house" type="text"></div>
+    <div class="field-m"><label>المنزل / رقم المبنى <span style="color:#c0392b">*</span></label><input id="svc-house" type="text" oninput="svcSync()"></div>
     <div class="field-m">
       <label>📍 رابط الموقع</label>
       <input id="svc-location" type="text" placeholder="https://maps.google.com/...">
@@ -1201,9 +1203,10 @@ tbody tr[onclick]:active { background: #d8f0e2 !important; }
         <option value="closed">مغلق</option>
       </select>
     </div>
+    <div id="svc-err" style="color:#c0392b;font-weight:700;font-size:.85rem;text-align:center;margin:8px 0 4px;display:none"></div>
     <div class="modal-actions">
       <button class="btn-cancel" onclick="closeModal('modal-svc-request')">إلغاء</button>
-      <button class="btn-save" onclick="saveSvcRequest()">حفظ</button>
+      <button class="btn-save" id="svc-save" onclick="saveSvcRequest()">حفظ</button>
     </div>
   </div>
 </div>
@@ -2530,7 +2533,6 @@ window.saveOrder = async function(){
 };
 
 // ── تحقق إجباري لفورم إضافة الطلب ──
-// تعطيل/تفعيل خانة المبلغ: تتفعّل فقط مع كاش، ورمادية مع Knet/مدفوع
 window.ordToggleAmount = function(clearVal){
   var pay = document.getElementById('ord-payment').value;
   var amt = document.getElementById('ord-amount');
@@ -2545,7 +2547,6 @@ window.ordToggleAmount = function(clearVal){
   }
 };
 
-// يرجّع أول رسالة خطأ، أو '' إذا كل شيء سليم
 window.ordValidate = function(){
   var g = function(id){ var e=document.getElementById(id); return e?e.value.trim():''; };
   if(!g('ord-ordernum')) return 'أدخل رقم الطلب';
@@ -2559,7 +2560,6 @@ window.ordValidate = function(){
   return '';
 };
 
-// عرض/إخفاء الرسالة الحمراء فوق زر الحفظ
 window.ordShowErr = function(msg){
   var box = document.getElementById('ord-err');
   if(!box) return;
@@ -2567,7 +2567,6 @@ window.ordShowErr = function(msg){
   else { box.textContent=''; box.style.display='none'; }
 };
 
-// تحديث مظهر زر الحفظ + الرسالة بشكل مباشر أثناء الكتابة
 window.ordSync = function(){
   var err = ordValidate();
   var valid = (err === '');
@@ -2577,7 +2576,6 @@ window.ordSync = function(){
     btn.style.cursor  = valid ? 'pointer' : 'not-allowed';
   }
   var box = document.getElementById('ord-err');
-  // إذا كانت الرسالة ظاهرة (المستخدم ضغط حفظ سابقاً) حدّثها للخطأ الحالي أو أخفها
   if(box && box.style.display === 'block'){ ordShowErr(err); }
 };
 
@@ -3608,12 +3606,12 @@ window.openQuickOrder = function(custId){
 
     // حقول الطلب
     +'<div class="form-row">'
-      +'<div class="field-m"><label>رقم الطلب</label><input id="qo-num" type="text" placeholder="مثال: 001" style="width:100%;padding:9px;border:1.5px solid var(--border);border-radius:8px;font-family:Cairo,sans-serif"></div>'
+      +'<div class="field-m"><label>رقم الطلب <span style="color:#c0392b">*</span></label><input id="qo-num" type="text" placeholder="مثال: 001" oninput="qoToggleSave()" style="width:100%;padding:9px;border:1.5px solid var(--border);border-radius:8px;font-family:Cairo,sans-serif"></div>'
       +'<div class="field-m"><label>المبلغ (KD)</label><input id="qo-amount" type="number" step="0.001" min="0" placeholder="0.000" style="width:100%;padding:9px;border:1.5px solid var(--border);border-radius:8px;font-family:Cairo,sans-serif"></div>'
     +'</div>'
     +'<div class="form-row">'
-      +'<div class="field-m"><label>طريقة الدفع</label><select id="qo-payment" style="width:100%;padding:9px;border:1.5px solid var(--border);border-radius:8px;font-family:Cairo,sans-serif">'
-        +'<option value="cash">نقد / Cash</option>'
+      +'<div class="field-m"><label>طريقة الدفع</label><select id="qo-payment" onchange="qoToggleAmount()" style="width:100%;padding:9px;border:1.5px solid var(--border);border-radius:8px;font-family:Cairo,sans-serif">'
+        +'<option value="cash">نقداً / Cash</option>'
         +'<option value="knet">Knet</option>'
         +'<option value="free">مجاناً</option>'
       +'</select></div>'
@@ -3625,15 +3623,54 @@ window.openQuickOrder = function(custId){
 
     +'<div class="modal-actions" style="margin-top:14px">'
       +'<button class="btn-cancel" onclick="closeModal(\'modal-quick-order\')">إلغاء</button>'
-      +'<button class="btn-save" onclick="saveQuickOrder(\''+custId+'\')">💾 حفظ وإرسال للطلبات</button>'
+      +'<button class="btn-save" id="qo-save" onclick="saveQuickOrder(\''+custId+'\')">💾 حفظ وإرسال للطلبات</button>'
     +'</div>'
   +'</div></div>';
 
   document.body.insertAdjacentHTML('beforeend', html);
+  qoToggleAmount();
+  qoToggleSave();
+};
+
+// تفعيل/تعطيل خانة المبلغ حسب طريقة الدفع (تتفعّل فقط مع نقداً)
+window.qoToggleAmount = function(){
+  var pay = document.getElementById('qo-payment').value;
+  var amt = document.getElementById('qo-amount');
+  if(!amt) return;
+  if(pay === 'cash'){
+    amt.disabled = false;
+    amt.style.background = '';
+    amt.style.opacity = '';
+    amt.style.cursor = '';
+  } else {
+    amt.value = '';
+    amt.disabled = true;
+    amt.style.background = '#f0f0f0';
+    amt.style.opacity = '.6';
+    amt.style.cursor = 'not-allowed';
+  }
+};
+
+// تفعيل/تعطيل زر الحفظ حسب رقم الطلب (إجباري)
+window.qoToggleSave = function(){
+  var num = document.getElementById('qo-num');
+  var btn = document.getElementById('qo-save');
+  if(!num || !btn) return;
+  if(num.value.trim() !== ''){
+    btn.disabled = false;
+    btn.style.opacity = '';
+    btn.style.cursor = 'pointer';
+  } else {
+    btn.disabled = true;
+    btn.style.opacity = '.5';
+    btn.style.cursor = 'not-allowed';
+  }
 };
 
 var _savingQuickOrder = false;
 window.saveQuickOrder = async function(custId){
+  var _qn = document.getElementById('qo-num');
+  if(!_qn || _qn.value.trim() === ''){ toast('⚠️ أدخل رقم الطلب'); return; }
   if(_savingQuickOrder) return; _savingQuickOrder = true;
   try{
     var c = _customers.find(function(x){return x.id===custId;});
@@ -4261,6 +4298,7 @@ window.openSvcRequestModal = function(id){
     var rec = (_inspections||[]).find(function(x){return x.id===id;});
     if(rec){
       document.getElementById('svc-type').value    = rec.inspType||'insp_ext';
+      document.getElementById('svc-num').value      = rec.orderNum||'';
       document.getElementById('svc-phone').value   = rec.phone||'';
       document.getElementById('svc-client').value  = rec.client||'';
       document.getElementById('svc-area').value    = rec.area||'';
@@ -4276,11 +4314,13 @@ window.openSvcRequestModal = function(id){
       setSvcType(rec.inspType||'insp_ext');
     }
   } else {
-    ['svc-phone','svc-client','svc-area','svc-block','svc-street','svc-avenue','svc-house','svc-location','svc-desc'].forEach(function(x){document.getElementById(x).value='';});
+    ['svc-num','svc-phone','svc-client','svc-area','svc-block','svc-street','svc-avenue','svc-house','svc-location','svc-desc'].forEach(function(x){document.getElementById(x).value='';});
     document.getElementById('svc-status').value = 'new';
     document.getElementById('svc-emp').value = '';
   }
   openModal('modal-svc-request');
+  svcShowErr('');
+  svcSync();
 };
 
 window.setSvcType = function(type){
@@ -4293,6 +4333,8 @@ window.setSvcType = function(type){
 
 var _savingSvc = false;
 window.saveSvcRequest = async function(){
+  var _err = svcValidate();
+  if(_err){ svcShowErr(_err); svcSync(); return; }
   if(_savingSvc) return; _savingSvc = true;
   try{
     var eid = document.getElementById('svc-edit-id').value;
@@ -4301,6 +4343,7 @@ window.saveSvcRequest = async function(){
     var inspType = document.getElementById('svc-type').value;
     var data = {
       inspType,
+      orderNum: document.getElementById('svc-num').value.trim(),
       inspTypeAr: inspType==='insp_ext'?'كشف تمديد شبكة':'كشف صيانة',
       inspTypeEn: inspType==='insp_ext'?'Irrigation Extension Inspection':'Maintenance Inspection',
       client:   document.getElementById('svc-client').value.trim(),
@@ -4337,6 +4380,7 @@ window.saveSvcRequest = async function(){
       await window.FB.add(window.FB.col(window.FB.db,'del_orders'),{
         clientName:data.client, phone:data.phone, area:data.area,
         block:data.block, address:data.address, locationLink:data.locationLink,
+        orderNum:data.orderNum,
         orderType:'inspection', inspType, inspTypeAr:data.inspTypeAr, inspTypeEn:data.inspTypeEn,
         notes:data.desc, courierId:'', courierName:'',
         paymentType:'free', amount:0, status:'pending',
@@ -4347,6 +4391,34 @@ window.saveSvcRequest = async function(){
     }
     closeModal('modal-svc-request');
   }finally{_savingSvc=false;}
+};
+
+// ── تحقق إجباري لفورم طلب الخدمة/الكشف ──
+window.svcValidate = function(){
+  var g = function(id){ var e=document.getElementById(id); return e?e.value.trim():''; };
+  if(!g('svc-num')) return 'أدخل رقم الطلب';
+  var addrFields = ['svc-client','svc-phone','svc-area','svc-block','svc-street','svc-house'];
+  for(var i=0;i<addrFields.length;i++){ if(!g(addrFields[i])) return 'أكمل العنوان'; }
+  return '';
+};
+
+window.svcShowErr = function(msg){
+  var box = document.getElementById('svc-err');
+  if(!box) return;
+  if(msg){ box.textContent = msg; box.style.display='block'; }
+  else { box.textContent=''; box.style.display='none'; }
+};
+
+window.svcSync = function(){
+  var err = svcValidate();
+  var valid = (err === '');
+  var btn = document.getElementById('svc-save');
+  if(btn){
+    btn.style.opacity = valid ? '' : '.5';
+    btn.style.cursor  = valid ? 'pointer' : 'not-allowed';
+  }
+  var box = document.getElementById('svc-err');
+  if(box && box.style.display === 'block'){ svcShowErr(err); }
 };
 
 window.renderSvcRequests = function(){
