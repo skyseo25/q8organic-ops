@@ -1434,6 +1434,29 @@ window.jsAttr  = function(s){ return String(s==null?'':s).replace(/\\/g,'\\\\').
 // ── تواريخ بالتوقيت المحلي (الكويت +3) لحقول الإدخال — بدل toISOString الذي يعطي UTC ──
 window.localDateValue = function(d){ d=d||new Date(); var p=function(n){return (n<10?'0':'')+n;}; return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate()); };
 window.localDTValue   = function(d){ d=d||new Date(); var p=function(n){return (n<10?'0':'')+n;}; return window.localDateValue(d)+'T'+p(d.getHours())+':'+p(d.getMinutes()); };
+
+// ── أرشفة الصور: كشف/جمع/استبدال روابط Firebase Storage + تحويل base64 لملف ──
+window.isStorageUrl = function(v){ return typeof v==='string' && /firebasestorage\.googleapis\.com|\.firebasestorage\.app|\.appspot\.com/.test(v); };
+window.collectStorageUrls = function(obj, set){
+  if(obj==null) return;
+  if(Array.isArray(obj)){ for(var i=0;i<obj.length;i++) window.collectStorageUrls(obj[i], set); return; }
+  if(typeof obj==='object'){ for(var k in obj){ if(Object.prototype.hasOwnProperty.call(obj,k)) window.collectStorageUrls(obj[k], set); } return; }
+  if(window.isStorageUrl(obj)) set[obj]=true;
+};
+window.remapStorageUrls = function(obj, map){
+  if(obj==null) return obj;
+  if(Array.isArray(obj)){ for(var i=0;i<obj.length;i++) obj[i]=window.remapStorageUrls(obj[i], map); return obj; }
+  if(typeof obj==='object'){ for(var k in obj){ if(Object.prototype.hasOwnProperty.call(obj,k)) obj[k]=window.remapStorageUrls(obj[k], map); } return obj; }
+  if(typeof obj==='string' && map[obj]) return map[obj];
+  return obj;
+};
+window.dataURLtoBlob = function(dataURL){
+  var parts=String(dataURL).split(','); if(parts.length<2) return null;
+  var mime=(parts[0].match(/:(.*?);/)||[])[1]||'image/jpeg';
+  var bin; try{ bin=atob(parts[1]); }catch(e){ return null; }
+  var n=bin.length, u8=new Uint8Array(n); while(n--) u8[n]=bin.charCodeAt(n);
+  return new Blob([u8],{type:mime});
+};
 var _loginRole = 'manager';
 
 
@@ -6901,26 +6924,52 @@ window.doBackup = async function(){
   showLoading('جاري تجهيز النسخة الاحتياطية...');
   try{
     var FB = window.FB, d = FB.db;
-    var cols = ['ops_customers','del_orders','del_users','del_reports','del_archived',
-                'iri_invoices','iri_inspections','iri_users','iri_items','ops_users','ops_settings','ops_svc_bonuses','iri_invoices_v2'];
-    var backup = {version:2, exportedAt: new Date().toISOString(), exportedBy: _u.name||_u.username, data:{}};
+    // كل مجموعات قاعدة البيانات بدون استثناء (العملاء/المستخدمين/الإعدادات/المكافآت + التوصيل/الأرشيف/التقارير + الري/الفواتير/الكشوفات/الأصناف)
+    var cols = ['ops_customers','ops_users','ops_settings','ops_svc_bonuses',
+                'del_orders','del_users','del_reports','del_archived',
+                'iri_invoices','iri_invoices_v2','iri_inspections','iri_users','iri_items'];
+    var backup = {version:3, exportedAt:new Date().toISOString(), exportedBy:(_u&&(_u.name||_u.username))||'', data:{}, counts:{}, errors:{}};
+    var total = 0;
     for(var i=0;i<cols.length;i++){
-      var sn = await FB.gets(FB.col(d, cols[i]));
-      backup.data[cols[i]] = sn.docs.map(function(doc){
-        var obj = doc.data();
-        // تحويل Timestamp لـ ISO string
-        Object.keys(obj).forEach(function(k){
-          if(obj[k]&&obj[k].toDate) obj[k] = {__ts: obj[k].toDate().toISOString()};
+      try{
+        var sn = await FB.gets(FB.col(d, cols[i]));
+        var rows = sn.docs.map(function(doc){
+          var obj = doc.data();
+          // تحويل كل Timestamp لنص ISO حتى لا يضيع وقت
+          Object.keys(obj).forEach(function(k){
+            if(obj[k]&&obj[k].toDate) obj[k] = {__ts: obj[k].toDate().toISOString()};
+          });
+          return Object.assign({__id: doc.id}, obj);
         });
-        return Object.assign({__id: doc.id}, obj);
-      });
+        backup.data[cols[i]]   = rows;
+        backup.counts[cols[i]] = rows.length;
+        total += rows.length;
+      }catch(e){
+        // مجموعة واحدة تفشل لا توقف الباقي — تُسجّل وتستمر
+        backup.data[cols[i]]   = [];
+        backup.counts[cols[i]] = 0;
+        backup.errors[cols[i]] = String((e&&e.message)||e);
+        console.warn('backup collection error:', cols[i], e);
+      }
     }
+    backup.totalDocs = total;
+    // ── أرشفة الصور نفسها (لا مجرد روابط): اجمع كل روابط Storage الفريدة وحمّل الصورة base64 ──
+    var urlSet={};
+    Object.keys(backup.data).forEach(function(c){ (backup.data[c]||[]).forEach(function(doc){ window.collectStorageUrls(doc, urlSet); }); });
+    var urls = Object.keys(urlSet);
+    backup.images = {}; var imgOk=0;
+    for(var ui=0; ui<urls.length; ui++){
+      showLoading('جاري حفظ الصور... ('+(ui+1)+'/'+urls.length+')');
+      var b64 = await imgToBase64(urls[ui]);
+      if(b64 && b64.indexOf('data:')===0){ backup.images[urls[ui]] = b64; imgOk++; }
+    }
+    backup.imageCount = imgOk;
     var json = JSON.stringify(backup, null, 2);
     var blob = new Blob([json], {type:'application/json'});
     var url = URL.createObjectURL(blob);
     var a = document.createElement('a');
     a.href = url;
-    a.download = 'q8organic-backup-'+new Date().toISOString().substring(0,10)+'.json';
+    a.download = 'q8organic-backup-'+window.localDateValue()+'.json';
     a.click();
     URL.revokeObjectURL(url);
     // حفظ وقت آخر نسخة
@@ -6929,8 +6978,10 @@ window.doBackup = async function(){
     localStorage.setItem('lastBackupMs', String(Date.now()));
     updateBackupTime();
     var st = document.getElementById('backup-status');
-    if(st) st.textContent = '✅ تم التحميل — '+nowStr;
-    toast('✅ تم تحميل النسخة الاحتياطية');
+    if(st) st.textContent = '✅ تم التحميل — '+nowStr+' ('+total+' سجل، '+imgOk+' صورة)';
+    var errCols = Object.keys(backup.errors);
+    if(errCols.length) toast('⚠️ تم التحميل ('+total+' سجل + '+imgOk+' صورة) لكن تعذّر سحب: '+errCols.join('، '));
+    else toast('✅ نسخة كاملة — '+total+' سجل + '+imgOk+' صورة من '+cols.length+' مجموعة');
   }catch(e){ toast('خطأ: '+e.message); }
   finally{ hideLoading(); }
 };
@@ -6948,12 +6999,27 @@ window.doRestore = async function(event){
     var FB = window.FB, d = FB.db;
     var cols = Object.keys(backup.data);
     var count = 0;
+    // استعادة الصور: ارفع كل صورة مؤرشفة لـ Storage واحصل على رابط جديد (قديم → جديد)
+    var urlMap={}; var imgRestored=0;
+    if(backup.images && typeof backup.images==='object'){
+      var oldUrls=Object.keys(backup.images);
+      for(var iu=0; iu<oldUrls.length; iu++){
+        showLoading('جاري استعادة الصور... ('+(iu+1)+'/'+oldUrls.length+')');
+        try{
+          var iblob=window.dataURLtoBlob(backup.images[oldUrls[iu]]);
+          if(iblob){ var nu=await window.uploadFile(iblob, 'items/restored/'+Date.now()+'_'+iu); if(nu){ urlMap[oldUrls[iu]]=nu; imgRestored++; } }
+        }catch(e){ console.warn('restore image error', e); }
+      }
+    }
+    showLoading('جاري استعادة البيانات...');
     for(var i=0;i<cols.length;i++){
       var col = cols[i];
       var docs = backup.data[col]||[];
       for(var j=0;j<docs.length;j++){
         var doc = Object.assign({}, docs[j]);
         var docId = doc.__id; delete doc.__id;
+        // استبدال روابط الصور القديمة بالجديدة
+        window.remapStorageUrls(doc, urlMap);
         // إعادة تحويل __ts لـ Firestore Timestamp
         Object.keys(doc).forEach(function(k){
           if(doc[k]&&doc[k].__ts){
@@ -6966,7 +7032,7 @@ window.doRestore = async function(event){
         }catch(e){ console.warn('restore doc error:', col, docId, e); }
       }
     }
-    toast('✅ تمت الاستعادة — '+count+' سجل');
+    toast('✅ تمت الاستعادة — '+count+' سجل + '+imgRestored+' صورة');
     var st = document.getElementById('backup-status');
     if(st) st.textContent = '✅ تمت الاستعادة بتاريخ '+new Date().toLocaleString('ar-KW');
   }catch(e){ toast('خطأ في الاستعادة: '+e.message); }
