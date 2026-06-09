@@ -670,7 +670,9 @@ tbody tr[onclick]:active { background: #d8f0e2 !important; }
               <span style="font-size:1rem;font-weight:800">الإجمالي</span>
               <span id="inv-total" style="font-size:1.2rem;font-weight:900;color:var(--green)">0.000 KD</span>
             </div>
-            <div id="labor-warning" style="display:none"></div>
+            <div id="labor-warning" style="display:none;margin-top:8px;padding:8px 12px;background:#fff5e0;border-radius:8px;font-size:.78rem;color:var(--gold)">
+              ⚠️ لم تتم إضافة أجور العمالة — الإجمالي غير مكتمل
+            </div>
           </div>
           <!-- زر احسب الآن -->
           <div id="calc-now-wrap" style="display:none;margin-top:12px">
@@ -1426,10 +1428,6 @@ var _delReports = [], _iriItems = [];
 var _svcBonuses = [];
 var _rptAckMs = 0; // آخر وقت ضغط فيه المدير على "اطّلعت" (ms)
 var _opsSettings = {}; // إعدادات عامة (منها مكافآت التوصيل)
-
-// ── مساعدات تهريب النصوص (حماية من كسر onclick أو حقن HTML) ──
-window.htmlEsc = function(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); };
-window.jsAttr  = function(s){ return String(s==null?'':s).replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); };
 var _loginRole = 'manager';
 
 
@@ -1778,8 +1776,8 @@ window.doLogin = async function(){
       });
     }
 
-    // 4) Default admin bootstrap — فقط عند عدم وجود أي مستخدم إداري (أول تشغيل)
-    if(!found && snap.empty && user==='admin' && pass==='admin123'){
+    // 4) Default admin fallback
+    if(!found && user==='admin' && pass==='admin123'){
       found = {id:'default',name:'Admin',username:'admin',role:'manager',symbol:'A'};
       try{ await window.FB.add(window.FB.col(window.FB.db,'ops_users'),
         {name:'Admin',username:'admin',password:'admin123',role:'manager',symbol:'A',createdAt:window.FB.ts()});
@@ -1794,8 +1792,7 @@ window.doLogin = async function(){
         return;
       }
       _u = found; _role = found.role;
-      var _sess = Object.assign({}, found); delete _sess.password;
-      localStorage.setItem('ops_session', JSON.stringify(_sess));
+      localStorage.setItem('ops_session', JSON.stringify(found));
       if(_role === 'employee'){ setLang('en'); } else { setLang('ar'); }
       hideLoading();
       startApp();
@@ -1932,12 +1929,13 @@ window.showPage = function(page){
       ? (_lang==='ar'?'إضافة توصيل وخدمة':'Add Order / Service')
       : (_lang==='ar'?'خدماتي':'My Services');
     showIrrTab('svc');
+    loadInvoicesOnce();
   }
-  if(page==='customers') renderCustomers();
+  if(page==='customers'){ renderCustomers(); loadCustomersOnce(); }
   if(page==='employees') renderEmployees();
   if(page==='items')    renderItems();
   if(page==='quote')    renderQuotes();
-  if(page==='archive') { setArchiveTab(_archTab||'delivery'); renderArchive(); }
+  if(page==='archive') { setArchiveTab(_archTab||'delivery'); renderArchive(); loadArchivedOnce(); }
 };
 
 // ══════════════════════════════════════════════
@@ -1953,23 +1951,20 @@ function setupListeners(){
     if(_curPage==='archive') renderArchive();
     if(_curPage==='reports') renderReports();
   });
-  FB.snap(FB.q(FB.col(d,'del_archived'),FB.ord('createdAt','desc')),function(sn){
-    _archived=sn.docs.map(function(x){return Object.assign({id:x.id},x.data());});
-    if(_curPage==='archive') renderArchive();
-  });
+  // del_archived: يُحمّل عند فتح صفحة الأرشيف فقط (تخفيف الحمل — مجموعة كبيرة غير محدودة)
   FB.snap(FB.col(d,'ops_users'),function(sn){
-    // النظام الموحّد: المناديب = الموظفون بدور "موظف"
-    _delUsers=sn.docs.map(function(x){return Object.assign({id:x.id},x.data());}).filter(function(u){return (u.role||'employee')==='employee';});
+    // النظام الموحّد: مستمع واحد لـ ops_users يبني المناديب (_delUsers) والمستخدمين (_sysUsers)
+    var arr = sn.docs.map(function(x){return Object.assign({id:x.id},x.data());});
+    _sysUsers = arr;
+    _delUsers = arr.filter(function(u){return (u.role||'employee')==='employee';});
     populateCourierSelect();
+    populateEmpSelects();
     if(_curPage==='employees') renderEmployees();
     if(_curPage==='reports') renderReports();
     if(_curPage==='courier') renderCourierView();
+    if(_curPage==='settings') renderSettings();
   });
-  FB.snap(FB.q(FB.col(d,'iri_invoices'),FB.ord('createdAt','desc')),function(sn){
-    _invoices=sn.docs.map(function(x){return Object.assign({id:x.id},x.data());});
-    if(_curPage==='irrigation') renderInvoices();
-    if(_curPage==='dashboard') renderDashboard();
-  });
+  // iri_invoices: يُحمّل مرة واحدة عند البدء + تحديث عند فتح صفحة الري (تخفيف الحمل)
   FB.snap(FB.q(FB.col(d,'iri_inspections'),FB.ord('createdAt','desc')),function(sn){
     _inspections=sn.docs.map(function(x){return Object.assign({id:x.id},x.data());});
     if(_curPage==='irrigation') renderInvoices();
@@ -1980,19 +1975,8 @@ function setupListeners(){
     populateEmpSelects();
     if(_curPage==='employees') renderEmployees();
   });
-  FB.snap(FB.q(FB.col(d,'iri_items'),FB.ord('order','asc')),function(sn){
-    _iriItems=sn.docs.map(function(x){return Object.assign({id:x.id},x.data());});
-  });
-  FB.snap(FB.q(FB.col(d,'ops_customers'),FB.ord('createdAt','desc')),function(sn){
-    _customers=sn.docs.map(function(x){return Object.assign({id:x.id},x.data());});
-    if(_curPage==='customers') renderCustomers();
-  });
-  FB.snap(FB.col(d,'ops_users'),function(sn){
-    _sysUsers=sn.docs.map(function(x){return Object.assign({id:x.id},x.data());});
-    populateEmpSelects();
-    if(_curPage==='settings') renderSettings();
-    if(_curPage==='employees') renderEmployees();
-  });
+  // (أُزيل مستمع iri_items المكرر — كان يملأ مصفوفة غير مستخدمة؛ الأصناف تُحمّل عبر loadItems)
+  // ops_customers: يُحمّل مرة واحدة عند البدء + تحديث عند فتح صفحة العملاء (تخفيف الحمل — أكبر مجموعة)
   FB.snap(FB.q(FB.col(d,'del_reports'),FB.ord('savedAt','desc')),function(sn){
     _delReports=sn.docs.map(function(x){return Object.assign({id:x.id},x.data());});
     if(_curPage==='reports') renderReports();
@@ -2015,6 +1999,27 @@ function setupListeners(){
     if(_curPage==='reports') renderReports();
     if(_curPage==='settings' && typeof renderBonusSettings==='function') renderBonusSettings();
   });
+
+  // تحميل أولي لمرة واحدة للمجموعات الثقيلة/شبه الثابتة (بدون مستمع دائم)
+  loadCustomersOnce();
+  loadInvoicesOnce();
+}
+
+// ── محمّلات لمرة واحدة (get) بدل المستمع الدائم — تخفيف الحمل ──
+function loadCustomersOnce(){
+  return window.FB.gets(window.FB.q(window.FB.col(window.FB.db,'ops_customers'),window.FB.ord('createdAt','desc')))
+    .then(function(sn){ _customers=sn.docs.map(function(x){return Object.assign({id:x.id},x.data());}); if(_curPage==='customers') renderCustomers(); })
+    .catch(function(e){ console.warn('loadCustomers',e); });
+}
+function loadInvoicesOnce(){
+  return window.FB.gets(window.FB.q(window.FB.col(window.FB.db,'iri_invoices'),window.FB.ord('createdAt','desc')))
+    .then(function(sn){ _invoices=sn.docs.map(function(x){return Object.assign({id:x.id},x.data());}); if(_curPage==='irrigation') renderInvoices(); if(_curPage==='dashboard') renderDashboard(); })
+    .catch(function(e){ console.warn('loadInvoices',e); });
+}
+function loadArchivedOnce(){
+  return window.FB.gets(window.FB.q(window.FB.col(window.FB.db,'del_archived'),window.FB.ord('createdAt','desc')))
+    .then(function(sn){ _archived=sn.docs.map(function(x){return Object.assign({id:x.id},x.data());}); if(_curPage==='archive') renderArchive(); })
+    .catch(function(e){ console.warn('loadArchived',e); });
 }
 
 // ══════════════════════════════════════════════
@@ -3442,13 +3447,14 @@ window.saveInvoice = async function(){
     if(eid){ await window.FB.upd(window.FB.doc(window.FB.db,'iri_invoices',eid),data); toast('✅ تم التعديل'); }
     else { data.createdAt=window.FB.ts(); data.createdBy=_u.id||_u.username;
       await window.FB.add(window.FB.col(window.FB.db,'iri_invoices'),data); toast('✅ تم حفظ الفاتورة'); }
+    loadInvoicesOnce();
     closeModal('modal-invoice');
   }finally{_savingInv=false;}
 };
 
 window.delInvoice = async function(id){
   if(!confirm('حذف هذه الفاتورة؟'))return;
-  await window.FB.del(window.FB.doc(window.FB.db,'iri_invoices',id)); toast('تم الحذف');
+  await window.FB.del(window.FB.doc(window.FB.db,'iri_invoices',id)); loadInvoicesOnce(); toast('تم الحذف');
 };
 
 // ══════════════════════════════════════════════
@@ -3767,10 +3773,11 @@ window.saveCustomer=async function(){
     if(!data.name){toast('أدخل اسم العميل');return;}
     if(eid){await window.FB.upd(window.FB.doc(window.FB.db,'ops_customers',eid),data);toast('✅');}
     else{data.createdAt=window.FB.ts();await window.FB.add(window.FB.col(window.FB.db,'ops_customers'),data);toast('✅ تم إضافة العميل');}
+    loadCustomersOnce();
     closeModal('modal-customer');
   }finally{_savingCust=false;}
 };
-window.delCustomer=async function(id){if(!confirm('حذف؟'))return;await window.FB.del(window.FB.doc(window.FB.db,'ops_customers',id));toast('تم');};
+window.delCustomer=async function(id){if(!confirm('حذف؟'))return;await window.FB.del(window.FB.doc(window.FB.db,'ops_customers',id));loadCustomersOnce();toast('تم');};
 
 // ══════════════════════════════════════════════
 // EMPLOYEES
@@ -4580,10 +4587,19 @@ async function autoSaveCustomer(name, phone, area, block, street, avenue, house,
     if(existing){
       if(incOrder) custData.serviceCount = (existing.serviceCount||0)+1; // زيادة عدّاد الطلبات
       await window.FB.upd(window.FB.doc(window.FB.db,'ops_customers',existing.id), custData);
+      // تحديث محلي (لا يوجد مستمع لحظي)
+      existing.name=custData.name; existing.phone=custData.phone; existing.area=custData.area;
+      existing.block=custData.block; existing.street=custData.street; existing.avenue=custData.avenue;
+      existing.house=custData.house; existing.address=custData.address; existing.locationLink=custData.locationLink;
+      if(incOrder) existing.serviceCount = custData.serviceCount;
     } else {
       custData.createdAt  = window.FB.ts();
       custData.serviceCount = incOrder ? 1 : 0;
-      await window.FB.add(window.FB.col(window.FB.db,'ops_customers'), custData);
+      var _cref = await window.FB.add(window.FB.col(window.FB.db,'ops_customers'), custData);
+      // إضافة محلية (لا يوجد مستمع لحظي)
+      _customers.unshift({ id:(_cref&&_cref.id)||('local-'+Date.now()), name:custData.name, phone:custData.phone,
+        area:custData.area, block:custData.block, street:custData.street, avenue:custData.avenue,
+        house:custData.house, address:custData.address, locationLink:custData.locationLink, serviceCount:custData.serviceCount });
     }
   }catch(e){ console.warn('autoSaveCustomer:', e); }
 }
@@ -5767,17 +5783,17 @@ window.renderReports = function(){
     if(canEdit){
       actBtns += '<button class="btn-edit-sm" style="margin-bottom:4px;background:var(--gl);color:var(--green);font-weight:800" onclick="openReportDetail(\''+u.id+'\',\''+range.from+'\',\''+range.to+'\')">👁 عرض</button> ';
       if(pendingBonuses.length>0){
-        actBtns += '<button class="btn btn-green btn-sm" style="margin-bottom:4px" onclick="approveEmpBonus(\''+u.id+'\',\''+jsAttr(u.name)+'\',\''+range.from+'\',\''+range.to+'\')">✅ اعتمدت</button> ';
+        actBtns += '<button class="btn btn-green btn-sm" style="margin-bottom:4px" onclick="approveEmpBonus(\''+u.id+'\',\''+u.name+'\',\''+range.from+'\',\''+range.to+'\')">✅ اعتمدت</button> ';
       }
-      actBtns += '<button class="btn-edit-sm" style="margin-bottom:4px" onclick="editEmpBonus(\''+u.id+'\',\''+jsAttr(u.name)+'\',\''+range.from+'\',\''+range.to+'\')">✏️ تعديل المكافأة</button> ';
-      actBtns += '<button class="btn btn-green btn-sm" style="margin-bottom:4px" onclick="settleReport(\''+u.id+'\',\''+jsAttr(u.name)+'\',\''+range.from+'\',\''+range.to+'\')">🟢 تم إنهاء الحساب</button>';
+      actBtns += '<button class="btn-edit-sm" style="margin-bottom:4px" onclick="editEmpBonus(\''+u.id+'\',\''+u.name+'\',\''+range.from+'\',\''+range.to+'\')">✏️ تعديل المكافأة</button> ';
+      actBtns += '<button class="btn btn-green btn-sm" style="margin-bottom:4px" onclick="settleReport(\''+u.id+'\',\''+u.name+'\',\''+range.from+'\',\''+range.to+'\')">🟢 تم إنهاء الحساب</button>';
     } else {
       actBtns = '<button class="btn-edit-sm" style="background:var(--gl);color:var(--green);font-weight:800" onclick="openReportDetail(\''+u.id+'\',\''+range.from+'\',\''+range.to+'\')">👁 عرض</button>';
     }
 
     rows += '<tr>'
       +'<td style="color:var(--muted2);font-size:.78rem">'+seq+'</td>'
-      +'<td><b>'+htmlEsc(u.name)+'</b></td>'
+      +'<td><b>'+u.name+'</b></td>'
       +'<td style="text-align:center;font-weight:700">'+delivered+'</td>'
       +'<td style="color:var(--gold);font-weight:800">'+delBonus.toFixed(3)+' KD</td>'
       +'<td style="text-align:center;font-weight:700">'+svcCount+'</td>'
@@ -5815,17 +5831,19 @@ window.openReportDetail = function(empId, from, to){
   var fromD = new Date(from+'T00:00:00'), toD = new Date(to+'T23:59:59');
   var kd = function(n){ return (parseFloat(n)||0).toFixed(3)+' KD'; };
 
-  // طلبات التوصيل ضمن الفترة (تشمل المنتهية حسابياً)
+  // طلبات التوصيل (نفس فلتر التقرير)
   var myOrds = (_orders||[]).filter(function(o){
     if(o.orderType==='inspection'||o.orderType==='service') return false;
     if(o.courierId!==u.id && o.courierId!==u.username && o.courierName!==u.name) return false;
+    if(o.settled) return false;
     var dt = o.deliveredAt&&o.deliveredAt.toDate?o.deliveredAt.toDate():o.updatedAt&&o.updatedAt.toDate?o.updatedAt.toDate():o.createdAt&&o.createdAt.toDate?o.createdAt.toDate():null;
     if(!dt) return false;
     return dt>=fromD && dt<=toD;
   });
 
-  // مكافآت الخدمة/الكشف ضمن الفترة (تشمل المنتهية لإظهار حالة الحساب)
+  // مكافآت الخدمة/الكشف (نفس فلتر التقرير)
   var myBonuses = (_svcBonuses||[]).filter(function(b){
+    if(b.settled) return false;
     var dt = b.createdAt&&b.createdAt.toDate?b.createdAt.toDate():(b.createdAt?new Date(window.tsMs(b.createdAt)):null);
     if(!dt || !(dt>=fromD && dt<=toD)) return false;
     return (b.rows||[]).some(function(r){ return r.empId===u.id||r.empId===u.username||r.empName===u.name; });
@@ -5858,13 +5876,13 @@ window.openReportDetail = function(empId, from, to){
       var itemsHtml = (quote && quote.items && quote.items.length)
         ? quote.items.map(function(it){
             var lt = parseFloat(it.lineTotal||0) || ((parseFloat(it.qty||0))*(parseFloat(it.price||0)));
-            return '<div style="display:flex;justify-content:space-between;font-size:.76rem;padding:3px 0;border-bottom:1px dashed var(--border)"><span>'+htmlEsc(it.nameAr||it.nameEn||'صنف')+' <span style="color:var(--muted2)">×'+(it.qty||0)+'</span></span><span style="color:var(--gold);font-weight:700">'+lt.toFixed(3)+' KD</span></div>';
+            return '<div style="display:flex;justify-content:space-between;font-size:.76rem;padding:3px 0;border-bottom:1px dashed var(--border)"><span>'+(it.nameAr||it.nameEn||'صنف')+' <span style="color:var(--muted2)">×'+(it.qty||0)+'</span></span><span style="color:var(--gold);font-weight:700">'+lt.toFixed(3)+' KD</span></div>';
           }).join('')
         : '<div style="font-size:.76rem;color:var(--muted2)">لا يوجد عرض سعر مرتبط</div>';
 
       var teamHtml = (b.rows||[]).map(function(r){
         var roleLbl = r.role==='tech' ? '👷 الفني' : '🤝 مساعد';
-        return '<div style="display:flex;justify-content:space-between;font-size:.78rem;padding:3px 0"><span>'+roleLbl+' — '+htmlEsc(r.empName||'')+' <span style="color:var(--muted2)">('+(r.billedHours||r.hours||0)+' ساعة)</span></span><span style="color:var(--green);font-weight:700">'+kd(r.amount)+'</span></div>';
+        return '<div style="display:flex;justify-content:space-between;font-size:.78rem;padding:3px 0"><span>'+roleLbl+' — '+(r.empName||'')+' <span style="color:var(--muted2)">('+(r.billedHours||r.hours||0)+' ساعة)</span></span><span style="color:var(--green);font-weight:700">'+kd(r.amount)+'</span></div>';
       }).join('');
 
       var settleLbl = b.settled
@@ -5874,9 +5892,9 @@ window.openReportDetail = function(empId, from, to){
             : '<span style="color:var(--muted);font-weight:800">🔄 بانتظار الاعتماد</span>');
 
       html += '<div style="border:1.5px solid var(--border);border-radius:12px;padding:12px;margin-bottom:12px">'
-        +'<div style="font-weight:800;font-size:.9rem;margin-bottom:2px">'+htmlEsc(b.clientName||'—')+' <span style="color:var(--muted2);font-weight:600;font-size:.76rem">· '+htmlEsc(b.inspTypeAr||'كشف')+'</span></div>'
-        +'<div style="font-size:.76rem;color:var(--muted)">📞 '+htmlEsc(phone||'—')+(addr?(' · 📍 '+htmlEsc(addr)):'')+'</div>'
-        +'<div style="font-size:.76rem;color:var(--muted);margin-bottom:8px">👤 المكلف بالكشف: <b>'+htmlEsc(assignee||'—')+'</b></div>'
+        +'<div style="font-weight:800;font-size:.9rem;margin-bottom:2px">'+(b.clientName||'—')+' <span style="color:var(--muted2);font-weight:600;font-size:.76rem">· '+(b.inspTypeAr||'كشف')+'</span></div>'
+        +'<div style="font-size:.76rem;color:var(--muted)">📞 '+(phone||'—')+(addr?(' · 📍 '+addr):'')+'</div>'
+        +'<div style="font-size:.76rem;color:var(--muted);margin-bottom:8px">👤 المكلف بالكشف: <b>'+(assignee||'—')+'</b></div>'
 
         +'<div style="font-size:.78rem;font-weight:800;color:var(--green);margin-bottom:2px">🧰 الأدوات والأصناف</div>'
         +itemsHtml
@@ -5904,7 +5922,7 @@ window.openReportDetail = function(empId, from, to){
     html += '<div style="border:1.5px solid var(--border);border-radius:12px;padding:10px">'
       + myOrds.map(function(o){
           var pay = o.paymentType==='knet'?'💳 Knet':(o.paymentType==='free'?'مجاناً':'💵 كاش');
-          return '<div style="display:flex;justify-content:space-between;font-size:.78rem;padding:4px 0;border-bottom:1px dashed var(--border)"><span>'+htmlEsc(o.clientName||'—')+(o.orderNum?(' · '+htmlEsc(o.orderNum)):'')+' <span style="color:var(--muted2)">'+pay+'</span></span><span>'+(o.status==='delivered'?'✅ ':'⏳ ')+kd(o.amount)+'</span></div>';
+          return '<div style="display:flex;justify-content:space-between;font-size:.78rem;padding:4px 0;border-bottom:1px dashed var(--border)"><span>'+(o.clientName||'—')+(o.orderNum?(' · '+o.orderNum):'')+' <span style="color:var(--muted2)">'+pay+'</span></span><span>'+(o.status==='delivered'?'✅ ':'⏳ ')+kd(o.amount)+'</span></div>';
         }).join('')
     +'</div>';
   }
@@ -6317,7 +6335,7 @@ window.renderArchive = function(){
   var isManager  = _role==='manager' || _role==='supervisor';
   var myId   = _u ? (_u.id||_u.username||_u.name||'') : '';
   var myName = _u ? (_u.name||_u.username||'') : '';
-  
+  console.log('[Archive] tab='+_archTab+' filter='+_archFilter+' orders='+(_orders||[]).length+' archived='+(_archived||[]).length+' insps='+(_inspections||[]).length+' reports='+(_delReports||[]).length);
 
   if(_archTab==='delivery'){
     var tbody = document.getElementById('arch-delivery-tbody');
