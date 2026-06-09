@@ -1053,15 +1053,15 @@ tbody tr[onclick]:active { background: #d8f0e2 !important; }
     <h3 id="order-modal-title">إضافة طلب توصيل</h3>
     <input type="hidden" id="order-edit-id">
 
-    <div class="field-m"><label>📦 رقم الطلب</label><input id="ord-ordernum" type="text" placeholder="مثال: #1234 أو كرتون A"></div>
+    <div class="field-m"><label>📦 رقم الطلب <span style="color:#c0392b">*</span></label><input id="ord-ordernum" type="text" placeholder="مثال: #1234 أو كرتون A" oninput="ordSync()"></div>
 
     <!-- العميل -->
     <div class="form-row">
-      <div class="field-m"><label>اسم العميل</label><input id="ord-client" type="text"></div>
+      <div class="field-m"><label>اسم العميل <span style="color:#c0392b">*</span></label><input id="ord-client" type="text" oninput="ordSync()"></div>
       <div class="field-m">
-        <label>الهاتف</label>
+        <label>الهاتف <span style="color:#c0392b">*</span></label>
         <div style="position:relative">
-          <input id="ord-phone" type="tel" oninput="lookupCustomerByPhone(this.value)" autocomplete="off" placeholder="ابحث بالهاتف أو الاسم...">
+          <input id="ord-phone" type="tel" oninput="lookupCustomerByPhone(this.value);ordSync()" autocomplete="off" placeholder="ابحث بالهاتف أو الاسم...">
           <div id="phone-suggestions" style="position:absolute;top:100%;right:0;left:0;background:#fff;border:1.5px solid var(--border);border-radius:9px;box-shadow:var(--sh);z-index:700;display:none;max-height:160px;overflow-y:auto;"></div>
         </div>
       </div>
@@ -1069,21 +1069,21 @@ tbody tr[onclick]:active { background: #d8f0e2 !important; }
 
     <!-- العنوان -->
     <div class="form-row">
-      <div class="field-m"><label>المنطقة</label><input id="ord-area" type="text"></div>
-      <div class="field-m"><label>القطعة</label><input id="ord-block" type="text"></div>
+      <div class="field-m"><label>المنطقة <span style="color:#c0392b">*</span></label><input id="ord-area" type="text" oninput="ordSync()"></div>
+      <div class="field-m"><label>القطعة <span style="color:#c0392b">*</span></label><input id="ord-block" type="text" oninput="ordSync()"></div>
     </div>
     <div class="form-row">
-      <div class="field-m"><label>الشارع</label><input id="ord-street" type="text"></div>
+      <div class="field-m"><label>الشارع <span style="color:#c0392b">*</span></label><input id="ord-street" type="text" oninput="ordSync()"></div>
       <div class="field-m"><label>الجادة</label><input id="ord-avenue" type="text"></div>
     </div>
-    <div class="field-m"><label>المنزل / رقم المبنى</label><input id="ord-house" type="text"></div>
+    <div class="field-m"><label>المنزل / رقم المبنى <span style="color:#c0392b">*</span></label><input id="ord-house" type="text" oninput="ordSync()"></div>
     <div class="field-m"><label>📍 رابط الموقع</label><input id="ord-location" type="text" placeholder="https://maps.google.com/..."></div>
 
     <!-- الدفع والمندوب -->
     <div class="form-row">
       <div class="field-m"><label>المبلغ (KD)</label><input id="ord-amount" type="number" step="0.001" min="0"></div>
       <div class="field-m"><label>الدفع</label>
-        <select id="ord-payment">
+        <select id="ord-payment" onchange="ordToggleAmount(true);ordSync()">
           <option value="cash">💵 كاش</option>
           <option value="knet">💳 Knet</option>
           <option value="paid">✅ مدفوع</option>
@@ -1098,9 +1098,10 @@ tbody tr[onclick]:active { background: #d8f0e2 !important; }
     <!-- حفظ العنوان القديم للتوافق -->
     <input type="hidden" id="ord-address">
 
+    <div id="ord-err" style="color:#c0392b;font-weight:700;font-size:.85rem;text-align:center;margin:8px 0 4px;display:none"></div>
     <div class="modal-actions">
       <button class="btn-cancel" onclick="closeModal('modal-order')">إلغاء</button>
-      <button class="btn-save" onclick="saveOrder()">حفظ</button>
+      <button class="btn-save" id="ord-save" onclick="saveOrder()">حفظ</button>
     </div>
   </div>
 </div>
@@ -2482,10 +2483,15 @@ window.openOrderModal = function(id){
     document.getElementById('ord-courier').value='';
   }
   openModal('modal-order');
+  ordShowErr('');
+  ordToggleAmount(false);
+  ordSync();
 };
 
 var _savingOrder=false;
 window.saveOrder = async function(){
+  var _err = ordValidate();
+  if(_err){ ordShowErr(_err); ordSync(); return; }
   if(_savingOrder)return; _savingOrder=true;
   try{
     var eid = document.getElementById('order-edit-id').value;
@@ -2521,6 +2527,58 @@ window.saveOrder = async function(){
     await autoSaveCustomer(data.clientName, data.phone, data.area, data.block, data.street||'', data.avenue||'', data.house||'', data.address, data.locationLink, !eid);
     closeModal('modal-order');
   }finally{_savingOrder=false;}
+};
+
+// ── تحقق إجباري لفورم إضافة الطلب ──
+// تعطيل/تفعيل خانة المبلغ: تتفعّل فقط مع كاش، ورمادية مع Knet/مدفوع
+window.ordToggleAmount = function(clearVal){
+  var pay = document.getElementById('ord-payment').value;
+  var amt = document.getElementById('ord-amount');
+  if(!amt) return;
+  if(pay === 'cash'){
+    amt.disabled = false;
+    amt.style.background=''; amt.style.opacity=''; amt.style.cursor='';
+  } else {
+    if(clearVal) amt.value='';
+    amt.disabled = true;
+    amt.style.background='#f0f0f0'; amt.style.opacity='.6'; amt.style.cursor='not-allowed';
+  }
+};
+
+// يرجّع أول رسالة خطأ، أو '' إذا كل شيء سليم
+window.ordValidate = function(){
+  var g = function(id){ var e=document.getElementById(id); return e?e.value.trim():''; };
+  if(!g('ord-ordernum')) return 'أدخل رقم الطلب';
+  var addrFields = ['ord-client','ord-phone','ord-area','ord-block','ord-street','ord-house'];
+  for(var i=0;i<addrFields.length;i++){ if(!g(addrFields[i])) return 'أكمل العنوان'; }
+  var pay = document.getElementById('ord-payment').value;
+  if(pay === 'cash'){
+    var amt = parseFloat(document.getElementById('ord-amount').value)||0;
+    if(amt <= 0) return 'أدخل مبلغ الطلب';
+  }
+  return '';
+};
+
+// عرض/إخفاء الرسالة الحمراء فوق زر الحفظ
+window.ordShowErr = function(msg){
+  var box = document.getElementById('ord-err');
+  if(!box) return;
+  if(msg){ box.textContent = msg; box.style.display='block'; }
+  else { box.textContent=''; box.style.display='none'; }
+};
+
+// تحديث مظهر زر الحفظ + الرسالة بشكل مباشر أثناء الكتابة
+window.ordSync = function(){
+  var err = ordValidate();
+  var valid = (err === '');
+  var btn = document.getElementById('ord-save');
+  if(btn){
+    btn.style.opacity = valid ? '' : '.5';
+    btn.style.cursor  = valid ? 'pointer' : 'not-allowed';
+  }
+  var box = document.getElementById('ord-err');
+  // إذا كانت الرسالة ظاهرة (المستخدم ضغط حفظ سابقاً) حدّثها للخطأ الحالي أو أخفها
+  if(box && box.style.display === 'block'){ ordShowErr(err); }
 };
 
 window.delOrder = async function(id){
@@ -3550,12 +3608,12 @@ window.openQuickOrder = function(custId){
 
     // حقول الطلب
     +'<div class="form-row">'
-      +'<div class="field-m"><label>رقم الطلب <span style="color:#c0392b">*</span></label><input id="qo-num" type="text" placeholder="مثال: 001" oninput="qoToggleSave()" style="width:100%;padding:9px;border:1.5px solid var(--border);border-radius:8px;font-family:Cairo,sans-serif"></div>'
+      +'<div class="field-m"><label>رقم الطلب</label><input id="qo-num" type="text" placeholder="مثال: 001" style="width:100%;padding:9px;border:1.5px solid var(--border);border-radius:8px;font-family:Cairo,sans-serif"></div>'
       +'<div class="field-m"><label>المبلغ (KD)</label><input id="qo-amount" type="number" step="0.001" min="0" placeholder="0.000" style="width:100%;padding:9px;border:1.5px solid var(--border);border-radius:8px;font-family:Cairo,sans-serif"></div>'
     +'</div>'
     +'<div class="form-row">'
-      +'<div class="field-m"><label>طريقة الدفع</label><select id="qo-payment" onchange="qoToggleAmount()" style="width:100%;padding:9px;border:1.5px solid var(--border);border-radius:8px;font-family:Cairo,sans-serif">'
-        +'<option value="cash">نقداً / Cash</option>'
+      +'<div class="field-m"><label>طريقة الدفع</label><select id="qo-payment" style="width:100%;padding:9px;border:1.5px solid var(--border);border-radius:8px;font-family:Cairo,sans-serif">'
+        +'<option value="cash">نقد / Cash</option>'
         +'<option value="knet">Knet</option>'
         +'<option value="free">مجاناً</option>'
       +'</select></div>'
@@ -3567,54 +3625,15 @@ window.openQuickOrder = function(custId){
 
     +'<div class="modal-actions" style="margin-top:14px">'
       +'<button class="btn-cancel" onclick="closeModal(\'modal-quick-order\')">إلغاء</button>'
-      +'<button class="btn-save" id="qo-save" onclick="saveQuickOrder(\''+custId+'\')">💾 حفظ وإرسال للطلبات</button>'
+      +'<button class="btn-save" onclick="saveQuickOrder(\''+custId+'\')">💾 حفظ وإرسال للطلبات</button>'
     +'</div>'
   +'</div></div>';
 
   document.body.insertAdjacentHTML('beforeend', html);
-  qoToggleAmount();
-  qoToggleSave();
-};
-
-// تفعيل/تعطيل خانة المبلغ حسب طريقة الدفع (تتفعّل فقط مع نقداً)
-window.qoToggleAmount = function(){
-  var pay = document.getElementById('qo-payment').value;
-  var amt = document.getElementById('qo-amount');
-  if(!amt) return;
-  if(pay === 'cash'){
-    amt.disabled = false;
-    amt.style.background = '';
-    amt.style.opacity = '';
-    amt.style.cursor = '';
-  } else {
-    amt.value = '';
-    amt.disabled = true;
-    amt.style.background = '#f0f0f0';
-    amt.style.opacity = '.6';
-    amt.style.cursor = 'not-allowed';
-  }
-};
-
-// تفعيل/تعطيل زر الحفظ حسب رقم الطلب (إجباري)
-window.qoToggleSave = function(){
-  var num = document.getElementById('qo-num');
-  var btn = document.getElementById('qo-save');
-  if(!num || !btn) return;
-  if(num.value.trim() !== ''){
-    btn.disabled = false;
-    btn.style.opacity = '';
-    btn.style.cursor = 'pointer';
-  } else {
-    btn.disabled = true;
-    btn.style.opacity = '.5';
-    btn.style.cursor = 'not-allowed';
-  }
 };
 
 var _savingQuickOrder = false;
 window.saveQuickOrder = async function(custId){
-  var _qn = document.getElementById('qo-num');
-  if(!_qn || _qn.value.trim() === ''){ toast('⚠️ أدخل رقم الطلب'); return; }
   if(_savingQuickOrder) return; _savingQuickOrder = true;
   try{
     var c = _customers.find(function(x){return x.id===custId;});
