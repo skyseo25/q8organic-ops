@@ -1106,6 +1106,17 @@ tbody tr[onclick]:active { background: #d8f0e2 !important; }
   </div>
 </div>
 
+<!-- Report Detail Modal -->
+<div class="overlay" id="modal-report-detail" style="align-items:flex-start;padding:20px 12px;overflow-y:auto">
+  <div class="modal" style="max-width:600px;max-height:88vh;overflow-y:auto">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+      <h3 style="margin:0">📋 تفاصيل التقرير</h3>
+      <button onclick="closeModal('modal-report-detail')" style="width:30px;height:30px;border-radius:50%;border:none;background:#f0f0f0;color:#666;cursor:pointer;font-size:.9rem;font-weight:700">✕</button>
+    </div>
+    <div id="report-detail-body"></div>
+  </div>
+</div>
+
 <!-- Invoice Modal -->
 <div class="overlay" id="modal-invoice">
   <div class="modal" style="max-width:640px;">
@@ -5670,7 +5681,7 @@ window.renderReports = function(){
   // رأس الجدول حسب الصلاحية
   var thAct = document.getElementById('rpt-th-actions');
   var canEdit = (_role==='manager'||_role==='supervisor');
-  if(thAct) thAct.textContent = canEdit ? 'إجراءات' : '';
+  if(thAct) thAct.textContent = 'إجراءات';
 
   // زر طباعة الكل للمدير/المشرف
   var printAllBtn = document.getElementById('rpt-print-all-btn');
@@ -5751,13 +5762,14 @@ window.renderReports = function(){
     // أزرار الإجراءات
     var actBtns = '';
     if(canEdit){
+      actBtns += '<button class="btn-edit-sm" style="margin-bottom:4px;background:var(--gl);color:var(--green);font-weight:800" onclick="openReportDetail(\''+u.id+'\',\''+range.from+'\',\''+range.to+'\')">👁 عرض</button> ';
       if(pendingBonuses.length>0){
         actBtns += '<button class="btn btn-green btn-sm" style="margin-bottom:4px" onclick="approveEmpBonus(\''+u.id+'\',\''+u.name+'\',\''+range.from+'\',\''+range.to+'\')">✅ اعتمدت</button> ';
       }
       actBtns += '<button class="btn-edit-sm" style="margin-bottom:4px" onclick="editEmpBonus(\''+u.id+'\',\''+u.name+'\',\''+range.from+'\',\''+range.to+'\')">✏️ تعديل المكافأة</button> ';
       actBtns += '<button class="btn btn-green btn-sm" style="margin-bottom:4px" onclick="settleReport(\''+u.id+'\',\''+u.name+'\',\''+range.from+'\',\''+range.to+'\')">🟢 تم إنهاء الحساب</button>';
     } else {
-      actBtns = '<span style="color:var(--muted2);font-size:.72rem">—</span>';
+      actBtns = '<button class="btn-edit-sm" style="background:var(--gl);color:var(--green);font-weight:800" onclick="openReportDetail(\''+u.id+'\',\''+range.from+'\',\''+range.to+'\')">👁 عرض</button>';
     }
 
     rows += '<tr>'
@@ -5792,6 +5804,113 @@ window.renderReports = function(){
   if(iriTbody) iriTbody.innerHTML=keys.map(function(k){
     return '<tr><td>'+k+'</td><td>'+months[k].count+'</td><td>'+months[k].total.toFixed(3)+' د.ك</td></tr>';
   }).join('')||'<tr><td colspan="3" class="empty">—</td></tr>';
+};
+
+// ── عرض تفاصيل تقرير موظف ضمن الفترة ──
+window.openReportDetail = function(empId, from, to){
+  var u = (_delUsers||[]).find(function(x){return x.id===empId;}) || {id:empId, name:empId, username:''};
+  var fromD = new Date(from+'T00:00:00'), toD = new Date(to+'T23:59:59');
+  var kd = function(n){ return (parseFloat(n)||0).toFixed(3)+' KD'; };
+
+  // طلبات التوصيل (نفس فلتر التقرير)
+  var myOrds = (_orders||[]).filter(function(o){
+    if(o.orderType==='inspection'||o.orderType==='service') return false;
+    if(o.courierId!==u.id && o.courierId!==u.username && o.courierName!==u.name) return false;
+    if(o.settled) return false;
+    var dt = o.deliveredAt&&o.deliveredAt.toDate?o.deliveredAt.toDate():o.updatedAt&&o.updatedAt.toDate?o.updatedAt.toDate():o.createdAt&&o.createdAt.toDate?o.createdAt.toDate():null;
+    if(!dt) return false;
+    return dt>=fromD && dt<=toD;
+  });
+
+  // مكافآت الخدمة/الكشف (نفس فلتر التقرير)
+  var myBonuses = (_svcBonuses||[]).filter(function(b){
+    if(b.settled) return false;
+    var dt = b.createdAt&&b.createdAt.toDate?b.createdAt.toDate():(b.createdAt?new Date(window.tsMs(b.createdAt)):null);
+    if(!dt || !(dt>=fromD && dt<=toD)) return false;
+    return (b.rows||[]).some(function(r){ return r.empId===u.id||r.empId===u.username||r.empName===u.name; });
+  });
+
+  var periodLbl = (from===to) ? from : (from+' — '+to);
+  var html = '<div style="background:var(--gl);border-radius:10px;padding:12px;margin-bottom:14px">'
+    +'<div style="font-weight:900;font-size:1.05rem">'+(u.name||'')+'</div>'
+    +'<div style="font-size:.8rem;color:var(--muted)">📅 الفترة: '+periodLbl+'</div>'
+  +'</div>';
+
+  // قسم التمديدات والصيانة (كل وظيفة بتفاصيلها)
+  html += '<div style="font-size:.9rem;font-weight:800;color:var(--green);margin:6px 0 8px">🔧 التمديدات والصيانة ('+myBonuses.length+')</div>';
+  if(!myBonuses.length){
+    html += '<div style="font-size:.82rem;color:var(--muted2);padding:6px 0 12px">لا توجد أعمال تمديد/صيانة في هذه الفترة</div>';
+  } else {
+    myBonuses.forEach(function(b){
+      var quote = (_quotes||[]).find(function(q){ return b.orderId && q.orderId===b.orderId; });
+      var insp  = (_inspections||[]).find(function(i){ return b.inspId && i.id===b.inspId; });
+      var ord   = (_orders||[]).find(function(o){ return b.orderId && o.id===b.orderId; });
+      var assignee = (insp&&(insp.empName||insp.techName)) || (ord&&(ord.techName||ord.courierName)) || '';
+      if(!assignee){ var tr=(b.rows||[]).find(function(r){return r.role==='tech';}); assignee = tr?tr.empName:''; }
+      var phone = b.phone || (ord&&ord.phone) || (insp&&insp.phone) || '';
+      var addr  = (ord&&ord.address) || (insp&&insp.address) || '';
+      var sub = quote ? parseFloat(quote.subtotal||0) : 0;
+      var disc = quote ? parseFloat(quote.discount||0) : 0;
+      var fin = quote ? (parseFloat(quote.total||0) || (sub-disc)) : 0;
+      var pct = sub>0 ? (disc/sub*100) : 0;
+
+      var itemsHtml = (quote && quote.items && quote.items.length)
+        ? quote.items.map(function(it){
+            var lt = parseFloat(it.lineTotal||0) || ((parseFloat(it.qty||0))*(parseFloat(it.price||0)));
+            return '<div style="display:flex;justify-content:space-between;font-size:.76rem;padding:3px 0;border-bottom:1px dashed var(--border)"><span>'+(it.nameAr||it.nameEn||'صنف')+' <span style="color:var(--muted2)">×'+(it.qty||0)+'</span></span><span style="color:var(--gold);font-weight:700">'+lt.toFixed(3)+' KD</span></div>';
+          }).join('')
+        : '<div style="font-size:.76rem;color:var(--muted2)">لا يوجد عرض سعر مرتبط</div>';
+
+      var teamHtml = (b.rows||[]).map(function(r){
+        var roleLbl = r.role==='tech' ? '👷 الفني' : '🤝 مساعد';
+        return '<div style="display:flex;justify-content:space-between;font-size:.78rem;padding:3px 0"><span>'+roleLbl+' — '+(r.empName||'')+' <span style="color:var(--muted2)">('+(r.billedHours||r.hours||0)+' ساعة)</span></span><span style="color:var(--green);font-weight:700">'+kd(r.amount)+'</span></div>';
+      }).join('');
+
+      var settleLbl = b.settled
+        ? '<span style="color:var(--green);font-weight:800">✅ تم إنهاء الحساب</span>'
+        : (b.status==='approved'
+            ? '<span style="color:var(--gold);font-weight:800">🟡 معتمد — لم يُنهَ الحساب</span>'
+            : '<span style="color:var(--muted);font-weight:800">🔄 بانتظار الاعتماد</span>');
+
+      html += '<div style="border:1.5px solid var(--border);border-radius:12px;padding:12px;margin-bottom:12px">'
+        +'<div style="font-weight:800;font-size:.9rem;margin-bottom:2px">'+(b.clientName||'—')+' <span style="color:var(--muted2);font-weight:600;font-size:.76rem">· '+(b.inspTypeAr||'كشف')+'</span></div>'
+        +'<div style="font-size:.76rem;color:var(--muted)">📞 '+(phone||'—')+(addr?(' · 📍 '+addr):'')+'</div>'
+        +'<div style="font-size:.76rem;color:var(--muted);margin-bottom:8px">👤 المكلف بالكشف: <b>'+(assignee||'—')+'</b></div>'
+
+        +'<div style="font-size:.78rem;font-weight:800;color:var(--green);margin-bottom:2px">🧰 الأدوات والأصناف</div>'
+        +itemsHtml
+
+        +'<div style="display:flex;justify-content:space-between;font-size:.78rem;margin-top:8px"><span style="color:var(--muted)">السعر الأولي</span><b>'+kd(sub)+'</b></div>'
+        +'<div style="display:flex;justify-content:space-between;font-size:.78rem"><span style="color:var(--muted)">الخصم</span><b>'+kd(disc)+' ('+pct.toFixed(1)+'%)</b></div>'
+        +'<div style="display:flex;justify-content:space-between;font-size:.85rem;border-top:1px solid var(--gm);padding-top:6px;margin-top:4px"><span style="font-weight:800">السعر النهائي</span><span style="font-weight:900;color:var(--green)">'+kd(fin)+'</span></div>'
+
+        +'<div style="font-size:.78rem;font-weight:800;color:var(--green);margin:10px 0 2px">⏱ ساعات العمل: <b>'+(b.hours||0)+'</b></div>'
+        +'<div style="font-size:.78rem;font-weight:800;color:var(--green);margin-bottom:2px">🧑‍🔧 الفني والمساعدون والمكافآت</div>'
+        +teamHtml
+        +'<div style="display:flex;justify-content:space-between;font-size:.78rem;border-top:1px dashed var(--border);padding-top:4px;margin-top:4px"><span>مجموع المكافآت</span><b style="color:var(--gold)">'+kd(b.totalBonus)+'</b></div>'
+
+        +'<div style="margin-top:10px;padding-top:8px;border-top:1px solid var(--gm);font-size:.8rem">💰 حالة الحساب: '+settleLbl+'</div>'
+      +'</div>';
+    });
+  }
+
+  // قسم التوصيل
+  var delivered = myOrds.filter(function(o){return o.status==='delivered';}).length;
+  html += '<div style="font-size:.9rem;font-weight:800;color:var(--green);margin:6px 0 8px">🚚 التوصيل ('+delivered+'/'+myOrds.length+')</div>';
+  if(!myOrds.length){
+    html += '<div style="font-size:.82rem;color:var(--muted2);padding:6px 0 4px">لا توجد طلبات توصيل في هذه الفترة</div>';
+  } else {
+    html += '<div style="border:1.5px solid var(--border);border-radius:12px;padding:10px">'
+      + myOrds.map(function(o){
+          var pay = o.paymentType==='knet'?'💳 Knet':(o.paymentType==='free'?'مجاناً':'💵 كاش');
+          return '<div style="display:flex;justify-content:space-between;font-size:.78rem;padding:4px 0;border-bottom:1px dashed var(--border)"><span>'+(o.clientName||'—')+(o.orderNum?(' · '+o.orderNum):'')+' <span style="color:var(--muted2)">'+pay+'</span></span><span>'+(o.status==='delivered'?'✅ ':'⏳ ')+kd(o.amount)+'</span></div>';
+        }).join('')
+    +'</div>';
+  }
+
+  var bodyEl = document.getElementById('report-detail-body');
+  if(bodyEl) bodyEl.innerHTML = html;
+  openModal('modal-report-detail');
 };
 
 // اعتماد كل مكافآت موظف ضمن الفترة (للمدير أو المشرف)
