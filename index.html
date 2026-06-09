@@ -2123,14 +2123,20 @@ function renderDashboard(){
   var activeDelivery = _orders.filter(function(o){
     return o.orderType!=='inspection' && o.status!=='delivered' && o.status!=='returned' && !o.archived;
   }).length;
-  var activeInsp = _orders.filter(function(o){
+  // الكشوفات النشطة: del_orders(كشف) + iri_inspections التي ليس لها مثيل — نفس منطق صفحة الطلبات لمنع العدّ المزدوج
+  var inspOrdersActive = _orders.filter(function(o){
     return o.orderType==='inspection' && o.status!=='closed' && o.status!=='delivered' && !o.archived;
-  }).length + (_inspections||[]).filter(function(i){
-    return i.status!=='closed' && !i.archived;
-  }).length;
+  });
+  var inspKeysActive = {};
+  inspOrdersActive.forEach(function(o){ inspKeysActive[(o.phone||'')+'|'+(o.clientName||'')] = 1; });
+  var extraInspActive = (_inspections||[]).filter(function(i){
+    return i.status!=='closed' && !i.archived && !inspKeysActive[(i.phone||'')+'|'+(i.client||'')];
+  });
+  var activeInsp = inspOrdersActive.length + extraInspActive.length;
 
   // ── كارت 2: طلبات اليوم ──
   var todayOrders = _orders.filter(function(o){
+    if(o.orderType==='inspection' || o.archived) return false;
     var dt = o.createdAt&&o.createdAt.toDate?o.createdAt.toDate():null;
     return dt && dt.toDateString()===todayStr;
   }).length;
@@ -2233,14 +2239,19 @@ function renderDashboard(){
         +'<span style="font-size:.82rem;color:var(--muted)">🔧 كشف وصيانة اليوم</span>'
         +'<span style="font-weight:800">'+(function(){
           var s=todayStr;
-          return _orders.filter(function(o){
-            if(o.orderType!=='inspection') return false;
+          var io = _orders.filter(function(o){
+            if(o.orderType!=='inspection' || o.archived) return false;
             var dt=o.createdAt&&o.createdAt.toDate?o.createdAt.toDate():null;
             return dt&&dt.toDateString()===s;
-          }).length + (_inspections||[]).filter(function(i){
+          });
+          var ik={}; io.forEach(function(o){ ik[(o.phone||'')+'|'+(o.clientName||'')]=1; });
+          var ie = (_inspections||[]).filter(function(i){
+            if(i.archived) return false;
+            if(ik[(i.phone||'')+'|'+(i.client||'')]) return false;
             var dt=i.createdAt&&i.createdAt.toDate?i.createdAt.toDate():null;
             return dt&&dt.toDateString()===s;
-          }).length;
+          });
+          return io.length + ie.length;
         }())+'</span>'
       +'</div>'
       // حالات الطلبات النشطة اليوم
