@@ -4778,11 +4778,15 @@ window.renderItemsCatalog = function(){
   var grid = document.getElementById('items-catalog-grid');
   if(!grid) return;
 
+  // الموظف يشوف الفعّال فقط؛ المدير والمشرف يشوفون المعلّق أيضاً
+  var hideSusp = (_role==='employee');
+
   // تجميع حسب القسم
   var cats = {};
   _items.forEach(function(it){
     var cat = it.category||'أخرى';
     if(cat==='تمديدات وخدمات') cat='تمديدات';
+    if(hideSusp && (it.suspended || catSuspended(cat))) return; // إخفاء المعلّق عن الموظف
     if(!cats[cat]) cats[cat] = [];
     cats[cat].push(it);
   });
@@ -4791,6 +4795,7 @@ window.renderItemsCatalog = function(){
   var orderedCats = [];
   _itemCats.forEach(function(c){ if(orderedCats.indexOf(c.name)<0) orderedCats.push(c.name); });
   Object.keys(cats).forEach(function(c){ if(orderedCats.indexOf(c)<0) orderedCats.push(c); });
+  if(hideSusp){ orderedCats = orderedCats.filter(function(c){ return !catSuspended(c); }); }
 
   if(!orderedCats.length){
     grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:30px;color:var(--muted2)">لا توجد أصناف — أضف صنفاً جديداً</div>';
@@ -4920,14 +4925,10 @@ window.renderInvoiceItems = function(){
   if(sub) sub.textContent = subtotal.toFixed(3)+' KD';
   if(laborRow) laborRow.style.display = hasLabor ? 'flex' : 'none';
   if(lab) lab.textContent = laborTotal.toFixed(3)+' KD';
-  if(laborWarn) laborWarn.style.display = hasLabor ? 'none' : '';
+  if(laborWarn) laborWarn.style.display = 'none';
 
-  // الإجمالي يُحسب فقط لو فيه عمالة
-  if(hasLabor){
-    if(tot){ tot.textContent = subtotal.toFixed(3)+' KD'; tot.style.color='var(--green)'; }
-  } else {
-    if(tot){ tot.textContent = '—'; tot.style.color='var(--muted2)'; }
-  }
+  // الإجمالي يُحسب دائماً (لا يتطلب أجور عمالة)
+  if(tot){ tot.textContent = subtotal.toFixed(3)+' KD'; tot.style.color='var(--green)'; }
   // زر احسب الآن — يظهر لو فيه أصناف وفيه طلب كشف مرتبط
   var calcWrap = document.getElementById('calc-now-wrap');
   if(calcWrap) calcWrap.style.display = (_invoiceItems.length && _currentInspOrderId) ? '' : 'none';
@@ -4963,6 +4964,12 @@ window.saveInvoiceItems = async function(){
 };
 
 window.renderItems = function(){
+  // أزرار الإضافة: تظهر للمدير والمشرف فقط (تختفي عن الموظف)
+  var canManageItems = (_role==='manager' || _role==='supervisor');
+  var addItemBtn = document.getElementById('btn-add-item');
+  var addCatBtn  = document.getElementById('btn-add-cat');
+  if(addItemBtn) addItemBtn.style.display = canManageItems ? '' : 'none';
+  if(addCatBtn)  addCatBtn.style.display  = canManageItems ? '' : 'none';
   // بانر الطلب المرتبط
   var banner = document.getElementById('items-order-banner');
   if(banner) banner.style.display = _currentInspOrderId ? '' : 'none';
@@ -5000,7 +5007,6 @@ window.openQuotePage = function(){
     +'<div style="margin-bottom:12px">'+rows+'</div>'
     +'<div style="background:#fff;border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px">'
       +'<div style="display:flex;justify-content:space-between;margin-bottom:10px"><span style="color:var(--muted)">المجموع</span><span id="qt-subtotal" style="font-weight:700">'+subtotal.toFixed(3)+' KD</span></div>'
-      +(!hasLabor?'<div style="background:#fff5e0;border-radius:8px;padding:8px 12px;font-size:.78rem;color:var(--gold);margin-bottom:10px">⚠️ لم تتم إضافة أجور العمالة</div>':'')
       // خصم المندوب (10% max)
       +'<div style="margin-bottom:8px"><label style="font-size:.78rem;font-weight:700;color:var(--muted);margin-bottom:4px;display:block">خصم المندوب (الحد الأقصى 10% = '+maxDiscount.toFixed(3)+' KD)</label>'
       +'<input id="qt-discount" type="number" step="0.001" min="0" max="'+maxDiscount+'" placeholder="0.000" oninput="updateQuoteTotal('+subtotal+','+maxDiscount+')" style="width:100%;padding:9px;border:1.5px solid var(--border);border-radius:8px;font-family:Cairo,sans-serif"></div>'
